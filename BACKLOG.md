@@ -68,12 +68,17 @@
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E3-01 | En tant qu'utilisateur, je veux charger un GLB par drag & drop afin d'ouvrir mon modèle sans manipulation. | Déposer un `.glb` sur la fenêtre charge le modèle ; feedback visuel pendant le drop et le chargement. | M | 3 |
-| E3-02 | En tant qu'utilisateur, je veux charger un GLB via un file picker afin d'avoir une alternative au drag & drop. | Bouton « Ouvrir » → sélection fichier → modèle chargé. | M | 2 |
-| E3-03 | En tant que dev, je veux parser les `extras` de chaque node (layer, type, zone, level) afin d'alimenter le store. | Après chargement, chaque mesh est rattaché à son calque ; nodes sans `extras` regroupés dans un calque « non classé ». | M | 3 |
-| E3-04 | En tant que dev, je veux lire les `extras` de la scène racine afin de construire la config des calques (couleurs, labels, visibilité initiale). | Le panneau de calques reflète exactement la config embarquée dans le GLB. | M | 2 |
-| E3-05 | En tant qu'utilisateur, je veux un message d'erreur clair si le fichier est invalide (pas un GLB, extras absents, GLB corrompu) afin de comprendre le problème. | Erreur affichée dans l'UI (pas seulement console) ; l'app reste utilisable ; cas « GLB sans extras » signalé comme « fichier non passé par le pipeline ». | M | 2 |
-| E3-06 | En tant que dev, je veux supporter les GLB compressés Draco/KTX2 afin de charger la sortie du pipeline. | DRACOLoader et KTX2Loader configurés (decoders servis localement) ; `maison.glb` compressé se charge. | M | 2 |
+| E3-01 ✅ | En tant qu'utilisateur, je veux charger un GLB par drag & drop afin d'ouvrir mon modèle sans manipulation. | Déposer un `.glb` sur la fenêtre charge le modèle ; feedback visuel pendant le drop et le chargement. | M | 3 |
+| E3-02 ✅ | En tant qu'utilisateur, je veux charger un GLB via un file picker afin d'avoir une alternative au drag & drop. | Bouton « Ouvrir » → sélection fichier → modèle chargé. | M | 2 |
+| E3-03 ✅ | En tant que dev, je veux parser les `extras` de chaque node (layer, type, zone, level) afin d'alimenter le store. | Après chargement, chaque mesh est rattaché à son calque ; nodes sans `extras` regroupés dans un calque « non classé ». | M | 3 |
+| E3-04 ✅ | En tant que dev, je veux lire les `extras` de la scène racine afin de construire la config des calques (couleurs, labels, visibilité initiale). | Le panneau de calques reflète exactement la config embarquée dans le GLB. | M | 2 |
+| E3-05 ✅ | En tant qu'utilisateur, je veux un message d'erreur clair si le fichier est invalide (pas un GLB, extras absents, GLB corrompu) afin de comprendre le problème. | Erreur affichée dans l'UI (pas seulement console) ; l'app reste utilisable ; cas « GLB sans extras » signalé comme « fichier non passé par le pipeline ». | M | 2 |
+| E3-06 ✅ | En tant que dev, je veux supporter les GLB compressés Draco/KTX2 afin de charger la sortie du pipeline. | DRACOLoader et KTX2Loader configurés (decoders servis localement) ; `maison.glb` compressé se charge. | M | 2 |
+
+> **S3 terminé le 2026-06-12** — chargement drag & drop / picker (`GLBLoader.jsx`), parse des
+> extras + erreurs UI (`Model.jsx`, `lib/loadModel.js`), décodeurs Draco/Basis servis localement
+> (copiés depuis `three` par `script/copy-decoders.mjs` en postinstall, gitignorés).
+> Visibilité initiale des calques appliquée depuis les extras scène (le panneau UI arrive en S4/E5).
 
 ---
 
@@ -83,8 +88,8 @@
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E4-01 | En tant qu'utilisateur, je veux orbiter, zoomer et panner autour de la maison afin de l'inspecter sous tous les angles. | `OrbitControls` (Drei) : orbite clic gauche, pan clic droit/molette pressée, zoom molette ; cible centrée sur le modèle au chargement. | M | 2 |
-| E4-02 | En tant qu'utilisateur, je veux un éclairage et un environnement par défaut corrects afin de distinguer les volumes sans configuration. | Lumière ambiante + directionnelle (ou environnement Drei) ; pas de faces noires ; sol/grille de référence optionnelle. | M | 2 |
+| E4-01 ✅ | En tant qu'utilisateur, je veux orbiter, zoomer et panner autour de la maison afin de l'inspecter sous tous les angles. | `OrbitControls` (Drei) : orbite clic gauche, pan clic droit/molette pressée, zoom molette ; cible centrée sur le modèle au chargement. | M | 2 |
+| E4-02 ✅ | En tant qu'utilisateur, je veux un éclairage et un environnement par défaut corrects afin de distinguer les volumes sans configuration. | Lumière ambiante + directionnelle (ou environnement Drei) ; pas de faces noires ; sol/grille de référence optionnelle. | M | 2 |
 | E4-03 | En tant qu'utilisateur, je veux que la caméra se recadre automatiquement sur le modèle chargé afin de ne jamais « perdre » la maison. | Au chargement : caméra positionnée pour cadrer la bounding box ; bouton/raccourci « recentrer ». | S | 2 |
 | E4-04 | En tant qu'utilisateur, je veux une UI sobre (canvas plein écran, panneaux latéraux) afin de me concentrer sur le modèle. | Canvas plein écran responsive ; panneaux calques/infos superposés ou ancrés ; pas de scroll parasite. | S | 3 |
 
@@ -122,7 +127,7 @@
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E7-01 | En tant que dev, je veux un store Zustand unique conforme au schéma du CdC (`glb`, `metadata`, `layers`, `toggleLayer`, `selectedNode`, `selectNode`) afin de centraliser l'état. | Store implémenté ; composants connectés via sélecteurs (pas de re-render global). | M | 3 |
+| E7-01 ✅ | En tant que dev, je veux un store Zustand unique conforme au schéma du CdC (`glb`, `metadata`, `layers`, `toggleLayer`, `selectedNode`, `selectNode`) afin de centraliser l'état. | Store implémenté ; composants connectés via sélecteurs (pas de re-render global). | M | 3 |
 | E7-02 | En tant que dev, je veux que les mutations d'état passent par des actions nommées (pré-command-pattern) afin de faciliter l'ajout de `zundo` en V2. | Aucune mutation directe hors actions ; emplacements `history`/`future`/`push`/`undo`/`redo` documentés en commentaire. | S | 2 |
 | E7-03 | En tant que dev, je veux traiter les node names comme identifiants immuables (clé de liaison GLB ↔ extras) afin de garantir la cohérence V2. | Le code référence les objets par node name ; aucune fonctionnalité ne renomme un node. | M | 1 |
 
