@@ -1,16 +1,38 @@
-# React + Vite
+# Home3D Viewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Viewer 3D web d'une maison avec calques techniques (structure, électricité,
+plomberie, VMC, réseau…). Cf. `../HTD_cahier_des_charges.md` et `../BACKLOG.md`.
 
-Currently, two official plugins are available:
+Stack : Vite + React + React Three Fiber + Drei + Zustand.
+Format : GLB enrichi de métadonnées `extras` par le pipeline.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Démarrer
 
-## React Compiler
+```bash
+npm install        # copie aussi les décodeurs Draco/Basis dans public/ (postinstall)
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Puis charger un GLB par drag & drop ou via « Ouvrir un GLB… ».
+Seuls les GLB passés par le pipeline (extras présents) sont acceptés.
 
-## Expanding the ESLint configuration
+## Pipeline GLB
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run model:test                                 # génère public/models/maison_raw.glb
+npm run process -- public/models/maison_raw.glb    # → public/models/maison.glb
+```
+
+Le pipeline (`script/process.mjs`) valide la convention de nommage des nodes,
+injecte les `extras` (node + scène), applique Draco et affiche le budget taille.
+Workflow SketchUp complet : `docs/workflow-sketchup.md`.
+
+## Scripts
+
+| Script                              | Rôle                                                      |
+| ----------------------------------- | --------------------------------------------------------- |
+| `npm run dev` / `build` / `preview` | Vite                                                      |
+| `npm run lint` / `format`           | ESLint / Prettier                                         |
+| `npm run model:test`                | Génère le GLB de test (option `--invalid`)                |
+| `npm run process`                   | Pipeline GLB (validation + extras + Draco)                |
+| `postinstall`                       | Copie les décodeurs Draco/Basis de `three` vers `public/` |

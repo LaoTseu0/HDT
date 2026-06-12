@@ -1,4 +1,6 @@
 dist
 node_modules
 public/models
+public/draco
+public/basis
 package-lock.json
