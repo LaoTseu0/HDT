@@ -6,7 +6,8 @@ import prettier from 'eslint-config-prettier'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // public/draco et public/basis : décodeurs vendor copiés depuis three
+  globalIgnores(['dist', 'public/draco', 'public/basis']),
   {
     files: ['**/*.{js,jsx,mjs}'],
     extends: [

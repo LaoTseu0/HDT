@@ -16,6 +16,10 @@ dist-ssr
 public/models/*
 !public/models/.gitkeep
 
+# Décodeurs Draco/Basis copiés depuis three en postinstall (script/copy-decoders.mjs)
+public/draco
+public/basis
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

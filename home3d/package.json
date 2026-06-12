@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "preview": "vite preview",
     "model:test": "node script/make-test-model.mjs",
-    "process": "node script/process.mjs"
+    "process": "node script/process.mjs",
+    "postinstall": "node script/copy-decoders.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

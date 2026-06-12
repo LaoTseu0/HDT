@@ -11,11 +11,139 @@ body,
   overflow: hidden;
 }
 
-/* Canvas 3D plein écran ; les panneaux (calques, infos) viendront
+/* Canvas 3D plein écran ; les panneaux (calques, infos) viennent
    se superposer en position absolute. */
 .app {
   position: relative;
   width: 100%;
   height: 100%;
   background: #16171d;
+}
+
+button {
+  padding: 8px 14px;
+  border: 1px solid #3a3d4a;
+  border-radius: 6px;
+  background: #262936;
+  color: #e8e9ee;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #313548;
+}
+
+button.secondary {
+  background: transparent;
+}
+
+/* Barre d'outils (ouvrir un fichier, nom du modèle chargé) */
+.toolbar {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 10;
+}
+
+.toolbar-file {
+  font-size: 13px;
+  color: #9aa0b0;
+}
+
+/* Erreurs de chargement (E3-05) */
+.error-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(680px, calc(100% - 32px));
+  padding: 10px 14px;
+  border: 1px solid #a33;
+  border-radius: 8px;
+  background: #3a1d22;
+  color: #ffb4b4;
+  font-size: 14px;
+  z-index: 30;
+}
+
+.error-banner button {
+  padding: 2px 8px;
+  border: none;
+  background: transparent;
+  color: #ffb4b4;
+}
+
+.loading-badge {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #262936;
+  color: #c8cbd6;
+  font-size: 13px;
+  z-index: 20;
+}
+
+/* État vide : invite au drag & drop / file picker */
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.empty-card {
+  pointer-events: auto;
+  padding: 32px 40px;
+  border: 1px dashed #3a3d4a;
+  border-radius: 12px;
+  background: rgba(22, 23, 29, 0.85);
+  text-align: center;
+}
+
+.empty-card h1 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  color: #e8e9ee;
+}
+
+.empty-card p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #9aa0b0;
+}
+
+.empty-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+/* Surbrillance pendant le drag d'un fichier (E3-01) */
+.drop-overlay {
+  position: absolute;
+  inset: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #378add;
+  border-radius: 12px;
+  background: rgba(55, 138, 221, 0.12);
+  color: #cfe4f8;
+  font-size: 18px;
+  pointer-events: none;
+  z-index: 40;
 }
