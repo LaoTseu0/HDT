@@ -101,10 +101,14 @@
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E5-01 | En tant qu'utilisateur, je veux un panneau listant les calques (label + couleur issus des extras scène) afin de voir les systèmes disponibles. | Les 7 calques affichés avec label FR et pastille couleur ; état initial = champ `visible` des extras. | M | 3 |
-| E5-02 | En tant qu'utilisateur, je veux toggler la visibilité d'un calque afin d'isoler un système (ex : voir seulement l'électricité). | Click sur un calque → `group.visible` bascule ; rendu immédiat ; état persisté dans le store. | M | 3 |
-| E5-03 | En tant qu'utilisateur, je veux des actions « tout afficher / tout masquer / isoler ce calque » afin de manipuler les calques rapidement. | Boutons fonctionnels ; « isoler » masque tous les autres calques. | S | 2 |
-| E5-04 | En tant qu'utilisateur, je veux activer une colorisation des objets par calque afin d'identifier visuellement chaque système. | Toggle global « couleurs par calque » : ON = matériau teinté par la couleur du calque, OFF = matériaux d'origine ; réversible sans rechargement. | M | 3 |
+| E5-01 ✅ | En tant qu'utilisateur, je veux un panneau listant les calques (label + couleur issus des extras scène) afin de voir les systèmes disponibles. | Les 7 calques affichés avec label FR et pastille couleur ; état initial = champ `visible` des extras. | M | 3 |
+| E5-02 ✅ | En tant qu'utilisateur, je veux toggler la visibilité d'un calque afin d'isoler un système (ex : voir seulement l'électricité). | Click sur un calque → `group.visible` bascule ; rendu immédiat ; état persisté dans le store. | M | 3 |
+| E5-03 ✅ | En tant qu'utilisateur, je veux des actions « tout afficher / tout masquer / isoler ce calque » afin de manipuler les calques rapidement. | Boutons fonctionnels ; « isoler » masque tous les autres calques. | S | 2 |
+| E5-04 ✅ | En tant qu'utilisateur, je veux activer une colorisation des objets par calque afin d'identifier visuellement chaque système. | Toggle global « couleurs par calque » : ON = matériau teinté par la couleur du calque, OFF = matériaux d'origine ; réversible sans rechargement. | M | 3 |
+
+> **S4 (E5) terminé le 2026-06-12** — `LayerPanel.jsx` (toggle, Tout/Aucun, Isoler, couleurs
+> par calque) ; application sur la scène dans `lib/appearance.js` (matériaux teintés partagés
+> par calque, matériaux d'origine conservés → réversible sans rechargement).
 
 ---
 
@@ -114,9 +118,9 @@
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E6-01 | En tant qu'utilisateur, je veux cliquer sur un objet 3D afin de le sélectionner. | Raycasting via events R3F ; l'objet sélectionné est mis en évidence (outline ou émissive) ; click dans le vide désélectionne. | M | 3 |
-| E6-02 | En tant qu'utilisateur, je veux voir les infos de l'objet sélectionné (layer, type, zone, niveau, index, dims, material, notes) afin de consulter ses caractéristiques. | `InfoPanel` affiche les `extras` formatés (labels FR) ; champs vides masqués ou grisés ; nom de node complet visible. | M | 2 |
-| E6-03 | En tant qu'utilisateur, je veux que la sélection respecte la visibilité des calques afin de ne pas sélectionner un objet masqué. | Le raycasting ignore les objets des calques masqués. | M | 1 |
+| E6-01 ✅ | En tant qu'utilisateur, je veux cliquer sur un objet 3D afin de le sélectionner. | Raycasting via events R3F ; l'objet sélectionné est mis en évidence (outline ou émissive) ; click dans le vide désélectionne. | M | 3 |
+| E6-02 ✅ | En tant qu'utilisateur, je veux voir les infos de l'objet sélectionné (layer, type, zone, niveau, index, dims, material, notes) afin de consulter ses caractéristiques. | `InfoPanel` affiche les `extras` formatés (labels FR) ; champs vides masqués ou grisés ; nom de node complet visible. | M | 2 |
+| E6-03 ✅ | En tant qu'utilisateur, je veux que la sélection respecte la visibilité des calques afin de ne pas sélectionner un objet masqué. | Le raycasting ignore les objets des calques masqués. | M | 1 |
 | E6-04 | En tant qu'utilisateur, je veux un survol (hover) avec mise en évidence légère afin de savoir ce que je vais sélectionner. | Highlight au hover + curseur pointer ; pas de chute de framerate notable. | C | 2 |
 
 ---
@@ -128,8 +132,15 @@
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E7-01 ✅ | En tant que dev, je veux un store Zustand unique conforme au schéma du CdC (`glb`, `metadata`, `layers`, `toggleLayer`, `selectedNode`, `selectNode`) afin de centraliser l'état. | Store implémenté ; composants connectés via sélecteurs (pas de re-render global). | M | 3 |
-| E7-02 | En tant que dev, je veux que les mutations d'état passent par des actions nommées (pré-command-pattern) afin de faciliter l'ajout de `zundo` en V2. | Aucune mutation directe hors actions ; emplacements `history`/`future`/`push`/`undo`/`redo` documentés en commentaire. | S | 2 |
-| E7-03 | En tant que dev, je veux traiter les node names comme identifiants immuables (clé de liaison GLB ↔ extras) afin de garantir la cohérence V2. | Le code référence les objets par node name ; aucune fonctionnalité ne renomme un node. | M | 1 |
+| E7-02 ✅ | En tant que dev, je veux que les mutations d'état passent par des actions nommées (pré-command-pattern) afin de faciliter l'ajout de `zundo` en V2. | Aucune mutation directe hors actions ; emplacements `history`/`future`/`push`/`undo`/`redo` documentés en commentaire. | S | 2 |
+| E7-03 ✅ | En tant que dev, je veux traiter les node names comme identifiants immuables (clé de liaison GLB ↔ extras) afin de garantir la cohérence V2. | Le code référence les objets par node name ; aucune fonctionnalité ne renomme un node. | M | 1 |
+
+> **S4 (E6/E7) terminé le 2026-06-12** — sélection au clic avec surbrillance émissive
+> (`Model.jsx` + `lib/appearance.js`), désélection au clic dans le vide (`Viewer.jsx`,
+> avec garde anti-drag d'orbite), raycast filtré sur la visibilité (le raycaster three.js
+> ne teste pas `visible` nativement). `InfoPanel.jsx` : extras formatés labels FR.
+> Store : actions nommées `setAllLayersVisible`/`isolateLayer`/`toggleColorByLayer` ;
+> sélection référencée par node name (immuable). E5-03 fait en S4 (retiré du S5).
 
 ---
 
@@ -188,7 +199,7 @@ Non détaillé volontairement. À cadrer après livraison V2.
 | S2 — Pipeline complet | Extras + compression + modèle de test | E2-04, E2-05, E2-06, E2-08, E9-02 |
 | S3 — Viewer | Chargement + navigation | E3-01 → E3-06, E4-01, E4-02, E7-01 |
 | S4 — Calques & sélection | Cœur fonctionnel V1 | E5-01 → E5-04, E6-01 → E6-03, E7-02, E7-03 |
-| S5 — Finitions | UX, qualité, mesure perf | E4-03, E4-04, E5-03, E6-04, E1-04, E2-07, E2-09, E8-01 |
+| S5 — Finitions | UX, qualité, mesure perf | E4-03, E4-04, E6-04, E1-04, E2-07, E2-09, E8-01 |
 
 **Definition of Done V1** : les 7 points du « scope exact » du cahier des charges sont démontrables avec un GLB réel exporté de SketchUp et passé par le pipeline.
 

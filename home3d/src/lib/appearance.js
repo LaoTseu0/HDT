@@ -1,0 +1,94 @@
+// Application de l'état des calques et de la sélection sur la scène three.js
+// (E5-02, E5-04, E6-01). Une seule passe récursive gère :
+//   - la visibilité par calque (object.visible sur le porteur du layer)
+//   - la colorisation par calque (matériau teinté partagé par calque)
+//   - la surbrillance de l'objet sélectionné (clone émissif par mesh)
+// Les matériaux d'origine sont conservés sur chaque mesh : tout est
+// réversible sans rechargement du GLB.
+
+import * as THREE from 'three'
+
+// Caches par scène : matériaux teintés (un par calque, partagé entre meshes)
+// et clones émissifs de la sélection courante (à disposer à chaque passe).
+const caches = new WeakMap()
+
+function getCache(scene) {
+  let cache = caches.get(scene)
+  if (!cache) {
+    cache = { layerMaterials: new Map(), highlightMaterials: [] }
+    caches.set(scene, cache)
+  }
+  return cache
+}
+
+function getLayerMaterial(cache, layerId, color) {
+  let material = cache.layerMaterials.get(layerId)
+  if (!material) {
+    material = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.85,
+      metalness: 0,
+    })
+    cache.layerMaterials.set(layerId, material)
+  }
+  return material
+}
+
+/**
+ * Synchronise la scène avec l'état du store.
+ *
+ * @param scene scène du GLB chargé
+ * @param layers config des calques { id: { visible, color, label } }
+ * @param colorByLayer toggle global « couleurs par calque » (E5-04)
+ * @param selectedNode node name sélectionné, ou null (E6-01)
+ */
+export function applyAppearance(scene, { layers, colorByLayer, selectedNode }) {
+  const cache = getCache(scene)
+
+  // Les clones émissifs de la passe précédente ne servent plus.
+  for (const material of cache.highlightMaterials) material.dispose()
+  cache.highlightMaterials.length = 0
+
+  const walk = (object, inheritedLayer, inheritedSelected) => {
+    const ownLayer = object.userData?.layer
+    if (ownLayer && layers[ownLayer]) {
+      object.visible = layers[ownLayer].visible
+    }
+    const layer = ownLayer ?? inheritedLayer
+    const selected = inheritedSelected || (selectedNode != null && object.name === selectedNode)
+
+    if (object.isMesh) {
+      if (!object.userData.__origMaterial) {
+        object.userData.__origMaterial = object.material
+      }
+      const config = layer ? layers[layer] : null
+      const base =
+        colorByLayer && config
+          ? getLayerMaterial(cache, layer, config.color)
+          : object.userData.__origMaterial
+
+      if (selected) {
+        const highlight = base.clone()
+        if (highlight.emissive) {
+          highlight.emissive.set('#3da9fc')
+          highlight.emissiveIntensity = 0.55
+        }
+        cache.highlightMaterials.push(highlight)
+        object.material = highlight
+      } else {
+        object.material = base
+      }
+    }
+
+    for (const child of object.children) walk(child, layer, selected)
+  }
+  walk(scene, null, false)
+}
+
+/** Vrai si l'objet et tous ses ancêtres sont visibles (raycast E6-03). */
+export function isChainVisible(object) {
+  for (let current = object; current; current = current.parent) {
+    if (current.visible === false) return false
+  }
+  return true
+}

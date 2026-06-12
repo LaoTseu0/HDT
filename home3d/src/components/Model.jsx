@@ -1,10 +1,12 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import useStore from '../store/useStore.js'
 import { extractModelData, parseGLB, PipelineError } from '../lib/loadModel.js'
+import { applyAppearance, isChainVisible } from '../lib/appearance.js'
 
-// Rendu du GLB chargé + parse des fichiers déposés (E3-03 → E3-06).
+// Rendu du GLB chargé + parse des fichiers déposés (E3-03 → E3-06),
+// sélection au clic (E6-01, E6-03) et application de l'état des calques.
 // Le parse vit dans le Canvas car le KTX2Loader a besoin du renderer.
 export default function Model() {
   const gl = useThree((state) => state.gl)
@@ -13,6 +15,10 @@ export default function Model() {
   const pendingFile = useStore((state) => state.pendingFile)
   const glb = useStore((state) => state.glb)
   const layers = useStore((state) => state.layers)
+  const colorByLayer = useStore((state) => state.colorByLayer)
+  const selectedNode = useStore((state) => state.selectedNode)
+  const nodes = useStore((state) => state.nodes)
+  const selectNode = useStore((state) => state.selectNode)
   const setModel = useStore((state) => state.setModel)
   const setLoadError = useStore((state) => state.setLoadError)
 
@@ -57,15 +63,29 @@ export default function Model() {
     controls.update()
   }, [glb, controls, camera])
 
-  // E3-04 : visibilité pilotée par la config des calques (état initial
-  // issu des extras scène ; les toggles E5 réutiliseront ce même effet).
+  // Visibilité (E3-04, E5-02), colorisation par calque (E5-04) et
+  // surbrillance de la sélection (E6-01) : une seule passe sur la scène.
   useEffect(() => {
     if (!glb) return
-    glb.scene.traverse((object) => {
-      const layer = object.userData?.layer
-      if (layer && layers[layer]) object.visible = layers[layer].visible
-    })
-  }, [glb, layers])
+    applyAppearance(glb.scene, { layers, colorByLayer, selectedNode })
+  }, [glb, layers, colorByLayer, selectedNode])
 
-  return glb ? <primitive object={glb.scene} /> : null
+  // E6-01 : sélection par raycasting (events R3F). On remonte du mesh
+  // touché au node porteur des extras ; les objets des calques masqués
+  // sont ignorés (E6-03).
+  const handleClick = useCallback(
+    (event) => {
+      if (event.delta > 4) return // drag d'orbite, pas un clic
+      const hit = event.intersections.find((i) => isChainVisible(i.object))
+      if (!hit) return
+      event.stopPropagation()
+      let object = hit.object
+      while (object && !(object.name && nodes[object.name])) object = object.parent
+      // Mesh hors pipeline (« non classé ») : on retombe sur son propre nom.
+      selectNode(object?.name || hit.object.name || null)
+    },
+    [nodes, selectNode]
+  )
+
+  return glb ? <primitive object={glb.scene} onClick={handleClick} /> : null
 }

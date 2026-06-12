@@ -23,8 +23,30 @@ const useStore = create((set) => ({
         [id]: { ...state.layers[id], visible: !state.layers[id].visible },
       },
     })),
+  // E5-03 : tout afficher / tout masquer.
+  setAllLayersVisible: (visible) =>
+    set((state) => ({
+      layers: Object.fromEntries(
+        Object.entries(state.layers).map(([id, layer]) => [id, { ...layer, visible }])
+      ),
+    })),
+  // E5-03 : isoler un calque (masque tous les autres).
+  isolateLayer: (id) =>
+    set((state) => ({
+      layers: Object.fromEntries(
+        Object.entries(state.layers).map(([key, layer]) => [
+          key,
+          { ...layer, visible: key === id },
+        ])
+      ),
+    })),
 
-  // Sélection
+  // E5-04 : colorisation des objets par la couleur de leur calque.
+  colorByLayer: false,
+  toggleColorByLayer: () => set((state) => ({ colorByLayer: !state.colorByLayer })),
+
+  // Sélection (E6) — référencée par node name, identifiant immuable de
+  // liaison GLB ↔ extras (E7-03) : aucune action ne renomme un node.
   selectedNode: null,
   selectNode: (name) => set({ selectedNode: name }),
 
