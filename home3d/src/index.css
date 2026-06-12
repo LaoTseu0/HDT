@@ -132,6 +132,179 @@ button.secondary {
   margin-top: 20px;
 }
 
+/* Panneaux superposés (calques à gauche, infos à droite) */
+.layer-panel,
+.info-panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 240px;
+  max-height: calc(100% - 140px);
+  padding: 12px;
+  border: 1px solid #3a3d4a;
+  border-radius: 10px;
+  background: rgba(26, 28, 36, 0.92);
+  overflow-y: auto;
+  z-index: 15;
+}
+
+.layer-panel {
+  top: 64px;
+  left: 12px;
+}
+
+.info-panel {
+  top: 64px;
+  right: 12px;
+  width: 280px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8e9ee;
+}
+
+button.small {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+/* Panneau de calques (E5) */
+.layer-global-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.layer-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.layer-row .layer-isolate {
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.layer-row:hover .layer-isolate {
+  opacity: 1;
+}
+
+.layer-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.layer-toggle:hover {
+  background: #313548;
+}
+
+.layer-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.layer-label {
+  flex: 1;
+  font-size: 13px;
+}
+
+.layer-eye {
+  font-size: 11px;
+  color: #9aa0b0;
+}
+
+.layer-row.hidden .layer-label {
+  color: #6b7080;
+}
+
+.layer-row.hidden .layer-swatch {
+  opacity: 0.35;
+}
+
+.layer-colorize {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #3a3d4a;
+  font-size: 13px;
+  color: #c8cbd6;
+  cursor: pointer;
+}
+
+/* Panneau d'infos de sélection (E6-02) */
+.info-node-name {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #16171d;
+  font-size: 12px;
+  color: #8fc7ff;
+  word-break: break-all;
+}
+
+.info-rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-row {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.info-row dt {
+  width: 90px;
+  flex-shrink: 0;
+  color: #9aa0b0;
+}
+
+.info-row dd {
+  margin: 0;
+  color: #e8e9ee;
+}
+
+.info-row.empty dd {
+  color: #565b6a;
+}
+
+.info-unclassified {
+  margin: 0;
+  font-size: 13px;
+  color: #9aa0b0;
+}
+
 /* Surbrillance pendant le drag d'un fichier (E3-01) */
 .drop-overlay {
   position: absolute;

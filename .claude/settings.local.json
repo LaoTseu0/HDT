@@ -3,7 +3,19 @@
     "allow": [
       "PowerShell(node --version)",
       "PowerShell(npm --version)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(npm install --save-dev @gltf-transform/core @gltf-transform/functions @gltf-transform/extensions draco3dgltf)",
+      "PowerShell(node script/make-test-model.mjs public/models/maison_invalid_raw.glb --invalid; node script/process.mjs public/models/maison_invalid_raw.glb; \"EXIT=$LASTEXITCODE\")",
+      "Bash(git credential *)",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\(d.html_url||JSON.stringify\\(d,null,2\\).slice\\(0,1500\\)\\)}\\)\")",
+      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\(d[0]?.html_url||'aucune PR'\\)}\\)\")",
+      "Bash(rm -f /tmp/pr_body.json)",
+      "PowerShell(Get-ChildItem -Recurse C:\\\\Developpement\\\\Project\\\\HDT\\\\home3d -Exclude node_modules | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object FullName)",
+      "PowerShell(git -C C:\\\\Developpement\\\\Project\\\\HDT checkout -b feat/s3-viewer)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'chore : mise à jour de l'\\\\''allowlist de permissions locale *)",
+      "Bash(git push *)"
     ]
   }
 }
