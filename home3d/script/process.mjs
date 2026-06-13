@@ -146,6 +146,10 @@ function injectSceneExtras(document, { levels, zones }) {
 
 // --- 4bis. Compression KTX2 des textures (E2-07) ---
 
+// Échec d'encodage toktx : levé pour que le `finally` nettoie le workDir
+// temporaire avant que `main` ne logge et quitte avec un code ≠ 0.
+class KTX2Error extends Error {}
+
 // L'encodage Basis Universal passe par `toktx` (KTX-Software, outil de
 // référence Khronos) : aucun encodeur pur JS n'existe côté gltf-transform.
 // S'il n'est pas installé, le pipeline continue avec les textures d'origine
@@ -203,10 +207,11 @@ async function compressTexturesKTX2(document) {
         { encoding: 'utf8' }
       )
       if (result.status !== 0) {
-        console.error(
-          `✗ toktx a échoué sur la texture « ${texture.getName() || i} » :\n${result.stderr}`
+        // On lève plutôt que d'appeler process.exit ici : l'exit couperait
+        // le process avant le `finally` et laisserait le workDir temporaire.
+        throw new KTX2Error(
+          `toktx a échoué sur la texture « ${texture.getName() || i} » :\n${result.stderr}`
         )
-        process.exit(2)
       }
       texture.setImage(await readFile(output)).setMimeType('image/ktx2')
       converted += 1
@@ -281,7 +286,15 @@ async function main() {
 
   // 4bis. Compression KTX2 des textures (E2-07)
   if (useKtx2) {
-    await compressTexturesKTX2(document)
+    try {
+      await compressTexturesKTX2(document)
+    } catch (err) {
+      if (err instanceof KTX2Error) {
+        console.error(`✗ ${err.message}`)
+        process.exit(2)
+      }
+      throw err
+    }
   } else {
     console.log('Compression   : KTX2 désactivé (--no-ktx2)')
   }
