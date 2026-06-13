@@ -305,6 +305,22 @@ button.small {
   color: #9aa0b0;
 }
 
+/* Petits écrans (E4-04) : panneaux plus étroits, toujours superposés
+   au canvas — jamais de scroll de page, seulement dans les panneaux. */
+@media (max-width: 640px) {
+  .layer-panel {
+    width: 180px;
+  }
+
+  .info-panel {
+    width: 200px;
+  }
+
+  .layer-row .layer-isolate {
+    opacity: 1; /* pas de hover fiable au tactile */
+  }
+}
+
 /* Surbrillance pendant le drag d'un fichier (E3-01) */
 .drop-overlay {
   position: absolute;

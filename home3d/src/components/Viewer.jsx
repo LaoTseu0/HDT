@@ -1,8 +1,17 @@
-import { useRef } from 'react'
+import { lazy, Suspense, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid } from '@react-three/drei'
 import Model from './Model.jsx'
 import useStore from '../store/useStore.js'
+
+// E8-01 : overlay perf (draw calls, fps, mémoire GPU), dev uniquement,
+// toggle touche P. Chargé à la demande : `import.meta.env.DEV` étant
+// constant au build, r3f-perf est exclu du bundle de production.
+// Seuil d'alerte : au-delà de ~200-300 draw calls sur hardware moyen,
+// activer les optimisations E8-02+ (instancing, merge par calque).
+const Perf = import.meta.env.DEV
+  ? lazy(() => import('r3f-perf').then((m) => ({ default: m.Perf })))
+  : null
 
 // Canvas R3F principal (E4-01, E4-02).
 // Orbite clic gauche, pan clic droit, zoom molette (OrbitControls).
@@ -10,6 +19,7 @@ import useStore from '../store/useStore.js'
 // opposée : pas de faces noires sans aucune configuration.
 export default function Viewer() {
   const selectNode = useStore((state) => state.selectNode)
+  const showPerf = useStore((state) => state.showPerf)
   // E6-01 : clic dans le vide → désélection. onPointerMissed se déclenche
   // aussi en fin d'orbite ; on ne désélectionne que si le pointeur n'a
   // quasiment pas bougé entre down et up (vrai clic).
@@ -40,6 +50,12 @@ export default function Viewer() {
         infiniteGrid
       />
       <OrbitControls makeDefault />
+
+      {Perf && showPerf && (
+        <Suspense fallback={null}>
+          <Perf position="bottom-right" />
+        </Suspense>
+      )}
     </Canvas>
   )
 }

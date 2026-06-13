@@ -50,6 +50,22 @@ const useStore = create((set) => ({
   selectedNode: null,
   selectNode: (name) => set({ selectedNode: name }),
 
+  // E6-04 : survol — même référence par node name que la sélection.
+  // Garde d'égalité : appelé à chaque pointermove, ne notifie que si
+  // le node survolé change (pas de re-render pendant le déplacement).
+  hoveredNode: null,
+  hoverNode: (name) =>
+    set((state) => (state.hoveredNode === name ? state : { hoveredNode: name })),
+
+  // E4-03 : recadrage caméra. La caméra vit dans le Canvas : le bouton
+  // (hors Canvas) incrémente un compteur que le Viewer consomme.
+  fitRequest: 0,
+  requestFit: () => set((state) => ({ fitRequest: state.fitRequest + 1 })),
+
+  // E8-01 : overlay perf (dev uniquement, toggle clavier).
+  showPerf: false,
+  togglePerf: () => set((state) => ({ showPerf: !state.showPerf })),
+
   // Chargement (E3) — le fichier déposé est parsé dans le Canvas
   // (le KTX2Loader a besoin du renderer pour detectSupport).
   pendingFile: null, // { buffer: ArrayBuffer, name: string }
@@ -67,6 +83,7 @@ const useStore = create((set) => ({
       isLoading: false,
       loadError: null,
       selectedNode: null,
+      hoveredNode: null,
     }),
   setLoadError: (message) =>
     set({ loadError: message, pendingFile: null, isLoading: false }),
