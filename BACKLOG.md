@@ -51,14 +51,19 @@
 | E2-04 ✅ | En tant que dev, je veux injecter les `extras` par node (layer, type, zone, level, index extraits du nom) afin que l'app puisse exploiter la sémantique. | Chaque node validé porte un `extras` conforme au schéma du CdC (incl. champs vides `dims`, `material`, `notes` pour la V2). | M | 5 |
 | E2-05 ✅ | En tant que dev, je veux injecter les `extras` de la scène racine (config des calques : labels, couleurs, visibilité par défaut, levels, zones) afin que l'app n'ait aucune config en dur. | `extras` scène conforme au schéma du CdC ; les 7 calques (`structure`, `ouvertures`, `elec`, `plomberie`, `vmc`, `reseau`, `terrain`) présents avec leurs couleurs. | M | 3 |
 | E2-06 ✅ | En tant que dev, je veux appliquer la compression Draco sur la géométrie afin de respecter le budget taille. | GLB > 10 MB compressé Draco ; le fichier reste chargeable par l'app (DRACOLoader). | M | 3 |
-| E2-07 | En tant que dev, je veux appliquer la compression KTX2 sur les textures (si présentes) afin de réduire la mémoire GPU. | Textures converties en KTX2 ; chargement OK via KTX2Loader. | S | 3 |
+| E2-07 ✅ | En tant que dev, je veux appliquer la compression KTX2 sur les textures (si présentes) afin de réduire la mémoire GPU. | Textures converties en KTX2 ; chargement OK via KTX2Loader. | S | 3 |
 | E2-08 ✅ | En tant qu'utilisateur du pipeline, je veux un avertissement basé sur le budget taille (10/30/100 MB) afin de savoir quand revoir la modélisation. | Le script affiche la taille brute/finale et l'action requise selon le barème du CdC. | S | 2 |
-| E2-09 | En tant que dev, je veux des tests unitaires sur la validation/extraction des noms de nodes afin de fiabiliser la pièce centrale du pipeline. | Cas valides/invalides couverts (accents, espaces, segments manquants, index ≠ 3 chiffres, niveau inconnu). | S | 3 |
+| E2-09 ✅ | En tant que dev, je veux des tests unitaires sur la validation/extraction des noms de nodes afin de fiabiliser la pièce centrale du pipeline. | Cas valides/invalides couverts (accents, espaces, segments manquants, index ≠ 3 chiffres, niveau inconnu). | S | 3 |
 
 > **S2 terminé le 2026-06-12** (incluant le reliquat S1 E2-01→03) — pipeline complet dans
 > `home3d/script/process.mjs` (+ `naming.mjs` séparé pour les tests E2-09), modèle de test
 > généré par `npm run model:test`, doc workflow dans `docs/workflow-sketchup.md`.
-> Restent en E2 : E2-07 (KTX2) et E2-09 (tests unitaires), planifiés S5.
+>
+> **S5 (E2-07/E2-09) terminé le 2026-06-13** — E2-07 : compression KTX2 dans
+> `process.mjs` (extension `KHRTextureBasisu`, encodage etc1s via `toktx`, sRGB/linéaire
+> selon le slot de texture ; sauté proprement si `toktx` absent ou GLB sans texture,
+> `--no-ktx2` pour désactiver). E2-09 : `script/naming.test.mjs` (29 tests, runner natif
+> `node --test`, `npm test`).
 
 ---
 
@@ -90,8 +95,14 @@
 |---|---|---|---|---|
 | E4-01 ✅ | En tant qu'utilisateur, je veux orbiter, zoomer et panner autour de la maison afin de l'inspecter sous tous les angles. | `OrbitControls` (Drei) : orbite clic gauche, pan clic droit/molette pressée, zoom molette ; cible centrée sur le modèle au chargement. | M | 2 |
 | E4-02 ✅ | En tant qu'utilisateur, je veux un éclairage et un environnement par défaut corrects afin de distinguer les volumes sans configuration. | Lumière ambiante + directionnelle (ou environnement Drei) ; pas de faces noires ; sol/grille de référence optionnelle. | M | 2 |
-| E4-03 | En tant qu'utilisateur, je veux que la caméra se recadre automatiquement sur le modèle chargé afin de ne jamais « perdre » la maison. | Au chargement : caméra positionnée pour cadrer la bounding box ; bouton/raccourci « recentrer ». | S | 2 |
-| E4-04 | En tant qu'utilisateur, je veux une UI sobre (canvas plein écran, panneaux latéraux) afin de me concentrer sur le modèle. | Canvas plein écran responsive ; panneaux calques/infos superposés ou ancrés ; pas de scroll parasite. | S | 3 |
+| E4-03 ✅ | En tant qu'utilisateur, je veux que la caméra se recadre automatiquement sur le modèle chargé afin de ne jamais « perdre » la maison. | Au chargement : caméra positionnée pour cadrer la bounding box ; bouton/raccourci « recentrer ». | S | 2 |
+| E4-04 ✅ | En tant qu'utilisateur, je veux une UI sobre (canvas plein écran, panneaux latéraux) afin de me concentrer sur le modèle. | Canvas plein écran responsive ; panneaux calques/infos superposés ou ancrés ; pas de scroll parasite. | S | 3 |
+
+> **S5 (E4-03/E4-04) terminé le 2026-06-13** — E4-03 : recadrage déjà fait au
+> chargement (E4-01), exposé en bouton « Recentrer » (toolbar) + raccourci `R` via un
+> compteur `fitRequest` dans le store (la caméra vit dans le Canvas). E4-04 : `index.css`
+> déjà plein écran sans scroll parasite ; ajout d'un breakpoint ≤ 640 px (panneaux plus
+> étroits, action « Isoler » toujours visible faute de hover tactile).
 
 ---
 
@@ -121,7 +132,15 @@
 | E6-01 ✅ | En tant qu'utilisateur, je veux cliquer sur un objet 3D afin de le sélectionner. | Raycasting via events R3F ; l'objet sélectionné est mis en évidence (outline ou émissive) ; click dans le vide désélectionne. | M | 3 |
 | E6-02 ✅ | En tant qu'utilisateur, je veux voir les infos de l'objet sélectionné (layer, type, zone, niveau, index, dims, material, notes) afin de consulter ses caractéristiques. | `InfoPanel` affiche les `extras` formatés (labels FR) ; champs vides masqués ou grisés ; nom de node complet visible. | M | 2 |
 | E6-03 ✅ | En tant qu'utilisateur, je veux que la sélection respecte la visibilité des calques afin de ne pas sélectionner un objet masqué. | Le raycasting ignore les objets des calques masqués. | M | 1 |
-| E6-04 | En tant qu'utilisateur, je veux un survol (hover) avec mise en évidence légère afin de savoir ce que je vais sélectionner. | Highlight au hover + curseur pointer ; pas de chute de framerate notable. | C | 2 |
+| E6-04 ✅ | En tant qu'utilisateur, je veux un survol (hover) avec mise en évidence légère afin de savoir ce que je vais sélectionner. | Highlight au hover + curseur pointer ; pas de chute de framerate notable. | C | 2 |
+
+> **S5 (E6-04) terminé le 2026-06-13** — survol via `onPointerMove`/`onPointerOut` sur le
+> `<primitive>` ([Model.jsx](home3d/src/components/Model.jsx)), résolution du node
+> mutualisée avec le clic (`resolveNodeName`) et filtrée sur la visibilité des calques.
+> Émissif léger (intensité 0.18 vs 0.55 pour la sélection) dans
+> [appearance.js](home3d/src/lib/appearance.js) + curseur `pointer`. L'action `hoverNode`
+> a une garde d'égalité : pas de re-render ni de re-passe `applyAppearance` tant que le
+> node survolé ne change pas (pas de chute de framerate).
 
 ---
 
@@ -150,11 +169,17 @@
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E8-01 | En tant que dev, je veux mesurer les draw calls et le framerate (ex : `r3f-perf`) afin de décider quand optimiser. | Overlay perf activable en dev ; seuil d'alerte ~200-300 draw calls documenté. | S | 2 |
+| E8-01 ✅ | En tant que dev, je veux mesurer les draw calls et le framerate (ex : `r3f-perf`) afin de décider quand optimiser. | Overlay perf activable en dev ; seuil d'alerte ~200-300 draw calls documenté. | S | 2 |
 | E8-02 | En tant que dev, je veux instancier les objets répétitifs (prises, interrupteurs, spots…) via `InstancedMesh`/`<Instances>` afin de réduire drastiquement les draw calls. | Objets de même type+géométrie rendus en 1 draw call ; sélection/click toujours fonctionnels par instance. | C | 8 |
 | E8-03 | En tant que dev, je veux merger les géométries non répétitives par calque (render mesh + picking mesh invisible) afin de tomber à ~1 draw call par calque. | `mergeGeometries` appliqué ; raycasting sur picking meshes ; toggle calque toujours instantané. | C | 8 |
 | E8-04 | En tant que dev, je veux du LOD sur terrain/végétation/façade afin d'alléger le rendu en vue éloignée. | `<Lod>` (Drei) ou `THREE.LOD` ; meshes simplifiés générés via `meshoptimizer` dans le pipeline. | C | 5 |
 | E8-05 | En tant que dev, je veux vérifier les bounding boxes après export SketchUp afin que le frustum culling natif fonctionne. | Contrôle (ou recalcul) des bounds dans le pipeline ; pas d'objet qui disparaît à tort à l'écran. | C | 2 |
+
+> **S5 (E8-01) terminé le 2026-06-13** — overlay `r3f-perf` (draw calls, fps, mémoire GPU),
+> dev uniquement (chargé en `import()` paresseux derrière `import.meta.env.DEV` → exclu du
+> bundle de prod), toggle touche `P`. Seuil d'alerte ~200-300 draw calls documenté dans
+> [Viewer.jsx](home3d/src/components/Viewer.jsx) ; au-delà, activer E8-02+ (instancing,
+> merge par calque).
 
 > **W (hors scope V1/V2)** : occlusion culling — complexe, non natif Three.js.
 

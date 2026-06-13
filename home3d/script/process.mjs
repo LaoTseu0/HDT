@@ -1,20 +1,24 @@
-// Pipeline GLB (E2-01 → E2-06, E2-08) — cf. HTD_cahier_des_charges.md.
+// Pipeline GLB (E2-01 → E2-08) — cf. HTD_cahier_des_charges.md.
 //
 //   SketchUp → maison_raw.glb → [ce script] → maison.glb (production-ready)
 //
 // Étapes : validation des noms de nodes, injection des extras (node + scène),
-// compression Draco, rapport budget taille.
+// compression Draco, compression KTX2 des textures, rapport budget taille.
 //
 // Usage :
-//   node script/process.mjs <input.glb> [output.glb] [--no-draco]
+//   node script/process.mjs <input.glb> [output.glb] [--no-draco] [--no-ktx2]
 //
 // Sortie par défaut : <input> avec le suffixe `_raw` retiré, sinon `<input>.processed.glb`.
 // Exit code ≠ 0 si le nommage est invalide ou si le fichier est illisible.
 
 import { statSync } from 'node:fs'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import { NodeIO } from '@gltf-transform/core'
-import { KHRDracoMeshCompression } from '@gltf-transform/extensions'
+import { KHRDracoMeshCompression, KHRTextureBasisu } from '@gltf-transform/extensions'
 import { draco } from '@gltf-transform/functions'
 import draco3d from 'draco3dgltf'
 import {
@@ -47,7 +51,9 @@ function parseArgs(argv) {
   const positional = argv.filter((a) => !a.startsWith('--'))
   const [input, output] = positional
   if (!input) {
-    console.error('Usage : node script/process.mjs <input.glb> [output.glb] [--no-draco]')
+    console.error(
+      'Usage : node script/process.mjs <input.glb> [output.glb] [--no-draco] [--no-ktx2]'
+    )
     process.exit(2)
   }
   const defaultOutput = input.includes('_raw')
@@ -57,6 +63,7 @@ function parseArgs(argv) {
     input,
     output: output ?? defaultOutput,
     useDraco: !flags.includes('--no-draco'),
+    useKtx2: !flags.includes('--no-ktx2'),
   }
 }
 
@@ -137,10 +144,93 @@ function injectSceneExtras(document, { levels, zones }) {
   })
 }
 
+// --- 4bis. Compression KTX2 des textures (E2-07) ---
+
+// Échec d'encodage toktx : levé pour que le `finally` nettoie le workDir
+// temporaire avant que `main` ne logge et quitte avec un code ≠ 0.
+class KTX2Error extends Error {}
+
+// L'encodage Basis Universal passe par `toktx` (KTX-Software, outil de
+// référence Khronos) : aucun encodeur pur JS n'existe côté gltf-transform.
+// S'il n'est pas installé, le pipeline continue avec les textures d'origine
+// (le GLB reste valide), avec un avertissement explicite.
+function isToktxAvailable() {
+  try {
+    return spawnSync('toktx', ['--version'], { stdio: 'ignore' }).status === 0
+  } catch {
+    return false
+  }
+}
+
+// Les textures couleur (baseColor, émissive) s'encodent en sRGB ; les
+// données (normales, métal/rugosité, occlusion…) en linéaire.
+function listColorTextures(document) {
+  const colorTextures = new Set()
+  for (const material of document.getRoot().listMaterials()) {
+    for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
+      if (texture) colorTextures.add(texture)
+    }
+  }
+  return colorTextures
+}
+
+async function compressTexturesKTX2(document) {
+  const textures = document.getRoot().listTextures()
+  if (textures.length === 0) {
+    console.log('Compression   : KTX2 sauté (aucune texture dans le GLB)')
+    return
+  }
+  if (!isToktxAvailable()) {
+    console.warn(
+      `⚠ ${textures.length} texture(s) présentes mais \`toktx\` introuvable : textures laissées telles quelles.\n` +
+        '  Installer KTX-Software pour activer la compression KTX2 :\n' +
+        '  https://github.com/KhronosGroup/KTX-Software/releases'
+    )
+    return
+  }
+
+  const colorTextures = listColorTextures(document)
+  const workDir = await mkdtemp(join(tmpdir(), 'home3d-ktx2-'))
+  let converted = 0
+  try {
+    for (const [i, texture] of textures.entries()) {
+      const mime = texture.getMimeType()
+      const ext = mime === 'image/png' ? 'png' : mime === 'image/jpeg' ? 'jpg' : null
+      if (!ext) continue // déjà en KTX2, ou format que toktx ne lit pas
+      const input = join(workDir, `tex_${i}.${ext}`)
+      const output = join(workDir, `tex_${i}.ktx2`)
+      await writeFile(input, texture.getImage())
+      const oetf = colorTextures.has(texture) ? 'srgb' : 'linear'
+      const result = spawnSync(
+        'toktx',
+        ['--t2', '--genmipmap', '--encode', 'etc1s', '--assign_oetf', oetf, output, input],
+        { encoding: 'utf8' }
+      )
+      if (result.status !== 0) {
+        // On lève plutôt que d'appeler process.exit ici : l'exit couperait
+        // le process avant le `finally` et laisserait le workDir temporaire.
+        throw new KTX2Error(
+          `toktx a échoué sur la texture « ${texture.getName() || i} » :\n${result.stderr}`
+        )
+      }
+      texture.setImage(await readFile(output)).setMimeType('image/ktx2')
+      converted += 1
+    }
+  } finally {
+    await rm(workDir, { recursive: true, force: true })
+  }
+
+  if (converted > 0) {
+    // KHR_texture_basisu : requis pour référencer des images KTX2 en glTF.
+    document.createExtension(KHRTextureBasisu).setRequired(true)
+    console.log(`Compression   : KTX2 appliqué à ${converted} texture(s) (etc1s via toktx)`)
+  }
+}
+
 // --- Pipeline ---
 
 async function main() {
-  const { input, output, useDraco } = parseArgs(process.argv.slice(2))
+  const { input, output, useDraco, useKtx2 } = parseArgs(process.argv.slice(2))
 
   let rawSize
   try {
@@ -151,7 +241,7 @@ async function main() {
   }
 
   const io = new NodeIO()
-    .registerExtensions([KHRDracoMeshCompression])
+    .registerExtensions([KHRDracoMeshCompression, KHRTextureBasisu])
     .registerDependencies({
       'draco3d.decoder': await draco3d.createDecoderModule(),
       'draco3d.encoder': await draco3d.createEncoderModule(),
@@ -194,7 +284,20 @@ async function main() {
     console.log('Compression   : Draco désactivé (--no-draco)')
   }
 
-  // (E2-07 KTX2 : prévu sprint S5 — aucune texture requise sur le modèle V1.)
+  // 4bis. Compression KTX2 des textures (E2-07)
+  if (useKtx2) {
+    try {
+      await compressTexturesKTX2(document)
+    } catch (err) {
+      if (err instanceof KTX2Error) {
+        console.error(`✗ ${err.message}`)
+        process.exit(2)
+      }
+      throw err
+    }
+  } else {
+    console.log('Compression   : KTX2 désactivé (--no-ktx2)')
+  }
 
   await io.write(output, document)
   const finalSize = statSync(output).size

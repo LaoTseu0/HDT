@@ -3,11 +3,13 @@ import useStore from '../store/useStore.js'
 
 // Chargement d'un GLB par drag & drop (E3-01) ou file picker (E3-02),
 // avec feedback de chargement et erreurs affichées dans l'UI (E3-05).
+// Héberge aussi la toolbar, dont le recadrage caméra (E4-03).
 export default function GLBLoader() {
   const glb = useStore((state) => state.glb)
   const isLoading = useStore((state) => state.isLoading)
   const loadError = useStore((state) => state.loadError)
   const requestLoad = useStore((state) => state.requestLoad)
+  const requestFit = useStore((state) => state.requestFit)
   const setLoadError = useStore((state) => state.setLoadError)
   const clearLoadError = useStore((state) => state.clearLoadError)
 
@@ -92,6 +94,11 @@ export default function GLBLoader() {
 
       <div className="toolbar">
         <button onClick={() => fileInputRef.current?.click()}>Ouvrir un GLB…</button>
+        {glb && (
+          <button title="Recadrer la caméra sur le modèle (R)" onClick={requestFit}>
+            Recentrer
+          </button>
+        )}
         {glb && <span className="toolbar-file">{glb.fileName}</span>}
       </div>
 

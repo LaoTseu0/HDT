@@ -92,7 +92,7 @@ Depuis `home3d/` :
 
 ```bash
 npm run process -- public/models/maison_raw.glb
-# → produit public/models/maison.glb (validation + extras + Draco)
+# → produit public/models/maison.glb (validation + extras + Draco + KTX2)
 ```
 
 Le pipeline :
@@ -101,7 +101,12 @@ Le pipeline :
    aucun fichier produit, corriger dans SketchUp et ré-exporter.
 2. **Injecte** les métadonnées `extras` (par node + config calques sur la scène).
 3. **Compresse** la géométrie (Draco). Désactivable : `--no-draco`.
-4. **Affiche** le budget taille :
+4. **Compresse** les textures en KTX2 si présentes (E2-07).
+   Désactivable : `--no-ktx2`. Nécessite l'outil `toktx` de
+   [KTX-Software](https://github.com/KhronosGroup/KTX-Software/releases)
+   dans le PATH — s'il est absent, le pipeline continue avec les textures
+   d'origine (avertissement affiché, GLB toujours valide).
+5. **Affiche** le budget taille :
 
 | Taille GLB brut | Action requise |
 |---|---|
