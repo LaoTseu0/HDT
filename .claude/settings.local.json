@@ -1,34 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "PowerShell(node --version)",
-      "PowerShell(npm --version)",
-      "mcp__Claude_Preview__preview_start",
-      "PowerShell(npm install --save-dev @gltf-transform/core @gltf-transform/functions @gltf-transform/extensions draco3dgltf)",
-      "PowerShell(node script/make-test-model.mjs public/models/maison_invalid_raw.glb --invalid; node script/process.mjs public/models/maison_invalid_raw.glb; \"EXIT=$LASTEXITCODE\")",
-      "Bash(git credential *)",
-      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\(d.html_url||JSON.stringify\\(d,null,2\\).slice\\(0,1500\\)\\)}\\)\")",
-      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\(d[0]?.html_url||'aucune PR'\\)}\\)\")",
-      "Bash(rm -f /tmp/pr_body.json)",
-      "PowerShell(Get-ChildItem -Recurse C:\\\\Developpement\\\\Project\\\\HDT\\\\home3d -Exclude node_modules | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object FullName)",
-      "PowerShell(git -C C:\\\\Developpement\\\\Project\\\\HDT checkout -b feat/s3-viewer)",
-      "Bash(npm run *)",
-      "Bash(git add *)",
-      "Bash(git commit -m 'chore : mise à jour de l'\\\\''allowlist de permissions locale *)",
-      "Bash(git push *)",
-      "Bash(gh pr *)",
-      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\(d.length?d.map\\(p=>p.state+' '+p.html_url\\).join\\('\\\\n'\\):'aucune PR'\\)}\\)\")",
-      "Bash(node -e \"let s='';process.stdin.on\\('data',d=>s+=d\\).on\\('end',\\(\\)=>{const d=JSON.parse\\(s\\);console.log\\('state:',d.state,'| merged:',d.merged,'| base:',d.base.ref,'| title:',d.title\\)}\\)\")",
-      "Bash(git fetch *)",
-      "Bash(git checkout *)",
-      "PowerShell(Get-ChildItem -Force | Select-Object Name; Get-ChildItem docs, .claude -Recurse -Force -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch 'node_modules' } | Select-Object FullName)",
-      "PowerShell(git branch -a; git log --oneline main -3; git log --oneline origin/main -3 2>$null; git merge-base --is-ancestor feat/s4-calques-selection main; echo \"s4-in-main=$?\")",
-      "PowerShell(gh pr list --state all --limit 10)",
-      "Bash(which gh *)",
-      "PowerShell(git fetch origin; git log --oneline origin/main -5; \\(Invoke-RestMethod \"https://api.github.com/repos/LaoTseu0/HDT/pulls/3\"\\).merged)",
-      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); gh --version; gh auth status 2>&1 | Out-String)",
-      "Skill(code-review)",
-      "Skill(code-review:*)"
-    ]
+    "allow": []
   }
 }
