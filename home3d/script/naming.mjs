@@ -114,6 +114,20 @@ export function parseNodeName(name) {
   return { layer, type, zone, level, index: Number.parseInt(index, 10) }
 }
 
+// Préfixe que l'exporteur glTF natif de SketchUp ajoute à la géométrie brute
+// de chaque groupe/composant nommé : un groupe `structure__…__001` produit un
+// enfant mesh `Geom3D_structure__…__001` (issue #7). Le préfixe n'est pas
+// configurable depuis SketchUp. On le retire avant validation/parsing pour que
+// le mesh hérite du nom propre du groupe. `Geom3D` seul (géométrie laissée
+// hors groupe) n'a PAS de `_` suffixe : il n'est donc pas retiré et reste
+// rejeté, ce qui force l'encapsulation dans un groupe nommé.
+const EXPORTER_GEOM_PREFIX = /^Geom3D_/
+
+/** Retire le préfixe `Geom3D_` ajouté par l'exporteur SketchUp, s'il est présent. */
+export function stripExporterPrefix(name) {
+  return name.replace(EXPORTER_GEOM_PREFIX, '')
+}
+
 /**
  * Un node est soumis à la convention s'il porte un mesh (objet affichable)
  * ou si son nom contient déjà le séparateur `__` (intention de convention).

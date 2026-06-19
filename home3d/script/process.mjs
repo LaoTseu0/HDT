@@ -25,6 +25,7 @@ import {
   LAYERS_CONFIG,
   isCandidateNode,
   parseNodeName,
+  stripExporterPrefix,
   validateNodeName,
 } from './naming.mjs'
 
@@ -67,14 +68,55 @@ function parseArgs(argv) {
   }
 }
 
+// --- 0. Normalisation des noms exportés par SketchUp (issue #7) ---
+
+// L'exporteur glTF natif de SketchUp préfixe `Geom3D_` la géométrie brute de
+// chaque groupe nommé. On le retire en amont (sur les nodes ET les meshes) pour
+// que la géométrie porte le nom propre du groupe : elle passe alors la
+// validation et le GLB de sortie ne garde aucune trace de l'artefact d'export.
+// `Geom3D` seul reste tel quel (rejeté).
+function normalizeExporterNames(document) {
+  let renamed = 0
+  for (const named of [
+    ...document.getRoot().listNodes(),
+    ...document.getRoot().listMeshes(),
+  ]) {
+    const name = named.getName()
+    const stripped = stripExporterPrefix(name)
+    if (stripped !== name) {
+      named.setName(stripped)
+      renamed += 1
+    }
+  }
+  return renamed
+}
+
+// Candidats à la convention, dédupliqués par nom : après normalisation, un
+// groupe SketchUp et sa géométrie `Geom3D_` partagent le même nom — on ne
+// retient qu'une entité par nom pour ne pas valider / enrichir / rapporter deux
+// fois la même chose. Les nodes anonymes (mesh sans nom) sont tous conservés,
+// chacun étant une erreur distincte.
+function listCandidateNodes(document) {
+  const seen = new Set()
+  const candidates = []
+  for (const node of document.getRoot().listNodes()) {
+    if (!isCandidateNode(node)) continue
+    const name = node.getName()
+    if (name !== '') {
+      if (seen.has(name)) continue
+      seen.add(name)
+    }
+    candidates.push(node)
+  }
+  return candidates
+}
+
 // --- 1. Validation des noms de nodes (E2-02) + rapport d'erreurs (E2-03) ---
 
 function validateNodes(document) {
   const report = []
-  let candidates = 0
-  for (const node of document.getRoot().listNodes()) {
-    if (!isCandidateNode(node)) continue
-    candidates += 1
+  const nodes = listCandidateNodes(document)
+  for (const node of nodes) {
     const name = node.getName()
     if (name === '') {
       report.push({
@@ -87,7 +129,7 @@ function validateNodes(document) {
     const result = validateNodeName(name)
     if (!result.valid) report.push({ name, ...result })
   }
-  return { report, candidates }
+  return { report, candidates: nodes.length }
 }
 
 function printValidationReport(report) {
@@ -113,8 +155,7 @@ function injectNodeExtras(document) {
   const levels = new Set()
   const zones = new Set()
   let injected = 0
-  for (const node of document.getRoot().listNodes()) {
-    if (!isCandidateNode(node)) continue
+  for (const node of listCandidateNodes(document)) {
     const parsed = parseNodeName(node.getName())
     levels.add(parsed.level)
     zones.add(parsed.zone)
@@ -167,7 +208,10 @@ function isToktxAvailable() {
 function listColorTextures(document) {
   const colorTextures = new Set()
   for (const material of document.getRoot().listMaterials()) {
-    for (const texture of [material.getBaseColorTexture(), material.getEmissiveTexture()]) {
+    for (const texture of [
+      material.getBaseColorTexture(),
+      material.getEmissiveTexture(),
+    ]) {
       if (texture) colorTextures.add(texture)
     }
   }
@@ -203,7 +247,16 @@ async function compressTexturesKTX2(document) {
       const oetf = colorTextures.has(texture) ? 'srgb' : 'linear'
       const result = spawnSync(
         'toktx',
-        ['--t2', '--genmipmap', '--encode', 'etc1s', '--assign_oetf', oetf, output, input],
+        [
+          '--t2',
+          '--genmipmap',
+          '--encode',
+          'etc1s',
+          '--assign_oetf',
+          oetf,
+          output,
+          input,
+        ],
         { encoding: 'utf8' }
       )
       if (result.status !== 0) {
@@ -223,7 +276,9 @@ async function compressTexturesKTX2(document) {
   if (converted > 0) {
     // KHR_texture_basisu : requis pour référencer des images KTX2 en glTF.
     document.createExtension(KHRTextureBasisu).setRequired(true)
-    console.log(`Compression   : KTX2 appliqué à ${converted} texture(s) (etc1s via toktx)`)
+    console.log(
+      `Compression   : KTX2 appliqué à ${converted} texture(s) (etc1s via toktx)`
+    )
   }
 }
 
@@ -254,6 +309,14 @@ async function main() {
   } catch (err) {
     console.error(`✗ GLB illisible ou corrompu : ${err.message}`)
     process.exit(2)
+  }
+
+  // 0. Normalisation des noms exportés (préfixe `Geom3D_` de SketchUp)
+  const renamed = normalizeExporterNames(document)
+  if (renamed > 0) {
+    console.log(
+      `Normalisation : ${renamed} préfixe(s) \`Geom3D_\` retiré(s) (export SketchUp)`
+    )
   }
 
   // 1. Validation
