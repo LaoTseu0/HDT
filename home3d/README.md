@@ -6,6 +6,9 @@ plomberie, VMC, réseau…). Cf. `../HTD_cahier_des_charges.md` et `../BACKLOG.m
 Stack : Vite + React + React Three Fiber + Drei + Zustand.
 Format : GLB enrichi de métadonnées `extras` par le pipeline.
 
+> **Nouveau sur le projet ?** Lire [`../docs/architecture.md`](../docs/architecture.md) :
+> comment l'app est branchée et où contribuer.
+
 ## Démarrer
 
 ```bash
@@ -25,7 +28,7 @@ npm run process -- public/models/maison_raw.glb    # → public/models/maison.gl
 
 Le pipeline (`script/process.mjs`) valide la convention de nommage des nodes,
 injecte les `extras` (node + scène), applique Draco et affiche le budget taille.
-Workflow SketchUp complet : `docs/workflow-sketchup.md`.
+Workflow SketchUp complet : [`../docs/workflow-sketchup.md`](../docs/workflow-sketchup.md).
 
 ## Scripts
 
