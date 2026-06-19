@@ -11,6 +11,7 @@ import {
   SYSTEMS,
   isCandidateNode,
   parseNodeName,
+  stripExporterPrefix,
   validateNodeName,
 } from './naming.mjs'
 
@@ -150,6 +151,32 @@ describe('parseNodeName', () => {
 
   it('ne traite pas l’index comme de l’octal (008 → 8)', () => {
     assert.equal(parseNodeName('elec__prise__salon__rdc__008').index, 8)
+  })
+})
+
+describe('stripExporterPrefix — préfixe `Geom3D_` de SketchUp (issue #7)', () => {
+  it('retire le préfixe `Geom3D_` → nom propre valide', () => {
+    const name = stripExporterPrefix('Geom3D_structure__bloc__maison__rdc__001')
+    assert.equal(name, 'structure__bloc__maison__rdc__001')
+    assert.equal(validateNodeName(name).valid, true)
+  })
+
+  it('laisse `Geom3D` seul inchangé (géométrie non groupée → reste rejetée)', () => {
+    assert.equal(stripExporterPrefix('Geom3D'), 'Geom3D')
+    assert.equal(validateNodeName('Geom3D').valid, false)
+  })
+
+  it('ne retire que le préfixe en tête, pas une occurrence interne', () => {
+    assert.equal(
+      stripExporterPrefix('structure__Geom3D_mur__salon__rdc__001'),
+      'structure__Geom3D_mur__salon__rdc__001'
+    )
+  })
+
+  it('est idempotent et neutre sur un nom déjà propre', () => {
+    const name = 'elec__prise__salon__rdc__001'
+    assert.equal(stripExporterPrefix(name), name)
+    assert.equal(stripExporterPrefix(stripExporterPrefix(`Geom3D_${name}`)), name)
   })
 })
 

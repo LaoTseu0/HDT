@@ -69,6 +69,16 @@ terrain__jardin__ext__ext__001
 > (raison + suggestion de correction). Regex appliquée :
 > `^(structure|ouvertures|elec|plomberie|vmc|reseau|terrain)__[a-z0-9_]+__[a-z0-9_]+__(ss|rdc|r1|r2|combles|ext)__\d{3}$`
 
+> **Préfixe `Geom3D_` (export natif SketchUp 2025)** — l'exporteur glTF de
+> SketchUp préfixe **systématiquement** `Geom3D_` à la géométrie brute de chaque
+> groupe nommé (un groupe `structure__…__001` produit un enfant mesh
+> `Geom3D_structure__…__001`). Ce préfixe **n'est pas configurable** depuis
+> SketchUp. Le pipeline l'**absorbe automatiquement** : il retire `Geom3D_` avant
+> validation, donc **aucune action requise** côté modélisation tant que le
+> **Groupe/Composant** est correctement nommé. En revanche, une géométrie laissée
+> **hors groupe** est exportée sous le nom `Geom3D` seul (sans suffixe) et reste
+> **rejetée** : tout objet exportable doit être encapsulé dans un Groupe nommé.
+
 > **V2 (backlog E9-01)** : un plugin Ruby SketchUp avec dropdowns générera ces
 > noms automatiquement. En attendant : copier-coller un nom valide et modifier.
 

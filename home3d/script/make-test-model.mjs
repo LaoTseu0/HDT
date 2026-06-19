@@ -124,13 +124,17 @@ for (const [name, position, size] of objects) {
     .setAttribute('NORMAL', cube.normal)
     .setIndices(cube.indices)
     .setMaterial(materials[system] ?? materials.structure)
-  const mesh = document.createMesh(name).addPrimitive(prim)
-  const node = document
+  // Reproduit l'arborescence d'un export SketchUp réel (issue #7) : un groupe
+  // wrapper nommé selon la convention (sans mesh), contenant la géométrie brute
+  // que l'exporteur préfixe `Geom3D_`. Le pipeline doit absorber ce préfixe.
+  const mesh = document.createMesh(`Geom3D_${name}`).addPrimitive(prim)
+  const geom = document.createNode(`Geom3D_${name}`).setMesh(mesh)
+  const wrapper = document
     .createNode(name)
-    .setMesh(mesh)
     .setTranslation(position)
     .setScale(size)
-  scene.addChild(node)
+    .addChild(geom)
+  scene.addChild(wrapper)
 }
 
 await new NodeIO().write(output, document)
