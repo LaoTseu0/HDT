@@ -9,6 +9,7 @@ import {
   LAYERS_CONFIG,
   NODE_NAME_REGEX,
   SYSTEMS,
+  computeDims,
   isCandidateNode,
   parseNodeName,
   stripExporterPrefix,
@@ -193,6 +194,52 @@ describe('isCandidateNode', () => {
 
   it('ignore un wrapper de regroupement sans mesh ni `__`', () => {
     assert.equal(isCandidateNode(fakeNode('SketchUp_Group', null)), false)
+  })
+})
+
+describe('computeDims — dimensions depuis la bounding box (issue #9)', () => {
+  const INCH = 0.0254
+  const NO_SCALE = [1, 1, 1]
+
+  it('retourne un objet vide quand il n’y a aucune géométrie', () => {
+    assert.deepEqual(computeDims([]), {})
+    assert.deepEqual(computeDims(undefined), {})
+  })
+
+  it('convertit les bornes en pouces vers des mètres via le scale du node', () => {
+    // Cas réel du GLB de test : node `…__rdc__001`, scale 0.0254.
+    const dims = computeDims([
+      { min: [0, 0, 0], max: [318.5039, 392.5197, 0], scale: [INCH, INCH, INCH] },
+    ])
+    assert.deepEqual(dims, { largeur_m: 8.09, profondeur_m: 9.97, hauteur_m: 0 })
+  })
+
+  it('mappe X→largeur, Y→profondeur, Z→hauteur (repère SketchUp Z-up)', () => {
+    const dims = computeDims([{ min: [0, 0, 0], max: [100, 50, 80], scale: NO_SCALE }])
+    assert.deepEqual(dims, { largeur_m: 100, profondeur_m: 50, hauteur_m: 80 })
+  })
+
+  it('gère des bornes décalées de l’origine (taille = max − min)', () => {
+    const dims = computeDims([{ min: [10, 10, 10], max: [20, 30, 40], scale: NO_SCALE }])
+    assert.deepEqual(dims, { largeur_m: 10, profondeur_m: 20, hauteur_m: 30 })
+  })
+
+  it('reste correct avec un scale négatif (composant miroir)', () => {
+    const dims = computeDims([{ min: [0, 0, 0], max: [10, 5, 2], scale: [-2, 1, 1] }])
+    assert.deepEqual(dims, { largeur_m: 20, profondeur_m: 5, hauteur_m: 2 })
+  })
+
+  it('unit les bornes de plusieurs primitives (élément multi-mesh)', () => {
+    const dims = computeDims([
+      { min: [0, 0, 0], max: [10, 10, 10], scale: NO_SCALE },
+      { min: [5, -5, 0], max: [30, 0, 25], scale: NO_SCALE },
+    ])
+    assert.deepEqual(dims, { largeur_m: 30, profondeur_m: 15, hauteur_m: 25 })
+  })
+
+  it('arrondit au millimètre (3 décimales)', () => {
+    const dims = computeDims([{ min: [0, 0, 0], max: [1, 1, 1], scale: [INCH, INCH, INCH] }])
+    assert.deepEqual(dims, { largeur_m: 0.025, profondeur_m: 0.025, hauteur_m: 0.025 })
   })
 })
 
