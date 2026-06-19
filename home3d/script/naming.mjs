@@ -136,3 +136,50 @@ export function stripExporterPrefix(name) {
 export function isCandidateNode(node) {
   return node.getMesh() !== null || node.getName().includes('__')
 }
+
+// --- Dimensions calculées depuis la géométrie (issue #9) ---
+
+// Précision d'affichage des cotes : 3 décimales (le mm).
+const DIMS_DECIMALS = 3
+
+function roundDim(value) {
+  const factor = 10 ** DIMS_DECIMALS
+  // `+ 0` neutralise le `-0` (ex. taille nulle sur un axe).
+  return Math.round(value * factor) / factor + 0
+}
+
+/**
+ * Calcule les dimensions d'un élément à partir des bornes (min/max) des
+ * accesseurs POSITION de ses meshes et du scale monde de chaque mesh.
+ *
+ * Repère : la géométrie exportée par SketchUp est dans le repère local du
+ * groupe, en **Z-up** (la conversion Y-up de glTF est portée par le node
+ * racine de la scène, au-dessus des éléments). D'où le mapping :
+ *   X → largeur, Y → profondeur, Z → hauteur.
+ * Les bornes sont en pouces côté SketchUp ; le scale monde du node (≈ 0.0254)
+ * les ramène en mètres. Un scale négatif (composant miroir) inverse les
+ * bornes : on prend min/max sur les deux produits pour rester robuste.
+ *
+ * @param {Array<{min:number[], max:number[], scale:number[]}>} parts
+ *   Une entrée par primitive. `parts` vide → aucune géométrie.
+ * @returns {{largeur_m:number, profondeur_m:number, hauteur_m:number}|{}}
+ *   Objet vide si aucune géométrie (l'app affichera « — »).
+ */
+export function computeDims(parts) {
+  if (!parts || parts.length === 0) return {}
+  const lo = [Infinity, Infinity, Infinity]
+  const hi = [-Infinity, -Infinity, -Infinity]
+  for (const { min, max, scale } of parts) {
+    for (let i = 0; i < 3; i++) {
+      const a = min[i] * scale[i]
+      const b = max[i] * scale[i]
+      lo[i] = Math.min(lo[i], a, b)
+      hi[i] = Math.max(hi[i], a, b)
+    }
+  }
+  return {
+    largeur_m: roundDim(hi[0] - lo[0]),
+    profondeur_m: roundDim(hi[1] - lo[1]),
+    hauteur_m: roundDim(hi[2] - lo[2]),
+  }
+}

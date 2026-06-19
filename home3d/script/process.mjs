@@ -23,6 +23,7 @@ import { draco } from '@gltf-transform/functions'
 import draco3d from 'draco3dgltf'
 import {
   LAYERS_CONFIG,
+  computeDims,
   isCandidateNode,
   parseNodeName,
   stripExporterPrefix,
@@ -149,9 +150,53 @@ function printValidationReport(report) {
   )
 }
 
-// --- 2. Injection des extras par node (E2-04) ---
+// --- 2. Injection des extras par node (E2-04 + dims auto, issue #9) ---
+
+// Scale monde de chaque node = produit des scales depuis la racine de la
+// scène. Sert à ramener les bornes locales (pouces côté SketchUp) en mètres :
+// le node groupe porte un scale ≈ 0.0254 (1 pouce). On ignore translation et
+// rotation : on ne veut que l'encombrement propre de l'élément, pas son
+// emprise alignée au monde. Posé sur l'enfant `Geom3D_` comme sur son parent,
+// donc le calcul est indépendant de quel node (parent/enfant dédupliqué)
+// porte finalement les extras.
+function computeWorldScales(document) {
+  const scales = new Map()
+  const walk = (node, parentScale) => {
+    const s = node.getScale()
+    const worldScale = [s[0] * parentScale[0], s[1] * parentScale[1], s[2] * parentScale[2]]
+    scales.set(node, worldScale)
+    for (const child of node.listChildren()) walk(child, worldScale)
+  }
+  for (const scene of document.getRoot().listScenes()) {
+    for (const node of scene.listChildren()) walk(node, [1, 1, 1])
+  }
+  return scales
+}
+
+// Bornes POSITION + scale monde de tous les meshes du sous-arbre d'un node.
+// Le candidat (groupe SketchUp) ne porte pas le mesh directement : la
+// géométrie est sur l'enfant `Geom3D_`. On descend donc tout le sous-arbre et
+// on unit toutes les primitives trouvées (élément au sens métier).
+function collectDimsParts(node, worldScales) {
+  const parts = []
+  const walk = (n) => {
+    const mesh = n.getMesh()
+    if (mesh) {
+      const scale = worldScales.get(n) ?? [1, 1, 1]
+      for (const prim of mesh.listPrimitives()) {
+        const position = prim.getAttribute('POSITION')
+        if (!position) continue
+        parts.push({ min: position.getMin([]), max: position.getMax([]), scale })
+      }
+    }
+    for (const child of n.listChildren()) walk(child)
+  }
+  walk(node)
+  return parts
+}
 
 function injectNodeExtras(document) {
+  const worldScales = computeWorldScales(document)
   const levels = new Set()
   const zones = new Set()
   let injected = 0
@@ -159,14 +204,15 @@ function injectNodeExtras(document) {
     const parsed = parseNodeName(node.getName())
     levels.add(parsed.level)
     zones.add(parsed.zone)
-    // Champs dims/material/notes vides : réservés à l'édition V2.
+    // `dims` calculé depuis la bounding box (issue #9) ; material/notes
+    // restent vides, réservés à l'édition in-app (E10-02, V2).
     node.setExtras({
       layer: parsed.layer,
       type: parsed.type,
       zone: parsed.zone,
       level: parsed.level,
       index: parsed.index,
-      dims: {},
+      dims: computeDims(collectDimsParts(node, worldScales)),
       material: '',
       notes: '',
     })

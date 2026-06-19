@@ -131,7 +131,7 @@ d'être chargé dans l'app. C'est la pièce centrale.
 flowchart TD
     IN["maison_raw.glb<br/>(export SketchUp)"] --> V{"1 · Validation<br/>des noms de nodes"}
     V -->|"non conforme"| ERR["✗ rapport d'erreurs<br/>exit ≠ 0 · aucun fichier produit"]
-    V -->|"conforme"| EX["2 · Injection extras par node<br/>(layer, type, zone, level, index)"]
+    V -->|"conforme"| EX["2 · Injection extras par node<br/>(layer, type, zone, level, index, dims)"]
     EX --> SC["3 · Injection extras scène<br/>(config des 7 calques + levels/zones)"]
     SC --> DR["4 · Compression Draco<br/>(géométrie)"]
     DR --> KT["5 · Compression KTX2<br/>(textures, si toktx dispo)"]
@@ -318,8 +318,9 @@ Les règles à ne pas casser. La plupart sont déjà annotées dans le code.
 La V1 ne fait que **visualiser**, mais l'architecture est posée pour la V2
 (édition / undo-redo) sans réécriture :
 
-- Les `extras` de chaque node embarquent déjà des champs vides
-  `dims`, `material`, `notes` — prêts à être édités.
+- Les `extras` de chaque node embarquent `material` / `notes` (vides, prêts à
+  être édités) et `dims` — ce dernier **calculé automatiquement** depuis la
+  bounding box dès la V1 (issue #9), surchargeable manuellement en V2.
 - Le store réserve, **en commentaire**, les emplacements `history` / `future` /
   `push` / `undo` / `redo` : on y branchera le _command pattern_ + le middleware
   [`zundo`](https://github.com/charkour/zundo).

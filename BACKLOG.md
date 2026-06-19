@@ -48,12 +48,13 @@
 | E2-01 ✅ | En tant que dev, je veux un script `script/process.mjs` basé sur `@gltf-transform/core` qui lit un GLB et en réécrit un afin de poser le squelette du pipeline. | `node script/process.mjs maison_raw.glb` produit `maison.glb` valide (rechargeable dans un viewer). | M | 3 |
 | E2-02 ✅ | En tant que dev, je veux valider les noms de nodes contre la regex de convention afin de détecter toute faute de nommage SketchUp. | Regex `^(structure\|ouvertures\|elec\|plomberie\|vmc\|reseau\|terrain)__[a-z0-9_]+__[a-z0-9_]+__(ss\|rdc\|r1\|r2\|combles\|ext)__\d{3}$` appliquée à chaque node nommé ; nodes invalides listés. | M | 3 |
 | E2-03 ✅ | En tant qu'utilisateur du pipeline, je veux un rapport d'erreurs lisible en cas de violation de nommage afin de corriger rapidement dans SketchUp. | Le rapport indique : nom fautif, raison (segment invalide, casse, accent…), suggestion si possible ; exit code ≠ 0 si erreurs. | M | 3 |
-| E2-04 ✅ | En tant que dev, je veux injecter les `extras` par node (layer, type, zone, level, index extraits du nom) afin que l'app puisse exploiter la sémantique. | Chaque node validé porte un `extras` conforme au schéma du CdC (incl. champs vides `dims`, `material`, `notes` pour la V2). | M | 5 |
+| E2-04 ✅ | En tant que dev, je veux injecter les `extras` par node (layer, type, zone, level, index extraits du nom) afin que l'app puisse exploiter la sémantique. | Chaque node validé porte un `extras` conforme au schéma du CdC ; `dims` calculé depuis la bounding box (cf. E2-10), `material`/`notes` vides réservés à l'édition V2 (E10-02). | M | 5 |
 | E2-05 ✅ | En tant que dev, je veux injecter les `extras` de la scène racine (config des calques : labels, couleurs, visibilité par défaut, levels, zones) afin que l'app n'ait aucune config en dur. | `extras` scène conforme au schéma du CdC ; les 7 calques (`structure`, `ouvertures`, `elec`, `plomberie`, `vmc`, `reseau`, `terrain`) présents avec leurs couleurs. | M | 3 |
 | E2-06 ✅ | En tant que dev, je veux appliquer la compression Draco sur la géométrie afin de respecter le budget taille. | GLB > 10 MB compressé Draco ; le fichier reste chargeable par l'app (DRACOLoader). | M | 3 |
 | E2-07 ✅ | En tant que dev, je veux appliquer la compression KTX2 sur les textures (si présentes) afin de réduire la mémoire GPU. | Textures converties en KTX2 ; chargement OK via KTX2Loader. | S | 3 |
 | E2-08 ✅ | En tant qu'utilisateur du pipeline, je veux un avertissement basé sur le budget taille (10/30/100 MB) afin de savoir quand revoir la modélisation. | Le script affiche la taille brute/finale et l'action requise selon le barème du CdC. | S | 2 |
 | E2-09 ✅ | En tant que dev, je veux des tests unitaires sur la validation/extraction des noms de nodes afin de fiabiliser la pièce centrale du pipeline. | Cas valides/invalides couverts (accents, espaces, segments manquants, index ≠ 3 chiffres, niveau inconnu). | S | 3 |
+| E2-10 ✅ | En tant qu'utilisateur, je veux que les dimensions d'un objet soient calculées automatiquement afin de les consulter dans « Objet sélectionné » sans saisie manuelle (issue #9). | `dims` = bounding box (bornes POSITION × scale monde) injecté par node : `largeur_m` (X), `profondeur_m` (Y), `hauteur_m` (Z), repère SketchUp Z-up ; calcul avant Draco ; affiché par `InfoPanel` sans modif UI ; tests unitaires `computeDims`. | M | 3 |
 
 > **S2 terminé le 2026-06-12** (incluant le reliquat S1 E2-01→03) — pipeline complet dans
 > `home3d/script/process.mjs` (+ `naming.mjs` séparé pour les tests E2-09), modèle de test
@@ -173,7 +174,7 @@
 | E8-02 | En tant que dev, je veux instancier les objets répétitifs (prises, interrupteurs, spots…) via `InstancedMesh`/`<Instances>` afin de réduire drastiquement les draw calls. | Objets de même type+géométrie rendus en 1 draw call ; sélection/click toujours fonctionnels par instance. | C | 8 |
 | E8-03 | En tant que dev, je veux merger les géométries non répétitives par calque (render mesh + picking mesh invisible) afin de tomber à ~1 draw call par calque. | `mergeGeometries` appliqué ; raycasting sur picking meshes ; toggle calque toujours instantané. | C | 8 |
 | E8-04 | En tant que dev, je veux du LOD sur terrain/végétation/façade afin d'alléger le rendu en vue éloignée. | `<Lod>` (Drei) ou `THREE.LOD` ; meshes simplifiés générés via `meshoptimizer` dans le pipeline. | C | 5 |
-| E8-05 | En tant que dev, je veux vérifier les bounding boxes après export SketchUp afin que le frustum culling natif fonctionne. | Contrôle (ou recalcul) des bounds dans le pipeline ; pas d'objet qui disparaît à tort à l'écran. | C | 2 |
+| E8-05 | En tant que dev, je veux vérifier les bounding boxes après export SketchUp afin que le frustum culling natif fonctionne. | Contrôle (ou recalcul) des bounds dans le pipeline ; pas d'objet qui disparaît à tort à l'écran. _Partiellement couvert par E2-10 : les bounds POSITION sont déjà lus pour calculer les `dims`._ | C | 2 |
 
 > **S5 (E8-01) terminé le 2026-06-13** — overlay `r3f-perf` (draw calls, fps, mémoire GPU),
 > dev uniquement (chargé en `import()` paresseux derrière `import.meta.env.DEV` → exclu du
@@ -203,7 +204,7 @@
 | ID | User story | Prio | Pts |
 |---|---|---|---|
 | E10-01 | En tant qu'utilisateur, je veux déplacer/tourner un objet sélectionné via TransformControls afin de corriger le modèle sans repasser par SketchUp. | W (V1) | 8 |
-| E10-02 | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. | W (V1) | 5 |
+| E10-02 | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` est désormais pré-rempli automatiquement en V1, cf. E2-10 ; cette story couvre l'édition manuelle, y compris pour surcharger les cotes calculées.)_ | W (V1) | 5 |
 | E10-03 | En tant qu'utilisateur, je veux annuler/rétablir mes modifications (undo/redo via command pattern + `zundo`) afin d'éditer sans risque. | W (V1) | 8 |
 | E10-04 | En tant qu'utilisateur, je veux ré-exporter le GLB modifié afin de persister mes corrections. | W (V1) | 8 |
 | E10-05 | En tant que dev, je veux évaluer la migration Next.js (si besoin d'hébergement partagé / API routes pour la persistence) afin de décider de l'infra V2. | W (V1) | 3 |

@@ -85,11 +85,18 @@ node glTF par le script de post-processing, après l'export SketchUp.
   "zone": "salon",
   "level": "rdc",
   "index": 1,
-  "dims": { "thickness_m": 0.20, "height_m": 2.50 },
+  "dims": { "largeur_m": 0.20, "profondeur_m": 0.15, "hauteur_m": 2.50 },
   "material": "beton",
   "notes": ""
 }
 ```
+
+> `dims` est **calculé automatiquement** par le pipeline (issue #9) à partir de la
+> bounding box de la géométrie : bornes de l'accesseur `POSITION` × scale monde du
+> node. SketchUp exporte la géométrie en pouces, dans le repère local **Z-up** du
+> groupe (la conversion Y-up de glTF est portée par le node racine de la scène),
+> d'où le mapping `largeur_m` = X, `profondeur_m` = Y, `hauteur_m` = Z, en mètres.
+> Les champs `material` et `notes` restent vides, réservés à l'édition in-app (V2).
 
 **Structure `extras` de la scène racine (métadonnées globales) :**
 ```json
@@ -213,8 +220,8 @@ SketchUp
 
 ## Ce qu'on anticipe pour la V2 (ne pas coder, mais ne pas bloquer)
 
-- Les `extras` sont conçus pour accueillir l'édition (champs `dims`,
-  `material`, `notes` déjà présents)
+- Les `extras` sont conçus pour accueillir l'édition (`material`, `notes`
+  déjà présents et vides ; `dims` déjà calculé en V1 mais surchargeable)
 - Le store Zustand doit être conçu pour l'historique undo/redo
   → utiliser le **command pattern** + middleware `zundo`
 - Les node names sont la clé de liaison GLB ↔ extras : **immuables**
@@ -280,6 +287,8 @@ Three.js supporte les deux via `DRACOLoader` et `KTX2Loader`.
 Three.js le fait automatiquement.
 Point de vigilance : vérifier que les bounding boxes sont correctement
 calculées après export SketchUp (parfois mal générées sur des objets complexes).
+Note : le pipeline lit déjà les bornes `POSITION` de chaque node pour calculer
+les `dims` (issue #9) — un futur contrôle des bounds (E8-05) pourra s'appuyer dessus.
 
 L'**occlusion culling** (ne pas rendre ce qu'un mur cache) n'est pas natif
 Three.js — complexe à implémenter, hors scope V1 et V2.
