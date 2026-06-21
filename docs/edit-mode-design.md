@@ -238,7 +238,7 @@ useStore += {
 
 | Lib | Rôle | Réutilisée pour |
 |---|---|---|
-| **`three-mesh-bvh`** | accélère raycast & requêtes de proximité | snapping (E12-03), CSG (E14), perf E8 |
+| **`three-mesh-bvh`** | accélère raycast & requêtes de proximité | snapping (E12-03), CSG (E14), **collision du mode visite (E17)**, perf E8 |
 | **`three-bvh-csg`** | booléen CSG mesh | trou fenêtre (E14) |
 | **`zundo`** | undo/redo Zustand | toutes les mutations Edit mode (E10-03) |
 | `GLTFExporter` (three) | ré-export GLB | persistance (E10-04) |
@@ -264,6 +264,19 @@ sauver → recharger → ré-éditer.
 > **La menuiserie (cadres de fenêtre) arrive après la Slice 2** : c'est un composant
 > posé (catégorie ①), pas un booléen — elle réutilise la pose de composants de l'élec.
 > La Slice 1 ne livre donc que le **vide** dans le mur.
+
+### 6.1 — Articulation avec le mode visite (E17) et le spike
+
+Le **mode visite** (vue 1re personne, type « Visite » SketchUp) est une feature
+**Viewer**, orthogonale à l'édition, mais son séquençage s'entrelace avec les slices :
+
+- **Visite Niveau 1** (vol libre — vue souris + WASD à hauteur d'œil, via Drei `PointerLockControls`) : livré **avant la Slice 0**. Quick win et banc d'essai de navigation, indépendant du paramétrique.
+- **Spike « murs solides ? »** : **avant la Slice 1**. Valide qu'un vrai export SketchUp donne des murs exploitables → dérisque **à la fois** le booléen fenêtre (Slice 1) et la collision de visite (Niveau 2).
+- **Visite Niveaux 2 & 3** (collisions + gravité via `three-mesh-bvh`, capsule vs collider du calque `structure` ; puis finitions) : **après** les slices d'édition.
+
+> Difficulté : Niveau 1 **facile** (~1 j, contrôles Drei + boucle clavier + flag `viewMode`) ;
+> Niveau 2 **modéré** (collision capsule/BVH, réglages anti-tunneling pour murs fins). Détail
+> des stories : backlog **E17**.
 
 ---
 

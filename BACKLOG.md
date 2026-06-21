@@ -26,8 +26,10 @@
 | E14 | Edit mode — ouvertures & menuiseries (vrai vide + cadre) | V2 | M |
 | E15 | Edit mode — électricité (création) | V2 | M |
 | E16 | Edit mode — plomberie (création) | V2 | S |
+| E17 | Mode visite (vue 1re personne, type « Visite » SketchUp) | V2 | M |
 
-> Conception détaillée d'Edit mode (E10, E12→E16) : [docs/edit-mode-design.md](docs/edit-mode-design.md).
+> Conception détaillée d'Edit mode (E10, E12→E16) et articulation du mode visite (E17) :
+> [docs/edit-mode-design.md](docs/edit-mode-design.md).
 
 ---
 
@@ -309,6 +311,39 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 
 ---
 
+## Epic E17 — Mode visite (vue 1re personne) (V2 — Viewer)
+
+**Objectif** : se déplacer dans la maison en vue subjective, comme le mode « Visite »
+de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séquençage :
+[docs/edit-mode-design.md](docs/edit-mode-design.md) § 6.1.
+
+**Niveau 1 — vol libre** — traité **avant** l'édit (banc d'essai de navigation).
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E17-01 | En tant qu'utilisateur, je veux basculer entre Orbite et Visite afin de choisir mon mode de navigation. | Flag store `viewMode` ; bascule toolbar + raccourci ; overlay « Cliquez pour explorer / ÉCHAP pour quitter ». | M | 3 |
+| E17-02 | En tant qu'utilisateur, je veux regarder autour de moi à la souris, à hauteur d'œil. | Drei `PointerLockControls` ; caméra à ~1,60 m ; FOV ~70°. | M | 2 |
+| E17-03 | En tant qu'utilisateur, je veux me déplacer au clavier (WASD / flèches) en vol libre. | Avancer / reculer / pas latéraux ; vitesse réaliste ; **sans** gravité ni collision (niveau 1). | M | 3 |
+| E17-04 | En tant qu'utilisateur, je veux démarrer la visite au bon endroit. | Entrée à hauteur d'œil au centre du modèle ; FOV réglable. | S | 2 |
+
+**Niveau 2 — vraie visite (collisions)** — traité **après** l'édit.
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E17-05 | En tant qu'utilisateur, je veux ne pas traverser les murs. | Capsule vs *collider* via `three-mesh-bvh` ; collider construit depuis le calque `structure` ; sous-pas anti-tunneling pour murs fins. | M | 8 |
+| E17-06 | En tant qu'utilisateur, je veux marcher au sol et monter les escaliers. | Gravité + snap au sol + franchissement de marches. | M | 5 |
+| E17-07 | En tant que dev, je veux (re)construire le collider au chargement du modèle. | Collider rebâti à chaque modèle chargé (drag & drop). | M | 2 |
+
+**Niveau 3 — finitions** — traité **après** l'édit.
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E17-08 | En tant qu'utilisateur, je veux placer le point de départ de la visite. | « Placer la caméra » : cliquer un point → départ de la visite. | C | 3 |
+| E17-09 | En tant qu'utilisateur, je veux régler le confort (vitesse, accroupi, FOV). | Réglages exposés ; pas de *head-bob* par défaut. | C | 2 |
+| E17-10 | En tant qu'utilisateur (mobile), je veux des contrôles tactiles / manette. | Joysticks virtuels / gamepad. | C | 5 |
+
+---
+
 ## Proposition d'ordre de réalisation V1 (sprints indicatifs)
 
 | Sprint | Contenu | Stories |
@@ -323,24 +358,29 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 
 ---
 
-## Proposition d'ordre de réalisation V2 — Edit mode (tranches verticales)
+## Proposition d'ordre de réalisation V2
 
-Chaque slice est démontrable de bout en bout : créer → éditer → undo/redo → sauver →
-recharger → ré-éditer. Détail et dérisquage : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6.
+Edit mode est livré en **tranches verticales** (créer → éditer → undo/redo → sauver →
+recharger → ré-éditer), encadrées par le **mode visite** (E17) et un **spike** de
+dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6.
 
-| Slice | Contenu | Epics |
+| Étape | Contenu | Epics |
 |---|---|---|
-| **0 — Socle + formes** | Mode édition, plans de travail, snapping, rectangle/cercle/arc, inspector, undo/redo, ré-export. **Aucun booléen.** | E12, E13, E10-03/04 |
-| **1 — Ouvertures** | Ouverture paramétrique → **vrai vide dans le mur (CSG)**. Menuiserie (cadre) reportée en phase 2. | E14 ph.1 |
-| **2 — Électricité** | Prise / interrupteur / boîte / compteur + câble routé (section rectangulaire). | E15 |
-| **3 — Plomberie** | Tuyaux cuivre/PVC/évac (réemploi du routage), pente, coudes/raccords auto, valves. | E16 |
+| **Visite — Niveau 1** | Vue 1re personne en **vol libre** (avant l'édit) → tester la navigation tôt. | E17 ph.1 |
+| **Spike — murs « solides » ?** | Valider qu'un **vrai export SketchUp** donne des murs exploitables. Dérisque **à la fois** le booléen (Slice 1) et la collision de visite (E17 N2). | — |
+| **Slice 0 — Socle + formes** | Mode édition, plans de travail, snapping, rectangle/cercle/arc, inspector, undo/redo, ré-export. **Aucun booléen.** | E12, E13, E10-03/04 |
+| **Slice 1 — Ouvertures** | Ouverture paramétrique → **vrai vide dans le mur (CSG)**. | E14 ph.1 |
+| **Slice 2 — Électricité** | Prise / interrupteur / boîte / compteur + câble routé (section rectangulaire). | E15 |
+| **Slice 3 — Plomberie** | Tuyaux cuivre/PVC/évac (réemploi du routage), pente, coudes/raccords auto, valves. | E16 |
+| **Visite — Niveaux 2 & 3** | **Collisions + gravité** (marche, escaliers) puis finitions — **après l'édit**. | E17 ph.2/3 |
 
 > **Menuiserie des fenêtres (E14 phase 2)** : posée **après la Slice 2**, car le cadre est
 > un composant posé (catégorie ①) qui réutilise la pose de composants de l'électricité.
 > La Slice 1 ne livre que le **vide** dans le mur.
 
-**Definition of Done V2** : les 4 slices démontrables sur un **vrai modèle SketchUp** ;
-objets créés **persistés** (ré-export GLB) et **ré-éditables** après rechargement.
+**Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
+SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
+et le **mode visite** opérationnel (vol libre, puis collisions).
 
 ---
 

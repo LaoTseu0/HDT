@@ -16,6 +16,8 @@ Usage perso en premier lieu. Stack web moderne.
 - **V2 — Edit mode** : création d'objets **paramétriques** dans l'app (formes,
            fenêtres avec vrai trou, électricité, plomberie) sur la coquille SketchUp ;
            3D direct + plans de travail + snapping ; undo/redo + ré-export GLB.
+           Inclut un **mode visite (vue 1re personne)** : vol libre avant l'édit,
+           collisions/gravité après (epic E17).
            Direction validée le 2026-06-21 — voir [docs/edit-mode-design.md](docs/edit-mode-design.md).
 - **V3** : Modélisation complète in-app (hors scope pour l'instant).
 
@@ -261,7 +263,13 @@ modeleur généraliste plus tard (archi ouverte, mais non codée).
   les polygones ; coudes/raccords générés automatiquement (onglet).
 - **Undo/redo** (command pattern + `zundo`) et **ré-export GLB** (`GLTFExporter`, en
   conservant les `edit.params`) : **validés**.
-- **Ordre de réalisation** : formes (rectangle/cercle/arc) → fenêtres → électricité → plomberie.
+- **Mode visite (vue 1re personne, epic E17)** : Niveau 1 « vol libre » traité **avant**
+  l'édit (banc d'essai de navigation) ; Niveaux 2/3 (collisions, gravité, finitions)
+  traités **après** l'édit. Réutilise `three-mesh-bvh`.
+- **Spike de dérisquage** (validé) : vérifier qu'un vrai export SketchUp donne des murs
+  « solides » → fiabilise **à la fois** le booléen fenêtre et la collision de visite.
+- **Ordre de réalisation** : Visite N1 → spike → formes → fenêtres (vide) → électricité
+  → menuiserie → plomberie → Visite N2/3.
 
 **Invariants conservés depuis la V1 :**
 - Les node names restent la clé de liaison GLB ↔ extras : **immuables**.
