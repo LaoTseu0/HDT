@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # GLB de dev (non commités en prod)
-public/models/*
+#public/models/*
 !public/models/.gitkeep
 
 # Décodeurs Draco/Basis copiés depuis three en postinstall (script/copy-decoders.mjs)
