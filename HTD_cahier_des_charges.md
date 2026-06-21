@@ -13,8 +13,10 @@ Usage perso en premier lieu. Stack web moderne.
 ## Roadmap validée
 
 - **V1** : Viewer 3D web + système de calques. Modélisation externe dans SketchUp.
-- **V2** : Édition/correction du modèle directement dans l'app (raycasting,
-           transform controls, undo/redo).
+- **V2 — Edit mode** : création d'objets **paramétriques** dans l'app (formes,
+           fenêtres avec vrai trou, électricité, plomberie) sur la coquille SketchUp ;
+           3D direct + plans de travail + snapping ; undo/redo + ré-export GLB.
+           Direction validée le 2026-06-21 — voir [docs/edit-mode-design.md](docs/edit-mode-design.md).
 - **V3** : Modélisation complète in-app (hors scope pour l'instant).
 
 ---
@@ -97,6 +99,24 @@ node glTF par le script de post-processing, après l'export SketchUp.
 > groupe (la conversion Y-up de glTF est portée par le node racine de la scène),
 > d'où le mapping `largeur_m` = X, `profondeur_m` = Y, `hauteur_m` = Z, en mètres.
 > Les champs `material` et `notes` restent vides, réservés à l'édition in-app (V2).
+
+**Extension V2 — objets créés in-app (`extras.edit`) :**
+Les objets créés par Edit mode portent, en plus des champs ci-dessus, un bloc `edit`
+qui rend leur géométrie **paramétrique** (régénérée au chargement depuis ses `params`,
+donc ré-éditable). `source: "app"` les distingue des nodes importés de SketchUp.
+Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 5.1.
+
+```json
+{
+  "source": "app",
+  "edit": {
+    "kind": "opening.window",
+    "plane": { "faceOf": "structure__mur_porteur__salon__rdc__001" },
+    "params": { "largeur_m": 1.2, "hauteur_m": 1.0, "allege_m": 0.9 },
+    "variant": "classique"
+  }
+}
+```
 
 **Structure `extras` de la scène racine (métadonnées globales) :**
 ```json
@@ -218,15 +238,35 @@ SketchUp
 
 ---
 
-## Ce qu'on anticipe pour la V2 (ne pas coder, mais ne pas bloquer)
+## V2 — Edit mode (édition in-app) — direction validée le 2026-06-21
 
-- Les `extras` sont conçus pour accueillir l'édition (`material`, `notes`
-  déjà présents et vides ; `dims` déjà calculé en V1 mais surchargeable)
-- Le store Zustand doit être conçu pour l'historique undo/redo
-  → utiliser le **command pattern** + middleware `zundo`
-- Les node names sont la clé de liaison GLB ↔ extras : **immuables**
-- Raycasting + TransformControls pour déplacement d'objets in-app
-- Plugin Ruby SketchUp pour automatiser le nommage (backlog V1/V2)
+La V2 fait passer l'app de **viewer** à **éditeur** : création d'objets paramétriques
+directement dans l'app, sans repasser par SketchUp. Conception détaillée :
+**[docs/edit-mode-design.md](docs/edit-mode-design.md)** (epics E10, E12→E16 du backlog).
+
+**Cadrage** : SketchUp reste l'auteur de la **coquille** (murs, structure, terrain) ;
+Edit mode pose **par-dessus** les systèmes techniques (élec, plomberie) et les
+ouvertures (fenêtres), en objets paramétriques. Couche « BIM-lite MEP » d'abord,
+modeleur généraliste plus tard (archi ouverte, mais non codée).
+
+**Décisions structurantes :**
+- **Paradigme** : 3D direct + **plans de travail** + **snapping/inférence** (façon
+  SketchUp/Fusion), pas de vue plan 2D.
+- **Paramétrique** : objet créé = node + bloc `extras.edit` (cf. schéma plus haut) ;
+  géométrie régénérée au chargement → **ré-éditable** ; node names auto-générés selon
+  la convention (rend le plugin SketchUp optionnel pour les objets in-app).
+- **Fenêtres = vrais trous** dans les murs → booléen CSG réel (`three-bvh-csg` +
+  `three-mesh-bvh`), non-destructif, recalculé au chargement.
+- **Câbles & tuyaux = profil rectangulaire balayé** (pas de cylindres) pour réduire
+  les polygones ; coudes/raccords générés automatiquement (onglet).
+- **Undo/redo** (command pattern + `zundo`) et **ré-export GLB** (`GLTFExporter`, en
+  conservant les `edit.params`) : **validés**.
+- **Ordre de réalisation** : formes (rectangle/cercle/arc) → fenêtres → électricité → plomberie.
+
+**Invariants conservés depuis la V1 :**
+- Les node names restent la clé de liaison GLB ↔ extras : **immuables**.
+- Toute mutation passe par une **action nommée** (prérequis pour brancher `zundo`).
+- L'app reste **pilotée par le GLB** (aucune config de calque en dur).
 
 ---
 

@@ -19,8 +19,15 @@
 | E7 | Store & architecture V2-ready | V1 | S |
 | E8 | Optimisations performance 3D | V1.x / V2 | C |
 | E9 | Outillage workflow SketchUp | V2 | C |
-| E10 | Édition in-app | V2 | W (V1) |
+| E10 | Édition in-app : socle transverse (undo/redo, ré-export) | V2 | M |
 | E11 | Modélisation complète in-app | V3 | W |
+| E12 | Edit mode — moteur d'édition (plans de travail, snapping, paramétrique) | V2 | M |
+| E13 | Edit mode — formes / primitives d'esquisse | V2 | M |
+| E14 | Edit mode — ouvertures & menuiseries (vrai vide + cadre) | V2 | M |
+| E15 | Edit mode — électricité (création) | V2 | M |
+| E16 | Edit mode — plomberie (création) | V2 | S |
+
+> Conception détaillée d'Edit mode (E10, E12→E16) : [docs/edit-mode-design.md](docs/edit-mode-design.md).
 
 ---
 
@@ -197,23 +204,108 @@
 
 ---
 
-## Epic E10 — Édition in-app (V2 — ne pas coder en V1, ne pas bloquer)
+## Epic E10 — Édition in-app : socle transverse (V2 — **actif**)
 
-**Objectif** : corriger le modèle directement dans l'app.
+**Objectif** : les briques transverses de l'édition in-app, partagées par tout
+Edit mode (E12→E16). Undo/redo et ré-export sont **validés (go)** par le PO le 2026-06-21.
 
 | ID | User story | Prio | Pts |
 |---|---|---|---|
-| E10-01 | En tant qu'utilisateur, je veux déplacer/tourner un objet sélectionné via TransformControls afin de corriger le modèle sans repasser par SketchUp. | W (V1) | 8 |
-| E10-02 | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` est désormais pré-rempli automatiquement en V1, cf. E2-10 ; cette story couvre l'édition manuelle, y compris pour surcharger les cotes calculées.)_ | W (V1) | 5 |
-| E10-03 | En tant qu'utilisateur, je veux annuler/rétablir mes modifications (undo/redo via command pattern + `zundo`) afin d'éditer sans risque. | W (V1) | 8 |
-| E10-04 | En tant qu'utilisateur, je veux ré-exporter le GLB modifié afin de persister mes corrections. | W (V1) | 8 |
-| E10-05 | En tant que dev, je veux évaluer la migration Next.js (si besoin d'hébergement partagé / API routes pour la persistence) afin de décider de l'infra V2. | W (V1) | 3 |
+| E10-01 | En tant qu'utilisateur, je veux déplacer/tourner un objet sélectionné via TransformControls afin de corriger le modèle sans repasser par SketchUp. _(→ intégré à **E12-07**.)_ | M (V2) | 8 |
+| E10-02 | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` pré-rempli en V1, cf. E2-10 ; mutualisé avec l'inspector **E12-01**.)_ | S (V2) | 5 |
+| E10-03 ⭐ | En tant qu'utilisateur, je veux annuler/rétablir mes modifications (undo/redo via command pattern + `zundo`) afin d'éditer sans risque. **Go.** | M (V2) | 8 |
+| E10-04 ⭐ | En tant qu'utilisateur, je veux ré-exporter le GLB modifié (via `GLTFExporter`, en conservant les `edit.params`) afin de persister mes créations sans perdre la ré-éditabilité. **Go.** | M (V2) | 8 |
+| E10-05 | En tant que dev, je veux évaluer la migration Next.js (si besoin d'hébergement partagé / API routes pour la persistence) afin de décider de l'infra V2. | C (V2) | 3 |
+
+> ⭐ = explicitement validé par le PO le 2026-06-21. E10 n'est plus « W (V1) » mais le
+> **socle actif de la V2**. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 5.5–5.6.
 
 ---
 
 ## Epic E11 — Modélisation complète in-app (V3 — hors scope)
 
 Non détaillé volontairement. À cadrer après livraison V2.
+
+---
+
+## Epic E12 — Edit mode : moteur d'édition (V2)
+
+**Objectif** : le socle réutilisable du mode édition — plans de travail, snapping,
+modèle paramétrique. Voir [docs/edit-mode-design.md](docs/edit-mode-design.md) § 5.1–5.2.
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E12-01 | En tant qu'utilisateur, je veux basculer View ↔ Edit avec une palette d'outils et un inspector afin de créer/éditer des objets. | Bascule de mode ; palette des outils de création ; panneau propriétés (lecture **et** édition des params de l'objet sélectionné). | M | 5 |
+| E12-02 | En tant qu'utilisateur, je veux choisir un plan de travail afin de créer sans ambiguïté de profondeur. | Plan actif au choix : plans globaux, **face d'un mesh cliquée**, **plans de niveau** dérivés des `levels` (extras scène) ; indicateur visuel du plan. | M | 5 |
+| E12-03 | En tant qu'utilisateur, je veux du snapping/inférence afin de placer précisément et confortablement. | Snap sur grille, extrémités/milieux, sommets/arêtes des meshes (accéléré par `three-mesh-bvh`), axes X/Y/Z, parallèle/perpendiculaire ; marqueurs + lignes d'inférence ; pas de chute de framerate. | M | 13 |
+| E12-04 | En tant qu'utilisateur, je veux saisir une cote au clavier pendant un tracé afin d'être exact. | Taper une longueur/rayon fixe la cote ; unités en mètres (façon VCB SketchUp). | S | 3 |
+| E12-05 | En tant que dev, je veux un modèle paramétrique afin que les objets créés soient ré-éditables après rechargement. | `extras.edit { kind, plane, params, variant }` ; registre `kind→générateur` ; géométrie **régénérée au chargement** depuis les params ; `dims` recalculés (cohérent E2-10). | M | 8 |
+| E12-06 | En tant que dev, je veux des node names auto-générés conformes afin de garder le contrat de nommage sans plugin SketchUp. | Nom `système__type__zone__niveau__index` ; index auto-incrémenté par (système, zone, niveau) ; zone choisie dans l'inspector (zone courante par défaut) ; passe la regex de validation. | M | 5 |
+| E12-07 | En tant qu'utilisateur, je veux déplacer/tourner/redimensionner un objet par manipulation directe. | `TransformControls` (déplacer/tourner) + poignées de redimensionnement paramétrique ; respecte le snapping et l'undo/redo. Absorbe **E10-01**. | M | 5 |
+
+---
+
+## Epic E13 — Edit mode : formes / primitives d'esquisse (V2 — Slice 0)
+
+**Objectif** : dessiner les primitives les plus communes sur un plan de travail.
+Premier livrable d'Edit mode, **sans booléen**.
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E13-01 | En tant qu'utilisateur, je veux dessiner un rectangle paramétrique afin de poser une forme de base. | Tracé 2 coins (ou centre + coin) sur le plan actif ; paramétrique ; snapping actif. | M | 3 |
+| E13-02 | En tant qu'utilisateur, je veux dessiner un cercle paramétrique. | Centre + rayon ; saisie numérique du rayon possible (E12-04). | M | 2 |
+| E13-03 | En tant qu'utilisateur, je veux dessiner un arc de cercle paramétrique. | 3 points (ou centre + début + fin) ; paramétrique. | M | 3 |
+| E13-04 | En tant qu'utilisateur, je veux éditer les paramètres d'une primitive afin de l'ajuster après coup. | Sélection → inspector affiche/édite les cotes ; poignées de redimensionnement ; undo/redo ; **survit au rechargement** (E12-05). | M | 3 |
+
+---
+
+## Epic E14 — Edit mode : ouvertures & menuiseries (V2)
+
+**Objectif** : creuser de **vrais vides** dans les murs, puis y poser des menuiseries.
+Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.md) § 5.4.
+
+**Phase 1 — l'ouverture (le vide)** — Slice 1, le morceau risqué (CSG).
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E14-01 | En tant qu'utilisateur, je veux déposer une ouverture paramétrique sur une face de mur afin de définir l'emplacement et la taille du vide. | Params **largeur / hauteur / allège** ; posée sur une face de mur ; référence le mur par node name (dégradation propre si mur absent). | M | 5 |
+| E14-02 | En tant que dev, je veux un booléen CSG sur le mur importé afin d'y faire un **vrai trou**. | `three-bvh-csg` : mur percé = mur importé − volume de l'ouverture ; **non-destructif** (mur d'origine conservé) ; découpe **recalculée au chargement** depuis les `edit` des ouvertures référençant le mur. | M | 13 |
+| E14-03 | En tant qu'utilisateur, je veux que l'app gère proprement un mur « sale » (non-manifold). | Détection d'un résultat CSG dégénéré (volume nul / explosion de triangles) → **fallback** « pose en surface sans trou » + message ; validé sur un **vrai export SketchUp**. | M | 5 |
+| E14-04 | En tant qu'utilisateur, je veux des gabarits d'ouverture (classique / large / étroite) afin d'aller vite. | Presets de dims sélectionnables ; modifiables ensuite par instance. | S | 2 |
+
+**Phase 2 — la menuiserie (cadre + vitrage)** — **après** Slice 2 (réutilise la pose de composants ①, **pas de booléen**).
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E14-05 | En tant qu'utilisateur, je veux poser un cadre de fenêtre (+ vitrage) dans une ouverture. | **Composant posé** (catégorie ①) hébergé dans l'ouverture, ajusté à ses dims ; **pas de booléen** ; réutilise la machinerie de pose d'E15. | M | 5 |
+| E14-06 | En tant qu'utilisateur, je veux choisir une variante de menuiserie. | Variantes catalogue (classique / large / étroite, battant/coulissant…) par instance. | S | 3 |
+| E14-07 | En tant qu'utilisateur, je veux poser une porte (ouverture + vantail) via le même mécanisme. | Réemploi E14-01→05 : ouverture + composant vantail. | C | 5 |
+
+---
+
+## Epic E15 — Edit mode : électricité, création (V2 — Slice 2)
+
+**Objectif** : créer le réseau électrique (objets ponctuels ① + câble routé ②).
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E15-01 | En tant qu'utilisateur, je veux poser prises, interrupteurs et boîtes de dérivation sur les murs. | Pose sur une **face de mur** ; catalogue + variantes (ex. interrupteur va-et-vient) ; hauteur/sol + orientation paramétrables. | M | 8 |
+| E15-02 | En tant qu'utilisateur, je veux poser un compteur électrique. | Objet ponctuel posé depuis le catalogue. | M | 2 |
+| E15-03 | En tant qu'utilisateur, je veux router un câble électrique afin de relier les éléments. | Tracer un chemin → **section rectangulaire balayée** (low-poly, § 5.3) ; sections prédéfinies ; **coudes auto** aux sommets ; snapping aux objets/murs. | M | 13 |
+| E15-04 | En tant qu'utilisateur, je veux connecter logiquement un câble à une boîte/tableau (optionnel). | Notion de circuit : association câble ↔ boîte/tableau. | C | 8 |
+
+---
+
+## Epic E16 — Edit mode : plomberie, création (V2 — Slice 3)
+
+**Objectif** : créer les réseaux de plomberie, en **réutilisant le routage** d'E15.
+
+| ID | User story | Critères d'acceptation | Prio | Pts |
+|---|---|---|---|---|
+| E16-01 | En tant qu'utilisateur, je veux router des tuyaux avec des diamètres prédéfinis. | Réemploi du routage rectangulaire ; presets **cuivre** Ø12/14/16/18/22, **PVC**, **évacuation** Ø32/40/100 (rendus en section rectangulaire d'emprise équivalente, identité nominale conservée). | M | 5 |
+| E16-02 | En tant qu'utilisateur, je veux régler une pente sur un réseau d'évacuation. | Pente paramétrable sur un run d'évacuation. | S | 3 |
+| E16-03 | En tant qu'utilisateur, je veux des coudes/raccords/tés automatiques aux jonctions. | Générés automatiquement (onglet entre sections rectangulaires) aux sommets et jonctions. | M | 5 |
+| E16-04 | En tant qu'utilisateur, je veux insérer une valve sur un tuyau. | Objet inline inséré sur un segment, coupe le run en deux. | S | 3 |
 
 ---
 
@@ -231,4 +323,26 @@ Non détaillé volontairement. À cadrer après livraison V2.
 
 ---
 
-*Document généré le 2026-06-12 à partir de `HTD_cahier_des_charges.md`.*
+## Proposition d'ordre de réalisation V2 — Edit mode (tranches verticales)
+
+Chaque slice est démontrable de bout en bout : créer → éditer → undo/redo → sauver →
+recharger → ré-éditer. Détail et dérisquage : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6.
+
+| Slice | Contenu | Epics |
+|---|---|---|
+| **0 — Socle + formes** | Mode édition, plans de travail, snapping, rectangle/cercle/arc, inspector, undo/redo, ré-export. **Aucun booléen.** | E12, E13, E10-03/04 |
+| **1 — Ouvertures** | Ouverture paramétrique → **vrai vide dans le mur (CSG)**. Menuiserie (cadre) reportée en phase 2. | E14 ph.1 |
+| **2 — Électricité** | Prise / interrupteur / boîte / compteur + câble routé (section rectangulaire). | E15 |
+| **3 — Plomberie** | Tuyaux cuivre/PVC/évac (réemploi du routage), pente, coudes/raccords auto, valves. | E16 |
+
+> **Menuiserie des fenêtres (E14 phase 2)** : posée **après la Slice 2**, car le cadre est
+> un composant posé (catégorie ①) qui réutilise la pose de composants de l'électricité.
+> La Slice 1 ne livre que le **vide** dans le mur.
+
+**Definition of Done V2** : les 4 slices démontrables sur un **vrai modèle SketchUp** ;
+objets créés **persistés** (ré-export GLB) et **ré-éditables** après rechargement.
+
+---
+
+*Document généré le 2026-06-12 à partir de `HTD_cahier_des_charges.md`.
+Mis à jour le 2026-06-21 : Edit mode V2 (E10 réactivé, epics E12→E16).*
