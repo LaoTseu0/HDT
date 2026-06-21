@@ -12,6 +12,8 @@ export default function GLBLoader() {
   const requestFit = useStore((state) => state.requestFit)
   const setLoadError = useStore((state) => state.setLoadError)
   const clearLoadError = useStore((state) => state.clearLoadError)
+  const viewMode = useStore((state) => state.viewMode)
+  const toggleViewMode = useStore((state) => state.toggleViewMode)
 
   const fileInputRef = useRef(null)
   const dragDepth = useRef(0)
@@ -94,9 +96,18 @@ export default function GLBLoader() {
 
       <div className="toolbar">
         <button onClick={() => fileInputRef.current?.click()}>Ouvrir un GLB…</button>
-        {glb && (
+        {glb && viewMode === 'orbit' && (
           <button title="Recadrer la caméra sur le modèle (R)" onClick={requestFit}>
             Recentrer
+          </button>
+        )}
+        {glb && (
+          <button
+            title="Vue 1re personne — vol libre (V)"
+            aria-pressed={viewMode === 'visit'}
+            onClick={toggleViewMode}
+          >
+            {viewMode === 'visit' ? 'Quitter la visite' : 'Visiter'}
           </button>
         )}
         {glb && <span className="toolbar-file">{glb.fileName}</span>}

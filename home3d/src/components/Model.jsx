@@ -21,6 +21,7 @@ export default function Model() {
   const hoveredNode = useStore((state) => state.hoveredNode)
   const fitRequest = useStore((state) => state.fitRequest)
   const nodes = useStore((state) => state.nodes)
+  const viewMode = useStore((state) => state.viewMode)
   const selectNode = useStore((state) => state.selectNode)
   const hoverNode = useStore((state) => state.hoverNode)
   const setModel = useStore((state) => state.setModel)
@@ -121,12 +122,17 @@ export default function Model() {
 
   const handlePointerOut = useCallback(() => hoverNode(null), [hoverNode])
 
+  // E17 : en mode visite, la souris pilote le regard (pointer lock) ; on
+  // débranche le raycast clic/survol (sélection/inspection sont des actions
+  // du mode Orbite).
+  const isVisit = viewMode === 'visit'
+
   return glb ? (
     <primitive
       object={glb.scene}
-      onClick={handleClick}
-      onPointerMove={handlePointerMove}
-      onPointerOut={handlePointerOut}
+      onClick={isVisit ? undefined : handleClick}
+      onPointerMove={isVisit ? undefined : handlePointerMove}
+      onPointerOut={isVisit ? undefined : handlePointerOut}
     />
   ) : null
 }

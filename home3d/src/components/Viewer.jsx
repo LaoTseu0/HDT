@@ -2,6 +2,7 @@ import { lazy, Suspense, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid } from '@react-three/drei'
 import Model from './Model.jsx'
+import VisitControls from './VisitControls.jsx'
 import useStore from '../store/useStore.js'
 
 // E8-01 : overlay perf (draw calls, fps, mémoire GPU), dev uniquement,
@@ -20,6 +21,9 @@ const Perf = import.meta.env.DEV
 export default function Viewer() {
   const selectNode = useStore((state) => state.selectNode)
   const showPerf = useStore((state) => state.showPerf)
+  // E17 : en mode visite, OrbitControls laisse la place au vol libre
+  // (PointerLockControls + WASD).
+  const viewMode = useStore((state) => state.viewMode)
   // E6-01 : clic dans le vide → désélection. onPointerMissed se déclenche
   // aussi en fin d'orbite ; on ne désélectionne que si le pointeur n'a
   // quasiment pas bougé entre down et up (vrai clic).
@@ -49,7 +53,7 @@ export default function Viewer() {
         fadeDistance={60}
         infiniteGrid
       />
-      <OrbitControls makeDefault />
+      {viewMode === 'visit' ? <VisitControls /> : <OrbitControls makeDefault />}
 
       {Perf && showPerf && (
         <Suspense fallback={null}>

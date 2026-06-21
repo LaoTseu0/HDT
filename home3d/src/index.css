@@ -54,6 +54,47 @@ button.secondary {
   color: #9aa0b0;
 }
 
+/* Bouton actif (ex. « Quitter la visite » en mode visite, E17-01) */
+.toolbar button[aria-pressed='true'] {
+  border-color: #378add;
+  background: #1e3046;
+  color: #cfe4f8;
+}
+
+/* Mode visite (E17-01) : invite « Cliquez pour explorer » centrée.
+   pointer-events: none → le clic atteint le canvas (verrou souris). */
+.visit-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.visit-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 28px;
+  border: 1px solid #3a3d4a;
+  border-radius: 12px;
+  background: rgba(22, 23, 29, 0.82);
+  text-align: center;
+}
+
+.visit-overlay-card strong {
+  font-size: 17px;
+  color: #e8e9ee;
+}
+
+.visit-overlay-card span {
+  font-size: 13px;
+  color: #9aa0b0;
+}
+
 /* Erreurs de chargement (E3-05) */
 .error-banner {
   position: absolute;

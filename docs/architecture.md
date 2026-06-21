@@ -108,7 +108,9 @@ HDT/                              ← racine du dépôt
         │   ├── Model.jsx         ← parse le GLB (dans le Canvas) + raycast clic/survol
         │   ├── GLBLoader.jsx     ← drag & drop, file picker, toolbar, erreurs
         │   ├── LayerPanel.jsx    ← panneau calques (toggle, isoler, coloriser)
-        │   └── InfoPanel.jsx     ← infos de l'objet sélectionné
+        │   ├── InfoPanel.jsx     ← infos de l'objet sélectionné
+        │   ├── VisitControls.jsx ← mode visite 1re personne : pointer lock + WASD (E17 N1)
+        │   └── VisitOverlay.jsx  ← invite « Cliquez pour explorer » du mode visite
         └── lib/                  ← logique pure, sans React
             ├── loadModel.js      ← parse GLB + extraction des extras
             └── appearance.js     ← applique calques/sélection/survol sur la scène
@@ -225,6 +227,10 @@ useStore = {
   fitRequest, requestFit,        // compteur consommé par Model
   showPerf, togglePerf,          // overlay r3f-perf (dev)
 
+  // ── Mode visite 1re personne (E17 N1) ─────────────────────
+  viewMode, setViewMode, toggleViewMode,   // 'orbit' | 'visit'
+  pointerLocked, setPointerLocked,         // état du verrou souris natif
+
   // ── Cycle de chargement ────────────────────────────────────
   pendingFile, isLoading, loadError,
   requestLoad, setModel, setLoadError, clearLoadError,
@@ -249,12 +255,14 @@ useStore = {
 
 | Composant | Rôle | Lit dans le store | Subtilité |
 |---|---|---|---|
-| [`App`](../home3d/src/App.jsx) | Layout + raccourcis clavier globaux (`R` recadrer, `P` perf en dev) | `requestFit`, `togglePerf` | Ignore les raccourcis si focus dans un input. |
+| [`App`](../home3d/src/App.jsx) | Layout + raccourcis clavier globaux (`R` recadrer, `P` perf en dev, `V` visite, `Échap` quitter la visite) | `requestFit`, `togglePerf`, `toggleViewMode`, `setViewMode` | Ignore les raccourcis si focus dans un input. |
 | [`Viewer`](../home3d/src/components/Viewer.jsx) | Le `<Canvas>` : caméra, 3 lumières, `OrbitControls`, `Grid`, overlay perf | `selectNode`, `showPerf` | Clic dans le vide = désélection, **avec garde anti-drag** (on ne désélectionne que si le pointeur a peu bougé). |
 | [`Model`](../home3d/src/components/Model.jsx) | Parse le GLB (dans le Canvas), raycast clic/survol, applique l'apparence, recadre la caméra | quasi tout | Cœur du runtime. Voir §4.2. |
 | [`GLBLoader`](../home3d/src/components/GLBLoader.jsx) | Drag & drop fenêtre, file picker, toolbar, bannière d'erreur, modèle de démo | `glb`, `isLoading`, `loadError`, actions | Compteur enter/leave pour un feedback de drag fiable malgré les éléments imbriqués. |
 | [`LayerPanel`](../home3d/src/components/LayerPanel.jsx) | Liste des calques, toggle, Tout/Aucun, Isoler, colorisation | `layers` + actions | Se masque tant qu'aucun modèle n'est chargé. |
 | [`InfoPanel`](../home3d/src/components/InfoPanel.jsx) | Métadonnées de l'objet sélectionné, libellés FR | `selectedNode`, `nodes`, `layers` | Affiche un message dédié pour les objets « non classés ». |
+| [`VisitControls`](../home3d/src/components/VisitControls.jsx) | Mode visite 1re personne « vol libre » (E17 N1) : `PointerLockControls` + déplacement WASD/flèches | `glb`, `setPointerLocked` | Vit dans le Canvas ; rendu à la place d'`OrbitControls` quand `viewMode === 'visit'`. Sans gravité ni collision (Niveau 2 à venir). |
+| [`VisitOverlay`](../home3d/src/components/VisitOverlay.jsx) | Invite « Cliquez pour explorer » du mode visite | `viewMode`, `pointerLocked` | `pointer-events: none` → le clic traverse jusqu'au canvas pour verrouiller la souris. |
 
 **L'UI est un pur _overlay_** : le `<Canvas>` occupe tout l'écran ; les panneaux
 sont en `position: absolute` par-dessus (cf. [`index.css`](../home3d/src/index.css)).
@@ -405,5 +413,6 @@ Charger ensuite un GLB par drag & drop, le bouton « Ouvrir un GLB… », ou
 
 ---
 
-*Dernière mise à jour : 2026-06-19. À tenir à jour avec l'évolution du code —
-en particulier l'arborescence (§3), le flux runtime (§4.2) et le store (§5).*
+*Dernière mise à jour : 2026-06-21 (ajout du mode visite 1re personne, E17 Niveau 1).
+À tenir à jour avec l'évolution du code — en particulier l'arborescence (§3),
+le flux runtime (§4.2) et le store (§5).*

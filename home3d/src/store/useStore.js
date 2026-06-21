@@ -62,6 +62,20 @@ const useStore = create((set) => ({
   fitRequest: 0,
   requestFit: () => set((state) => ({ fitRequest: state.fitRequest + 1 })),
 
+  // E17 (mode visite, Niveau 1) : navigation à la 1re personne, orthogonale
+  // à l'édition. 'orbit' = OrbitControls (défaut) ; 'visit' = vol libre
+  // (PointerLockControls + WASD). `pointerLocked` reflète l'état du verrou
+  // souris natif : overlay « Cliquez pour explorer » tant qu'il est relâché.
+  viewMode: 'orbit',
+  setViewMode: (mode) => set({ viewMode: mode, hoveredNode: null }),
+  toggleViewMode: () =>
+    set((state) => ({
+      viewMode: state.viewMode === 'visit' ? 'orbit' : 'visit',
+      hoveredNode: null,
+    })),
+  pointerLocked: false,
+  setPointerLocked: (locked) => set({ pointerLocked: locked }),
+
   // E8-01 : overlay perf (dev uniquement, toggle clavier).
   showPerf: false,
   togglePerf: () => set((state) => ({ showPerf: !state.showPerf })),

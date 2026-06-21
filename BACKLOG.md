@@ -321,10 +321,23 @@ de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séq
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E17-01 | En tant qu'utilisateur, je veux basculer entre Orbite et Visite afin de choisir mon mode de navigation. | Flag store `viewMode` ; bascule toolbar + raccourci ; overlay « Cliquez pour explorer / ÉCHAP pour quitter ». | M | 3 |
-| E17-02 | En tant qu'utilisateur, je veux regarder autour de moi à la souris, à hauteur d'œil. | Drei `PointerLockControls` ; caméra à ~1,60 m ; FOV ~70°. | M | 2 |
-| E17-03 | En tant qu'utilisateur, je veux me déplacer au clavier (WASD / flèches) en vol libre. | Avancer / reculer / pas latéraux ; vitesse réaliste ; **sans** gravité ni collision (niveau 1). | M | 3 |
-| E17-04 | En tant qu'utilisateur, je veux démarrer la visite au bon endroit. | Entrée à hauteur d'œil au centre du modèle ; FOV réglable. | S | 2 |
+| E17-01 ✅ | En tant qu'utilisateur, je veux basculer entre Orbite et Visite afin de choisir mon mode de navigation. | Flag store `viewMode` ; bascule toolbar + raccourci ; overlay « Cliquez pour explorer / ÉCHAP pour quitter ». | M | 3 |
+| E17-02 ✅ | En tant qu'utilisateur, je veux regarder autour de moi à la souris, à hauteur d'œil. | Drei `PointerLockControls` ; caméra à ~1,60 m ; FOV ~70°. | M | 2 |
+| E17-03 ✅ | En tant qu'utilisateur, je veux me déplacer au clavier (WASD / flèches) en vol libre. | Avancer / reculer / pas latéraux ; vitesse réaliste ; **sans** gravité ni collision (niveau 1). | M | 3 |
+| E17-04 ✅ | En tant qu'utilisateur, je veux démarrer la visite au bon endroit. | Entrée à hauteur d'œil au centre du modèle ; FOV réglable. | S | 2 |
+
+> **Visite Niveau 1 (E17-01→04) terminé le 2026-06-21** — `viewMode` (`orbit`/`visit`)
+> + `pointerLocked` dans le store ([useStore.js](home3d/src/store/useStore.js)).
+> [VisitControls.jsx](home3d/src/components/VisitControls.jsx) : `PointerLockControls`
+> (Drei), caméra à 1,60 m, FOV 70°, entrée au centre de la bounding box, déplacement
+> WASD/flèches **vol libre** (direction complète du regard, sans gravité ni collision,
+> `delta` borné). Bascule via toolbar « Visiter/Quitter » + raccourci `V` ([App.jsx](home3d/src/App.jsx)),
+> `Viewer.jsx` rend `VisitControls` **ou** `OrbitControls` selon `viewMode` (retour Orbite
+> → recadrage auto via l'effet existant de `Model.jsx`). Overlay « Cliquez pour explorer »
+> ([VisitOverlay.jsx](home3d/src/components/VisitOverlay.jsx), `pointer-events:none` → le
+> clic verrouille la souris) ; `Échap` déverrouille (1er appui) puis quitte (2e appui).
+> Raycast clic/survol de `Model` débranché en visite. FOV « réglable » (E17-04) reste à
+> exposer en réglages (E17-09). **Niveaux 2/3 (collisions, gravité) après les slices d'édition.**
 
 **Niveau 2 — vraie visite (collisions)** — traité **après** l'édit.
 
