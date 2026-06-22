@@ -380,7 +380,7 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 | Étape | Contenu | Epics |
 |---|---|---|
 | **Visite — Niveau 1** | Vue 1re personne en **vol libre** (avant l'édit) → tester la navigation tôt. | E17 ph.1 |
-| **Spike — murs « solides » ?** | Valider qu'un **vrai export SketchUp** donne des murs exploitables. Dérisque **à la fois** le booléen (Slice 1) et la collision de visite (E17 N2). | — |
+| **Spike — murs « solides » ?** ✅ | Valider qu'un **vrai export SketchUp** donne des murs exploitables. Dérisque **à la fois** le booléen (Slice 1) et la collision de visite (E17 N2). **Fait le 2026-06-22 : 🟢 collision OK + CSG fenêtre fiable (8/8) même sur un bloc non-manifold** → workflow « un seul bloc » tenable ; garder weld + fallback E14-03. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6.2. | — |
 | **Slice 0 — Socle + formes** | Mode édition, plans de travail, snapping, rectangle/cercle/arc, inspector, undo/redo, ré-export. **Aucun booléen.** | E12, E13, E10-03/04 |
 | **Slice 1 — Ouvertures** | Ouverture paramétrique → **vrai vide dans le mur (CSG)**. | E14 ph.1 |
 | **Slice 2 — Électricité** | Prise / interrupteur / boîte / compteur + câble routé (section rectangulaire). | E15 |

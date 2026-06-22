@@ -276,7 +276,26 @@ Le **mode visite** (vue 1re personne, type « Visite » SketchUp) est une featur
 
 > Difficulté : Niveau 1 **facile** (~1 j, contrôles Drei + boucle clavier + flag `viewMode`) ;
 > Niveau 2 **modéré** (collision capsule/BVH, réglages anti-tunneling pour murs fins). Détail
-> des stories : backlog **E17**.
+> des stories : backlog **E17**. *Niveau 1 livré le 2026-06-22.*
+
+### 6.2 — Résultat du spike « murs solides ? » (2026-06-22)
+
+Spike exécuté sur un **vrai export SketchUp** (toute la maison en **un seul bloc** non
+modélisé mur par mur — workflow rapide choisi par l'utilisateur). Outils :
+`home3d/script/spike-solidity.mjs` (topologie) et `script/spike-csg.mjs` (test CSG réel
+via `three-bvh-csg`, contrôle `--selftest` sur un mur watertight pour valider le harnais).
+
+| Question | Résultat | Conséquence |
+|---|---|---|
+| Topologie du bloc | **non-manifold** : 1177 arêtes à 3+ faces (cloisons/dalles partagent le mesh), coque quasi fermée (9 arêtes de bord), 0 triangle dégénéré. | Pas un solide 2-manifold « propre ». |
+| **Collision visite (E17 N2)** | 🟢 **OK** — le capsule-cast `three-mesh-bvh` teste une soupe de triangles, pas besoin de volume fermé. | Le bloc fait un collider valable ; vrai sujet = anti-tunneling murs fins. |
+| **Booléen CSG fenêtres (E14)** | 🟢 **Trou traversant fiable : 8/8 emplacements de façade (100 %)**, mur conservé autour. | Le **workflow « un seul bloc » est tenable** : pas besoin de murs séparés juste pour le booléen. |
+
+> **Renversement vs la crainte initiale** : la topologie « sale » laissait craindre un CSG
+> inexploitable, mais `three-bvh-csg` l'encaisse. **Bémols** retenus pour l'implémentation
+> d'E14 : le mesh **résultat n'est pas watertight** (arêtes de bord en hausse) → prévoir une
+> **passe de soudure** + **garder le fallback E14-03** ; valider en conditions réelles
+> (fenêtres multiples, coins, vérif **visuelle dans l'app**, pas seulement en headless).
 
 ---
 
