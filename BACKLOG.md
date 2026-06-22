@@ -391,6 +391,18 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > un composant posé (catégorie ①) qui réutilise la pose de composants de l'électricité.
 > La Slice 1 ne livre que le **vide** dans le mur.
 
+> **Slice 0 — avancement (2026-06-23, incrément 1).** Socle Edit mode posé et
+> démontrable : bascule View ↔ Edit (toolbar + touche `E`), store enveloppé par
+> `zundo` (undo/redo sur les objets app uniquement), registre paramétrique
+> `kind→generate` ([editRegistry.js](home3d/src/lib/editRegistry.js), 1re entrée
+> `sketch.rect`), outil **Rectangle** (tracé cliquer-glisser sur le plan de sol),
+> inspector éditable (largeur/profondeur → régénère la géométrie), undo/redo
+> (boutons + `Ctrl+Z`/`Ctrl+Maj+Z`). Vérifié dans le navigateur (créer → éditer →
+> annuler/rétablir). **Reste pour finir la Slice 0** : plans de travail (E12-02),
+> snapping/inférence (E12-03), saisie numérique (E12-04), cercle/arc (E13-02/03),
+> node names conformes + zone (E12-06), **ré-export GLB** (E10-04). Coalescence de
+> l'historique pendant la frappe d'un champ : à raffiner.
+
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
 et le **mode visite** opérationnel (vol libre, puis collisions).

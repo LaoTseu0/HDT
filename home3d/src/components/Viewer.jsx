@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid } from '@react-three/drei'
 import Model from './Model.jsx'
 import VisitControls from './VisitControls.jsx'
+import EditObjects from './EditObjects.jsx'
 import useStore from '../store/useStore.js'
 
 // E8-01 : overlay perf (draw calls, fps, mémoire GPU), dev uniquement,
@@ -24,6 +25,12 @@ export default function Viewer() {
   // E17 : en mode visite, OrbitControls laisse la place au vol libre
   // (PointerLockControls + WASD).
   const viewMode = useStore((state) => state.viewMode)
+  // Slice 0 : pendant le tracé d'une forme, on coupe OrbitControls (le drag
+  // sert à dessiner, pas à orbiter ; les contrôles écoutent le DOM directement,
+  // un stopPropagation R3F ne les arrête pas).
+  const editMode = useStore((state) => state.editMode)
+  const activeTool = useStore((state) => state.activeTool)
+  const drawingTool = editMode && activeTool === 'rect'
   // E6-01 : clic dans le vide → désélection. onPointerMissed se déclenche
   // aussi en fin d'orbite ; on ne désélectionne que si le pointeur n'a
   // quasiment pas bougé entre down et up (vrai clic).
@@ -45,6 +52,7 @@ export default function Viewer() {
       <directionalLight position={[-6, 4, -5]} intensity={0.4} />
 
       <Model />
+      <EditObjects />
 
       <Grid
         args={[20, 20]}
@@ -53,7 +61,11 @@ export default function Viewer() {
         fadeDistance={60}
         infiniteGrid
       />
-      {viewMode === 'visit' ? <VisitControls /> : <OrbitControls makeDefault />}
+      {viewMode === 'visit' ? (
+        <VisitControls />
+      ) : (
+        <OrbitControls makeDefault enabled={!drawingTool} />
+      )}
 
       {Perf && showPerf && (
         <Suspense fallback={null}>
