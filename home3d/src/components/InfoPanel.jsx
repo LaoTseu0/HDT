@@ -37,8 +37,11 @@ export default function InfoPanel() {
   const nodes = useStore((state) => state.nodes)
   const layers = useStore((state) => state.layers)
   const selectNode = useStore((state) => state.selectNode)
+  const isAppObject = useStore((state) => !!state.objects[state.selectedNode])
 
-  if (!selectedNode) return null
+  // Les objets créés in-app ont leur propre inspector (EditBar) : on n'affiche
+  // pas ce panneau d'infos d'objet importé pour eux.
+  if (!selectedNode || isAppObject) return null
   const extras = nodes[selectedNode]
 
   return (

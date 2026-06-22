@@ -95,6 +95,83 @@ button.secondary {
   color: #9aa0b0;
 }
 
+/* Panneau d'édition (Edit mode, Slice 0) — à gauche, comme le panneau Calques */
+.edit-bar {
+  position: absolute;
+  top: 64px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 240px;
+  max-height: calc(100% - 140px);
+  padding: 12px;
+  border: 1px solid #3a3d4a;
+  border-radius: 10px;
+  background: rgba(26, 28, 36, 0.92);
+  overflow-y: auto;
+  z-index: 15;
+}
+
+.edit-history {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-tool {
+  flex: 1;
+}
+
+.edit-tool[aria-pressed='true'] {
+  border-color: #378add;
+  background: #1e3046;
+  color: #cfe4f8;
+}
+
+.edit-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #9aa0b0;
+}
+
+.edit-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #3a3d4a;
+}
+
+.edit-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: #c8cbd6;
+}
+
+.edit-field input {
+  width: 90px;
+  padding: 4px 6px;
+  border: 1px solid #3a3d4a;
+  border-radius: 6px;
+  background: #16171d;
+  color: #e8e9ee;
+  font-size: 13px;
+}
+
+.edit-delete {
+  border-color: #a33;
+  background: #3a1d22;
+  color: #ffb4b4;
+}
+
 /* Erreurs de chargement (E3-05) */
 .error-banner {
   position: absolute;
