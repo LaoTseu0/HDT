@@ -10,9 +10,11 @@ export default function LayerPanel() {
   const isolateLayer = useStore((state) => state.isolateLayer)
   const colorByLayer = useStore((state) => state.colorByLayer)
   const toggleColorByLayer = useStore((state) => state.toggleColorByLayer)
+  const editMode = useStore((state) => state.editMode)
 
   const entries = Object.entries(layers)
-  if (entries.length === 0) return null
+  // En édition, le panneau de gauche affiche l'EditBar à la place des calques.
+  if (entries.length === 0 || editMode) return null
 
   return (
     <aside className="layer-panel" aria-label="Calques">

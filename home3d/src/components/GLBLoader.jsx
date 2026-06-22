@@ -14,6 +14,8 @@ export default function GLBLoader() {
   const clearLoadError = useStore((state) => state.clearLoadError)
   const viewMode = useStore((state) => state.viewMode)
   const toggleViewMode = useStore((state) => state.toggleViewMode)
+  const editMode = useStore((state) => state.editMode)
+  const toggleEditMode = useStore((state) => state.toggleEditMode)
 
   const fileInputRef = useRef(null)
   const dragDepth = useRef(0)
@@ -96,12 +98,21 @@ export default function GLBLoader() {
 
       <div className="toolbar">
         <button onClick={() => fileInputRef.current?.click()}>Ouvrir un GLB…</button>
-        {glb && viewMode === 'orbit' && (
+        {glb && viewMode === 'orbit' && !editMode && (
           <button title="Recadrer la caméra sur le modèle (R)" onClick={requestFit}>
             Recentrer
           </button>
         )}
-        {glb && (
+        {glb && viewMode === 'orbit' && (
+          <button
+            title="Mode édition — créer des formes (E)"
+            aria-pressed={editMode}
+            onClick={toggleEditMode}
+          >
+            {editMode ? "Quitter l'édition" : 'Éditer'}
+          </button>
+        )}
+        {glb && !editMode && (
           <button
             title="Vue 1re personne — vol libre (V)"
             aria-pressed={viewMode === 'visit'}
