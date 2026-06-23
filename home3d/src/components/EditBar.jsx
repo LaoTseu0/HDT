@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
+import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
 
 // Panneau d'édition (Edit mode, Slice 0) : palette d'outils, undo/redo (zundo,
 // E10-03) et inspector éditable de l'objet app sélectionné (E12-01/E13-04).
@@ -35,13 +37,32 @@ export default function EditBar() {
   const selectedNode = useStore((state) => state.selectedNode)
   const updateObjectParams = useStore((state) => state.updateObjectParams)
   const deleteObject = useStore((state) => state.deleteObject)
+  const glb = useStore((state) => state.glb)
+  const metadata = useStore((state) => state.metadata)
 
   // pastStates/futureStates du store temporel zundo (réactif).
   const canUndo = useTemporal((state) => state.pastStates.length > 0)
   const canRedo = useTemporal((state) => state.futureStates.length > 0)
 
+  const [exporting, setExporting] = useState(false)
+
+  // E10-04 : ré-export GLB (coquille importée + objets app paramétriques). Il
+  // faut les extras de scène (model/layers) pour que le fichier soit
+  // rechargeable → désactivé tant qu'aucun modèle n'est chargé.
+  const onExport = async () => {
+    setExporting(true)
+    try {
+      const buffer = await buildEditedGLB({ scene: glb?.scene, objects, metadata })
+      const base = (glb?.fileName || 'maison.glb').replace(/\.glb$/i, '')
+      downloadGLB(buffer, `${base}-edit.glb`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   if (!editMode) return null
   const selectedObj = selectedNode ? objects[selectedNode] : null
+  const objectCount = Object.keys(objects).length
 
   return (
     <aside className="edit-bar" aria-label="Édition">
@@ -104,6 +125,21 @@ export default function EditBar() {
       ) : (
         <p className="edit-hint">Sélectionnez une forme pour l'éditer.</p>
       )}
+
+      <footer className="edit-footer">
+        <button
+          className="edit-export"
+          disabled={!metadata || exporting}
+          title={
+            metadata
+              ? 'Exporter la scène (coquille + objets créés) en GLB'
+              : 'Chargez un modèle pour pouvoir exporter'
+          }
+          onClick={onExport}
+        >
+          {exporting ? 'Export…' : `Exporter GLB (${objectCount})`}
+        </button>
+      </footer>
     </aside>
   )
 }

@@ -138,7 +138,7 @@ const useStore = create(
       loadError: null,
       requestLoad: (buffer, name) =>
         set({ pendingFile: { buffer, name }, isLoading: true, loadError: null }),
-      setModel: ({ scene, fileName, metadata, layers, nodes }) =>
+      setModel: ({ scene, fileName, metadata, layers, nodes, objects }) =>
         set({
           glb: { scene, fileName },
           metadata,
@@ -149,8 +149,9 @@ const useStore = create(
           loadError: null,
           selectedNode: null,
           hoveredNode: null,
-          // Repart d'une édition vierge à chaque nouveau modèle.
-          objects: {},
+          // Objets app reconstruits depuis les extras.edit du GLB (E10-04),
+          // sinon édition vierge.
+          objects: objects ?? {},
           draft: null,
           editMode: false,
         }),

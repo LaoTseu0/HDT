@@ -172,6 +172,15 @@ button.secondary {
   color: #ffb4b4;
 }
 
+.edit-footer {
+  padding-top: 10px;
+  border-top: 1px solid #3a3d4a;
+}
+
+.edit-export {
+  width: 100%;
+}
+
 /* Erreurs de chargement (E3-05) */
 .error-banner {
   position: absolute;
