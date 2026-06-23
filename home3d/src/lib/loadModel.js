@@ -44,10 +44,14 @@ export function parseGLB(buffer, gl) {
  * - extras par node → table { nodeName: extras } (E3-03)
  * - meshes sans calque (propre ou hérité) → calque « non classé » (E3-03),
  *   matérialisé par un `userData.layer` posé sur le mesh
+ * - nodes créés in-app (`source: 'app'` + `edit`) → reconstruits en objets
+ *   paramétriques et DÉTACHÉS de la scène : l'app régénère leur géométrie
+ *   depuis les params (EditObjects), la version bakée n'est qu'un repli
+ *   d'interopérabilité (E10-04, cf. exportGLB).
  *
  * @throws {PipelineError} si les extras scène sont absents (GLB non passé
  *   par le pipeline).
- * @returns {{ metadata: object, layers: object, nodes: object }}
+ * @returns {{ metadata: object, layers: object, nodes: object, objects: object }}
  */
 export function extractModelData(gltf) {
   const sceneExtras = gltf.scene.userData
@@ -65,22 +69,41 @@ export function extractModelData(gltf) {
   }
 
   const nodes = {}
+  const objects = {}
+  const appNodes = []
   let unclassified = 0
   const walk = (object, inheritedLayer) => {
-    const ownLayer = object.userData?.layer
-    if (ownLayer) nodes[object.name] = object.userData
+    const ud = object.userData
+    // Défensif : purge un résidu `__origMaterial` (interne à appearance.js)
+    // qui aurait pu fuiter dans les extras d'un GLB ré-exporté avant le
+    // correctif WeakMap — sinon applyAppearance le ré-utiliserait comme
+    // matériau (couleur sérialisée en nombre → mesh non rendu).
+    if (ud && '__origMaterial' in ud) delete ud.__origMaterial
+    // Objet créé in-app : reconstruit depuis ses params, sous-arbre ignoré.
+    if (ud?.source === 'app' && ud?.edit) {
+      const { kind, params, plane } = ud.edit
+      objects[object.name] = { id: object.name, kind, params, plane }
+      appNodes.push(object)
+      return
+    }
+    const ownLayer = ud?.layer
+    if (ownLayer) nodes[object.name] = ud
     const layer = ownLayer ?? inheritedLayer
     if (object.isMesh && !layer) {
-      object.userData.layer = UNCLASSIFIED_LAYER
+      ud.layer = UNCLASSIFIED_LAYER
       unclassified += 1
     }
     for (const child of object.children) walk(child, layer)
   }
   walk(gltf.scene, null)
 
+  // Détacher après le parcours : la géométrie bakée des objets app ne doit pas
+  // être rendue (EditObjects la régénère depuis les params).
+  for (const node of appNodes) node.parent?.remove(node)
+
   if (unclassified > 0) {
     layers[UNCLASSIFIED_LAYER] = { ...UNCLASSIFIED_CONFIG }
   }
 
-  return { metadata: sceneExtras, layers, nodes }
+  return { metadata: sceneExtras, layers, nodes, objects }
 }

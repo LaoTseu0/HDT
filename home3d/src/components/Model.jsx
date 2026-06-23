@@ -36,6 +36,10 @@ export default function Model() {
         if (cancelled) return
         const data = extractModelData(gltf)
         setModel({ scene: gltf.scene, fileName: pendingFile.name, ...data })
+        // Repartir d'un historique vierge : un undo ne doit pas franchir le
+        // chargement d'un modèle (la reconstruction des objets app n'est pas
+        // une action annulable). zundo a enregistré le setModel ci-dessus.
+        useStore.temporal.getState().clear()
       } catch (err) {
         if (cancelled) return
         setLoadError(

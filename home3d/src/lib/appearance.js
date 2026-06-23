@@ -12,6 +12,12 @@ import * as THREE from 'three'
 // et clones émissifs de la sélection courante (à disposer à chaque passe).
 const caches = new WeakMap()
 
+// Matériau d'origine par mesh. IMPORTANT : stocké dans une WeakMap, JAMAIS dans
+// `object.userData` — ce dernier est sérialisé en `extras` par GLTFExporter (un
+// `THREE.Color` y devient un nombre), ce qui corrompait le matériau au ré-import
+// du GLB ré-exporté (E10-04). La WeakMap reste hors du fichier.
+const originalMaterials = new WeakMap()
+
 function getCache(scene) {
   let cache = caches.get(scene)
   if (!cache) {
@@ -63,14 +69,14 @@ export function applyAppearance(
     const hovered = inheritedHovered || (hoveredNode != null && object.name === hoveredNode)
 
     if (object.isMesh) {
-      if (!object.userData.__origMaterial) {
-        object.userData.__origMaterial = object.material
+      if (!originalMaterials.has(object)) {
+        originalMaterials.set(object, object.material)
       }
       const config = layer ? layers[layer] : null
       const base =
         colorByLayer && config
           ? getLayerMaterial(cache, layer, config.color)
-          : object.userData.__origMaterial
+          : originalMaterials.get(object)
 
       // Sélection prioritaire sur le survol ; le survol reste léger (E6-04).
       if (selected || hovered) {

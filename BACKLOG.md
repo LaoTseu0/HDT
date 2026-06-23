@@ -215,8 +215,8 @@ Edit mode (E12→E16). Undo/redo et ré-export sont **validés (go)** par le PO 
 |---|---|---|---|
 | E10-01 | En tant qu'utilisateur, je veux déplacer/tourner un objet sélectionné via TransformControls afin de corriger le modèle sans repasser par SketchUp. _(→ intégré à **E12-07**.)_ | M (V2) | 8 |
 | E10-02 | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` pré-rempli en V1, cf. E2-10 ; mutualisé avec l'inspector **E12-01**.)_ | S (V2) | 5 |
-| E10-03 ⭐ | En tant qu'utilisateur, je veux annuler/rétablir mes modifications (undo/redo via command pattern + `zundo`) afin d'éditer sans risque. **Go.** | M (V2) | 8 |
-| E10-04 ⭐ | En tant qu'utilisateur, je veux ré-exporter le GLB modifié (via `GLTFExporter`, en conservant les `edit.params`) afin de persister mes créations sans perdre la ré-éditabilité. **Go.** | M (V2) | 8 |
+| E10-03 ✅ ⭐ | En tant qu'utilisateur, je veux annuler/rétablir mes modifications (undo/redo via command pattern + `zundo`) afin d'éditer sans risque. **Go.** | M (V2) | 8 |
+| E10-04 ✅ ⭐ | En tant qu'utilisateur, je veux ré-exporter le GLB modifié (via `GLTFExporter`, en conservant les `edit.params`) afin de persister mes créations sans perdre la ré-éditabilité. **Go.** | M (V2) | 8 |
 | E10-05 | En tant que dev, je veux évaluer la migration Next.js (si besoin d'hébergement partagé / API routes pour la persistence) afin de décider de l'infra V2. | C (V2) | 3 |
 
 > ⭐ = explicitement validé par le PO le 2026-06-21. E10 n'est plus « W (V1) » mais le
@@ -398,10 +398,29 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > `sketch.rect`), outil **Rectangle** (tracé cliquer-glisser sur le plan de sol),
 > inspector éditable (largeur/profondeur → régénère la géométrie), undo/redo
 > (boutons + `Ctrl+Z`/`Ctrl+Maj+Z`). Vérifié dans le navigateur (créer → éditer →
-> annuler/rétablir). **Reste pour finir la Slice 0** : plans de travail (E12-02),
-> snapping/inférence (E12-03), saisie numérique (E12-04), cercle/arc (E13-02/03),
-> node names conformes + zone (E12-06), **ré-export GLB** (E10-04). Coalescence de
-> l'historique pendant la frappe d'un champ : à raffiner.
+> annuler/rétablir).
+
+> **Slice 0 — avancement (2026-06-23, incrément 2 : E10-04 ré-export GLB).** Boucle
+> de persistance bouclée : bouton **« Exporter GLB »** ([EditBar.jsx](home3d/src/components/EditBar.jsx))
+> → [exportGLB.js](home3d/src/lib/exportGLB.js) réécrit la scène via `GLTFExporter`
+> (coquille importée + objets app porteurs de `extras.edit { kind, plane, params }` +
+> `source:'app'` ; géométrie bakée, ré-éditabilité via les params). Au chargement,
+> [loadModel.js](home3d/src/lib/loadModel.js) `extractModelData` reconstruit les
+> `objects` depuis `extras.edit` et **détache** les nodes app (l'app régénère la
+> géométrie depuis les params) ; `setModel` repeuple `objects`, historique zundo
+> remis à zéro. Round-trip vérifié de bout en bout (headless + navigateur) :
+> créer → exporter → recharger → la forme revient, ses params intacts, et la maison
+> importée s'affiche. **Bug corrigé au passage** : `appearance.js` stockait le
+> matériau d'origine dans `object.userData.__origMaterial`, que `GLTFExporter`
+> sérialisait en `extras` (un `THREE.Color` → un nombre) → matériau corrompu au
+> ré-import (maison invisible). Correctif racine : matériaux d'origine déplacés dans
+> une **WeakMap** (jamais dans `userData`) + purge défensive au chargement pour les
+> GLB déjà exportés. NB : le GLB ressort décompressé (GLTFExporter ne fait pas de
+> Draco) → repasser par `script/process.mjs` pour recompresser/valider ;
+> node names conformes + zone restent à faire (E12-06). **Reste pour finir la
+> Slice 0** : plans de travail (E12-02), snapping/inférence (E12-03), saisie
+> numérique (E12-04), cercle/arc (E13-02/03), node names conformes + zone (E12-06).
+> Coalescence de l'historique pendant la frappe d'un champ : à raffiner.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
