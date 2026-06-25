@@ -141,10 +141,19 @@ flowchart LR
 
 Le choix du paradigme concentre l'effort sur un **moteur d'édition** (epic E12).
 
-**Pilier 1 — Plans de travail.** Toute création se fait sur un plan actif. Sources :
-- plans **globaux** (XY/XZ/YZ) ;
-- **face d'un mesh cliqué** (« esquisser sur la face », façon Fusion) — clé pour poser une fenêtre/prise sur un mur ;
-- **plans de niveau** dérivés des `levels` déjà présents dans les `extras` scène (rdc à z=0, r1 à 2,5 m…). ← synergie directe avec l'existant.
+**Pilier 1 — Plan d'esquisse.** Toute création se fait sur un plan actif.
+
+> **Amendement 2026-06-24 (« façon SketchUp »).** On abandonne le **choix manuel**
+> d'un plan (menu global XY/XZ/YZ / niveau, essayé puis retiré) au profit d'un plan
+> **contextuel**, comme SketchUp : on dessine sur le **sol (niveau 0)** par défaut, et
+> dès que le curseur **survole une face** d'un mesh, le plan d'esquisse **devient cette
+> face** (aucun menu). Les « points de référence » (arêtes, intersections, niveaux) ne
+> sont pas un sélecteur mais des **cibles d'inférence** (Pilier 2 / E12-03). Le passage
+> 2D → volume se fait avec **Push/Pull** (E12-08), pas en pré-choisissant une épaisseur.
+
+Sources de plan, par ordre de priorité contextuelle :
+- **face d'un mesh survolé** (« esquisser sur la face ») — clé pour poser une fenêtre/prise sur un mur ;
+- **sol / niveau 0** par défaut (et plans de niveau dérivés des `levels` comme simples cotes d'inférence, pas comme menu).
 
 **Pilier 2 — Snapping / inférence** (le plus gros morceau, le n°1 du confort).
 - Cibles : grille du plan, **extrémités/milieux** des primitives et objets app, **sommets/arêtes du mur importé**, axes X/Y/Z, parallèle/perpendiculaire.

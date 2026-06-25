@@ -232,18 +232,23 @@ Non détaillé volontairement. À cadrer après livraison V2.
 
 ## Epic E12 — Edit mode : moteur d'édition (V2)
 
-**Objectif** : le socle réutilisable du mode édition — plans de travail, snapping,
-modèle paramétrique. Voir [docs/edit-mode-design.md](docs/edit-mode-design.md) § 5.1–5.2.
+**Objectif** : le socle réutilisable du mode édition — plan d'esquisse contextuel,
+snapping, modèle paramétrique. Voir [docs/edit-mode-design.md](docs/edit-mode-design.md) § 5.1–5.2.
+
+> **Directive IHM (2026-06-24).** Les outils d'Edit mode (E12-01, E12-02, E12-07,
+> E12-08, E13…) se présentent en **barre d'outils à icônes + tooltips au survol**,
+> jamais en gros boutons texte. Règle transverse à tout nouvel outil.
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E12-01 | En tant qu'utilisateur, je veux basculer View ↔ Edit avec une palette d'outils et un inspector afin de créer/éditer des objets. | Bascule de mode ; palette des outils de création ; panneau propriétés (lecture **et** édition des params de l'objet sélectionné). | M | 5 |
-| E12-02 | En tant qu'utilisateur, je veux choisir un plan de travail afin de créer sans ambiguïté de profondeur. | Plan actif au choix : plans globaux, **face d'un mesh cliquée**, **plans de niveau** dérivés des `levels` (extras scène) ; indicateur visuel du plan. | M | 5 |
+| E12-01 | En tant qu'utilisateur, je veux basculer View ↔ Edit avec une palette d'outils et un inspector afin de créer/éditer des objets. | Bascule de mode ; **palette d'outils à icônes + tooltips** (directive IHM) ; panneau propriétés (lecture **et** édition des params de l'objet sélectionné). | M | 5 |
+| E12-02 | En tant qu'utilisateur, je veux que le plan d'esquisse soit **déduit du contexte** (façon SketchUp) afin de créer sans choisir de plan manuellement. | Dessin sur le **sol / niveau 0** par défaut ; sur la **face survolée** quand le curseur est sur un mesh (le plan = cette face) ; **aucun sélecteur de plan manuel** ; feedback visuel discret du plan actif. **Révisé 2026-06-24** : abandon du menu XZ/YZ/niveau au profit du paradigme SketchUp contextuel ; les « points de référence » (arêtes/intersections) relèvent de E12-03. | M | 5 |
 | E12-03 | En tant qu'utilisateur, je veux du snapping/inférence afin de placer précisément et confortablement. | Snap sur grille, extrémités/milieux, sommets/arêtes des meshes (accéléré par `three-mesh-bvh`), axes X/Y/Z, parallèle/perpendiculaire ; marqueurs + lignes d'inférence ; pas de chute de framerate. | M | 13 |
 | E12-04 | En tant qu'utilisateur, je veux saisir une cote au clavier pendant un tracé afin d'être exact. | Taper une longueur/rayon fixe la cote ; unités en mètres (façon VCB SketchUp). | S | 3 |
 | E12-05 | En tant que dev, je veux un modèle paramétrique afin que les objets créés soient ré-éditables après rechargement. | `extras.edit { kind, plane, params, variant }` ; registre `kind→générateur` ; géométrie **régénérée au chargement** depuis les params ; `dims` recalculés (cohérent E2-10). | M | 8 |
 | E12-06 | En tant que dev, je veux des node names auto-générés conformes afin de garder le contrat de nommage sans plugin SketchUp. | Nom `système__type__zone__niveau__index` ; index auto-incrémenté par (système, zone, niveau) ; zone choisie dans l'inspector (zone courante par défaut) ; passe la regex de validation. | M | 5 |
 | E12-07 | En tant qu'utilisateur, je veux déplacer/tourner/redimensionner un objet par manipulation directe. | `TransformControls` (déplacer/tourner) + poignées de redimensionnement paramétrique ; respecte le snapping et l'undo/redo. Absorbe **E10-01**. | M | 5 |
+| E12-08 | En tant qu'utilisateur, je veux donner du volume à une forme 2D avec **Push/Pull** afin de créer un solide sans repasser par SketchUp. | Cliquer une face plane → tirer le long de sa **normale** → extrusion en volume (prisme) ; profondeur calable par **inférence** (E12-03) ou **saisie clavier** (E12-04) ; résultat **paramétrique** (hauteur d'extrusion dans `params`, régénérée au chargement, E12-05) ; undo/redo. _(Ajouté 2026-06-24, directive « façon SketchUp ».)_ | M | 5 |
 
 ---
 
@@ -417,10 +422,48 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > une **WeakMap** (jamais dans `userData`) + purge défensive au chargement pour les
 > GLB déjà exportés. NB : le GLB ressort décompressé (GLTFExporter ne fait pas de
 > Draco) → repasser par `script/process.mjs` pour recompresser/valider ;
-> node names conformes + zone restent à faire (E12-06). **Reste pour finir la
-> Slice 0** : plans de travail (E12-02), snapping/inférence (E12-03), saisie
-> numérique (E12-04), cercle/arc (E13-02/03), node names conformes + zone (E12-06).
-> Coalescence de l'historique pendant la frappe d'un champ : à raffiner.
+> node names conformes + zone restent à faire (E12-06).
+
+> **Slice 0 — avancement (2026-06-24, incrément 3 : E12-02 « façon SketchUp » +
+> E12-08 Push/Pull + IHM).** Après essai d'un sélecteur de plan explicite (XZ/YZ/
+> niveau, **rejeté par le PO**), bascule sur le paradigme **SketchUp contextuel** :
+> le plan d'esquisse est déduit du **survol** — **sol (niveau 0)** par défaut, ou la
+> **face survolée** d'un mesh ([workPlanes.js](home3d/src/lib/workPlanes.js) :
+> `groundFrame`/`faceFrame`, repère `u/v/normal`, projection monde↔plan ; pur, testé
+> [script/workPlanes.test.mjs](home3d/script/workPlanes.test.mjs)). L'outil
+> **Rectangle** trace sur ce plan (verrouillé au 1er point) ; aperçu discret du plan
+> au survol. Nouvel outil **Push/Pull** (E12-08) : cliquer une forme et tirer →
+> extrusion en **boîte paramétrique** (`hauteur_m` ajoutée aux params, géométrie
+> régénérée, undo en 1 entrée) — [editRegistry.js](home3d/src/lib/editRegistry.js)
+> `generateRect` produit un plan ou une boîte selon `hauteur_m`. **Multi-face** : la
+> face cliquée détermine la cote modifiée (largeur/profondeur/hauteur via l'axe u/v/
+> normal le plus aligné avec sa normale), la **face opposée restant fixe** (décalage
+> de `plane.origin` committé dans la même entrée d'historique). Bug corrigé : les
+> arêtes décoratives `__edges` interceptaient le clic (pas de `face`) → détection de
+> face faussée ; rendues non-raycastables + repli sur `event.intersections`. **Barre d'outils à
+> icônes + tooltips** (directive IHM) en remplacement des boutons texte. Correctif
+> UX au passage : la surbrillance de survol/sélection du modèle est **coupée pendant
+> un outil de dessin** ([Model.jsx](home3d/src/components/Model.jsx)) — sinon survoler
+> un mur lavait toute la maison en bleu. Vérifié au navigateur : tracé sol + face,
+> extrusion (boîte 3 m), undo, aucune erreur console.
+
+> **Slice 0 — avancement (2026-06-24, incrément 4 : E12-03 snapping, inc. 1).**
+> Premier jet du moteur d'inférence : pendant le tracé Rectangle, le curseur
+> **s'accroche** aux références de la **face survolée** — **sommets** (vert),
+> **milieux d'arête** (cyan), **point le plus proche sur une arête** (rouge) — dès
+> qu'on passe à moins d'un **seuil en pixels** (14 px, constant à l'écran façon
+> SketchUp). Module pur [snapping.js](home3d/src/lib/snapping.js) (`closestPointOnSegment`,
+> `pickBestSnap` priorité sommet>milieu>arête + distance écran ; testé
+> [script/snapping.test.mjs](home3d/script/snapping.test.mjs)) ; côté Canvas
+> ([EditObjects.jsx](home3d/src/components/EditObjects.jsx)) `probeSketch` renvoie le
+> `hit` modèle, `computeSnap` projette les candidats à l'écran, **marqueur losange**
+> coloré par type. Vérifié au navigateur (marqueur affiché, aperçu du plan recentré
+> sur l'accroche). **Reste E12-03 (inc. suivants)** : accroche aux **objets app**
+> dessinés, références **hors triangle survolé** (requêtes de proximité accélérées
+> `three-mesh-bvh`), **intersections**, **axes X/Y/Z** + lignes d'inférence, snap
+> grille. **Reste Slice 0** : saisie numérique VCB (E12-04), cercle/arc (E13-02/03),
+> node names conformes + zone (E12-06). Coalescence d'historique pendant la frappe :
+> à raffiner.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

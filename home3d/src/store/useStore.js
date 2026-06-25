@@ -83,12 +83,35 @@ const useStore = create(
       // ('select' | 'rect' | …). draft : tracé en cours (non committé, éphémère).
       editMode: false,
       activeTool: 'select',
-      setEditMode: (on) => set({ editMode: on, draft: null, activeTool: 'select' }),
+      setEditMode: (on) =>
+        set({
+          editMode: on,
+          draft: null,
+          activeTool: 'select',
+          extrude: null,
+          hoveredNode: null,
+        }),
       toggleEditMode: () =>
-        set((state) => ({ editMode: !state.editMode, draft: null, activeTool: 'select' })),
-      setActiveTool: (tool) => set({ activeTool: tool, draft: null }),
+        set((state) => ({
+          editMode: !state.editMode,
+          draft: null,
+          activeTool: 'select',
+          extrude: null,
+          hoveredNode: null,
+        })),
+      // Changer d'outil efface le survol résiduel (Model coupe sa surbrillance
+      // hors outil Sélection — sinon un highlight figé resterait).
+      setActiveTool: (tool) =>
+        set({ activeTool: tool, draft: null, extrude: null, hoveredNode: null }),
       draft: null,
       setDraft: (draft) => set({ draft }),
+
+      // E12-08 : aperçu éphémère d'un Push/Pull en cours =
+      // { id, paramKey, value, origin } (la face cliquée fixe quelle cote bouge).
+      // NON historisé (zundo partialize n'historise que `objects`) ; committé en
+      // une seule entrée d'historique au relâché via updateObjectParams.
+      extrude: null,
+      setExtrude: (extrude) => set({ extrude }),
 
       // Objets créés in-app : { [id]: { id, kind, params, plane } }. La géométrie
       // est DÉRIVÉE des params par le registre (lib/editRegistry) → ré-éditable
@@ -96,8 +119,7 @@ const useStore = create(
       objects: {},
       createObject: ({ kind, params, plane }) =>
         set((state) => {
-          const n =
-            Object.values(state.objects).filter((o) => o.kind === kind).length + 1
+          const n = Object.values(state.objects).filter((o) => o.kind === kind).length + 1
           const id = `app-${kind.replace(/\./g, '-')}-${String(n).padStart(3, '0')}`
           return {
             objects: { ...state.objects, [id]: { id, kind, params, plane } },
@@ -105,18 +127,28 @@ const useStore = create(
             draft: null,
           }
         }),
-      updateObjectParams: (id, patch) =>
+      // `planePatch` optionnel (Push/Pull sur une face latérale, E12-08) : déplace
+      // aussi l'ancrage `plane.origin` pour garder la face opposée fixe — committé
+      // dans la MÊME entrée d'historique que le changement de cote.
+      updateObjectParams: (id, patch, planePatch) =>
         set((state) => {
           const obj = state.objects[id]
           if (!obj) return state
           // Ignorer un set no-op : ne pas créer de nouvelle référence `objects`
-          // (donc pas d'entrée d'historique zundo) si aucun param ne change.
-          const changed = Object.keys(patch).some((k) => obj.params[k] !== patch[k])
-          if (!changed) return state
+          // (donc pas d'entrée d'historique zundo) si rien ne change.
+          const paramsChanged = Object.keys(patch).some((k) => obj.params[k] !== patch[k])
+          const planeChanged =
+            !!planePatch &&
+            Object.keys(planePatch).some((k) => obj.plane?.[k] !== planePatch[k])
+          if (!paramsChanged && !planeChanged) return state
           return {
             objects: {
               ...state.objects,
-              [id]: { ...obj, params: { ...obj.params, ...patch } },
+              [id]: {
+                ...obj,
+                params: { ...obj.params, ...patch },
+                plane: planePatch ? { ...obj.plane, ...planePatch } : obj.plane,
+              },
             },
           }
         }),
@@ -154,6 +186,7 @@ const useStore = create(
           objects: objects ?? {},
           draft: null,
           editMode: false,
+          extrude: null,
         }),
       setLoadError: (message) =>
         set({ loadError: message, pendingFile: null, isLoading: false }),
