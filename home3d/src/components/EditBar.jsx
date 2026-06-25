@@ -2,22 +2,73 @@ import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
 import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
 
-// Panneau d'édition (Edit mode, Slice 0) : palette d'outils, undo/redo (zundo,
-// E10-03) et inspector éditable de l'objet app sélectionné (E12-01/E13-04).
-// Remplace le panneau Calques à gauche tant qu'on édite.
+// Panneau d'édition (Edit mode, Slice 0) : barre d'outils à ICÔNES + tooltips
+// (directive IHM 2026-06-24), undo/redo (zundo, E10-03) et inspector éditable de
+// l'objet app sélectionné (E12-01/E13-04). Remplace le panneau Calques à gauche.
 
-function NumberField({ label, value, onChange }) {
+// Icônes d'outils (stroke = currentColor) — pictogramme + tooltip natif (title).
+function ToolIcon({ id }) {
+  if (id === 'select') {
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M5 3l13 6-5.4 1.6L11 17z" fill="currentColor" />
+      </svg>
+    )
+  }
+  if (id === 'rect') {
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect
+          x="4"
+          y="6"
+          width="16"
+          height="12"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+      </svg>
+    )
+  }
+  // pushpull
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect
+        x="5"
+        y="13"
+        width="14"
+        height="7"
+        rx="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M12 10V3M8.5 6.5L12 3l3.5 3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function NumberField({ label, value, onChange, allowZero = false }) {
   return (
     <label className="edit-field">
       <span>{label}</span>
       <input
         type="number"
-        min="0.01"
+        min={allowZero ? '0' : '0.01'}
         step="0.05"
-        value={value}
+        value={value ?? 0}
         onChange={(event) => {
           const v = parseFloat(event.target.value)
-          if (!Number.isNaN(v) && v > 0) onChange(Number(v.toFixed(3)))
+          if (!Number.isNaN(v) && (allowZero ? v >= 0 : v > 0))
+            onChange(Number(v.toFixed(3)))
         }}
       />
     </label>
@@ -25,9 +76,24 @@ function NumberField({ label, value, onChange }) {
 }
 
 const TOOLS = [
-  { id: 'select', label: 'Sélection' },
-  { id: 'rect', label: 'Rectangle' },
+  {
+    id: 'select',
+    label: 'Sélection',
+    hint: 'Sélectionner / éditer un objet',
+    key: 'Échap',
+  },
+  {
+    id: 'rect',
+    label: 'Rectangle',
+    hint: 'Dessiner un rectangle (sol ou face survolée)',
+  },
+  { id: 'pushpull', label: 'Push/Pull', hint: 'Donner du volume à une face (extrusion)' },
 ]
+
+const TOOL_HINTS = {
+  rect: 'Tracez un rectangle : sur le sol, ou directement sur une face survolée du modèle.',
+  pushpull: 'Cliquez une forme et tirez pour l’extruder le long de sa normale.',
+}
 
 export default function EditBar() {
   const editMode = useStore((state) => state.editMode)
@@ -88,22 +154,22 @@ export default function EditBar() {
         </div>
       </header>
 
-      <div className="edit-tools">
+      <div className="edit-tools" role="toolbar" aria-label="Outils">
         {TOOLS.map((tool) => (
           <button
             key={tool.id}
             className="edit-tool"
             aria-pressed={activeTool === tool.id}
+            aria-label={tool.label}
+            title={`${tool.label} — ${tool.hint}${tool.key ? ` (${tool.key})` : ''}`}
             onClick={() => setActiveTool(tool.id)}
           >
-            {tool.label}
+            <ToolIcon id={tool.id} />
           </button>
         ))}
       </div>
 
-      {activeTool === 'rect' && (
-        <p className="edit-hint">Tracez un rectangle sur le sol (cliquer-glisser).</p>
-      )}
+      {TOOL_HINTS[activeTool] && <p className="edit-hint">{TOOL_HINTS[activeTool]}</p>}
 
       {selectedObj ? (
         <div className="edit-inspector">
@@ -117,6 +183,12 @@ export default function EditBar() {
             label="Profondeur (m)"
             value={selectedObj.params.profondeur_m}
             onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
+          />
+          <NumberField
+            label="Hauteur (m)"
+            value={selectedObj.params.hauteur_m}
+            allowZero
+            onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
           />
           <button className="edit-delete" onClick={() => deleteObject(selectedObj.id)}>
             Supprimer

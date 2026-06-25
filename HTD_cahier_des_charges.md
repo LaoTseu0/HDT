@@ -252,8 +252,13 @@ ouvertures (fenêtres), en objets paramétriques. Couche « BIM-lite MEP » d'ab
 modeleur généraliste plus tard (archi ouverte, mais non codée).
 
 **Décisions structurantes :**
-- **Paradigme** : 3D direct + **plans de travail** + **snapping/inférence** (façon
-  SketchUp/Fusion), pas de vue plan 2D.
+- **Paradigme** : 3D direct **façon SketchUp**, pas de vue plan 2D. *(Précisé le
+  2026-06-24, cf. amendement ci-dessous.)* **Pas de sélecteur de plan manuel** : le
+  plan d'esquisse est **contextuel** (sol / niveau 0 par défaut, ou la **face
+  survolée**) ; la précision vient de l'**inférence/snapping** sur la géométrie
+  (extrémités, milieux, arêtes, intersections, axes) ; le **volume** se donne avec un
+  outil **Push/Pull** (extrusion d'une face le long de sa normale, profondeur calable
+  par inférence ou saisie VCB).
 - **Paramétrique** : objet créé = node + bloc `extras.edit` (cf. schéma plus haut) ;
   géométrie régénérée au chargement → **ré-éditable** ; node names auto-générés selon
   la convention (rend le plugin SketchUp optionnel pour les objets in-app).
@@ -275,6 +280,22 @@ modeleur généraliste plus tard (archi ouverte, mais non codée).
 - Les node names restent la clé de liaison GLB ↔ extras : **immuables**.
 - Toute mutation passe par une **action nommée** (prérequis pour brancher `zundo`).
 - L'app reste **pilotée par le GLB** (aucune config de calque en dur).
+
+**Directive IHM (transverse, ajout 2026-06-24).** Les outils d'Edit mode se
+présentent dans une **barre d'outils à icônes** — **pas** de gros boutons texte.
+Chaque icône porte un **tooltip au survol** (libellé + raccourci), au cas où le
+pictogramme ne suffit pas. Tout nouvel outil s'ajoute selon cette règle, pour que
+l'ensemble des devs reste aligné.
+
+**Amendement « façon SketchUp » (2026-06-24).** Après essai d'un sélecteur de plan
+explicite (XZ/YZ/niveau, abandonné), la direction est calée sur les **outils de base
+de SketchUp** :
+1. **Plan d'esquisse contextuel** — on dessine sur le **sol (niveau 0)** par défaut, ou
+   directement sur la **face survolée** (aucun menu de plan). 
+2. **Inférence/snapping** comme moteur de précision (extrémités, milieux, arêtes,
+   intersections, axes ; verrou par Maj) — cf. epic **E12-03**.
+3. **Push/Pull** pour passer d'une forme 2D à un **volume** (extrusion le long de la
+   normale de la face), profondeur calable par inférence ou saisie clavier (VCB).
 
 ---
 

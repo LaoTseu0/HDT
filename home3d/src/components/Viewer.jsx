@@ -30,7 +30,9 @@ export default function Viewer() {
   // un stopPropagation R3F ne les arrête pas).
   const editMode = useStore((state) => state.editMode)
   const activeTool = useStore((state) => state.activeTool)
-  const drawingTool = editMode && activeTool === 'rect'
+  // Outils à glisser (tracé du rectangle, extrusion Push/Pull) : on coupe
+  // OrbitControls, sinon le drag orbite au lieu d'agir.
+  const drawingTool = editMode && (activeTool === 'rect' || activeTool === 'pushpull')
   // E6-01 : clic dans le vide → désélection. onPointerMissed se déclenche
   // aussi en fin d'orbite ; on ne désélectionne que si le pointeur n'a
   // quasiment pas bougé entre down et up (vrai clic).

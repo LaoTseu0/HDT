@@ -22,6 +22,8 @@ export default function Model() {
   const fitRequest = useStore((state) => state.fitRequest)
   const nodes = useStore((state) => state.nodes)
   const viewMode = useStore((state) => state.viewMode)
+  const editMode = useStore((state) => state.editMode)
+  const activeTool = useStore((state) => state.activeTool)
   const selectNode = useStore((state) => state.selectNode)
   const hoverNode = useStore((state) => state.hoverNode)
   const setModel = useStore((state) => state.setModel)
@@ -127,16 +129,18 @@ export default function Model() {
   const handlePointerOut = useCallback(() => hoverNode(null), [hoverNode])
 
   // E17 : en mode visite, la souris pilote le regard (pointer lock) ; on
-  // débranche le raycast clic/survol (sélection/inspection sont des actions
-  // du mode Orbite).
-  const isVisit = viewMode === 'visit'
+  // débranche le raycast clic/survol. E12-02 : pendant un outil de dessin
+  // (Rectangle/Push-Pull), on coupe aussi la surbrillance/sélection du modèle —
+  // sinon survoler un mur l'allume en bleu et distrait du tracé (le plan
+  // contextuel raycaste le modèle de son côté, indépendamment de ces handlers).
+  const passive = viewMode === 'visit' || (editMode && activeTool !== 'select')
 
   return glb ? (
     <primitive
       object={glb.scene}
-      onClick={isVisit ? undefined : handleClick}
-      onPointerMove={isVisit ? undefined : handlePointerMove}
-      onPointerOut={isVisit ? undefined : handlePointerOut}
+      onClick={passive ? undefined : handleClick}
+      onPointerMove={passive ? undefined : handlePointerMove}
+      onPointerOut={passive ? undefined : handlePointerOut}
     />
   ) : null
 }
