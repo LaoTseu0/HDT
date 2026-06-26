@@ -246,7 +246,7 @@ snapping, modèle paramétrique. Voir [docs/edit-mode-design.md](docs/edit-mode-
 | E12-03 | En tant qu'utilisateur, je veux du snapping/inférence afin de placer précisément et confortablement. | Snap sur grille, extrémités/milieux, sommets/arêtes des meshes (accéléré par `three-mesh-bvh`), axes X/Y/Z, parallèle/perpendiculaire ; marqueurs + lignes d'inférence ; pas de chute de framerate. | M | 13 |
 | E12-04 ✅ | En tant qu'utilisateur, je veux saisir une cote au clavier pendant un tracé afin d'être exact. | Taper une longueur/rayon fixe la cote ; unités en mètres (façon VCB SketchUp). | S | 3 |
 | E12-05 | En tant que dev, je veux un modèle paramétrique afin que les objets créés soient ré-éditables après rechargement. | `extras.edit { kind, plane, params, variant }` ; registre `kind→générateur` ; géométrie **régénérée au chargement** depuis les params ; `dims` recalculés (cohérent E2-10). | M | 8 |
-| E12-06 | En tant que dev, je veux des node names auto-générés conformes afin de garder le contrat de nommage sans plugin SketchUp. | Nom `système__type__zone__niveau__index` ; index auto-incrémenté par (système, zone, niveau) ; zone choisie dans l'inspector (zone courante par défaut) ; passe la regex de validation. | M | 5 |
+| E12-06 ✅ | En tant que dev, je veux des node names auto-générés conformes afin de garder le contrat de nommage sans plugin SketchUp. | Nom `système__type__zone__niveau__index` ; index auto-incrémenté par (système, zone, niveau) ; zone choisie dans l'inspector (zone courante par défaut) ; passe la regex de validation. | M | 5 |
 | E12-07 | En tant qu'utilisateur, je veux déplacer/tourner/redimensionner un objet par manipulation directe. | `TransformControls` (déplacer/tourner) + poignées de redimensionnement paramétrique ; respecte le snapping et l'undo/redo. Absorbe **E10-01**. | M | 5 |
 | E12-08 | En tant qu'utilisateur, je veux donner du volume à une forme 2D avec **Push/Pull** afin de créer un solide sans repasser par SketchUp. | Cliquer une face plane → tirer le long de sa **normale** → extrusion en volume (prisme) ; profondeur calable par **inférence** (E12-03) ou **saisie clavier** (E12-04) ; résultat **paramétrique** (hauteur d'extrusion dans `params`, régénérée au chargement, E12-05) ; undo/redo. _(Ajouté 2026-06-24, directive « façon SketchUp ».)_ | M | 5 |
 
@@ -547,6 +547,37 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > erreur console ; `lint`/`build` OK. **Reste Slice 0** : cercle/arc (E13-02/03) —
 > qui réutiliseront la VCB pour le rayon —, node names conformes + zone (E12-06).
 > VCB du Push/Pull (E12-08, profondeur d'extrusion au clavier) : à brancher de même.
+
+> **Slice 0 — avancement (2026-06-26, incrément 8 : E12-06 node names + zone).**
+> Les objets créés in-app portent un **node name conforme** à la convention
+> (`système__type__zone__niveau__index`) qui **passe la regex de validation** du
+> pipeline, sans plugin SketchUp. Module **pur** [naming.js](home3d/src/lib/naming.js)
+> ([naming-app.test.mjs](home3d/script/naming-app.test.mjs), 10 verts → **114** au
+> total) : `nodeName`, `nextIndex` (**index auto-incrémenté par bucket (système,
+> zone, niveau) en max+1** → pas de réutilisation après suppression), `normalizeZone` ;
+> il **réutilise la convention unique** de [naming.mjs](home3d/script/naming.mjs)
+> (regex/systèmes/niveaux, `normalizeSegment` désormais exporté) → noms validés à
+> l'identique côté app et côté pipeline. **Découplage id ↔ node name** : l'`id`
+> interne du store reste **stable** (`app-N`) et distinct du node name (dérivé des
+> champs de nommage) → changer zone/niveau ne re-keye pas le store (cohérent avec
+> l'immutabilité des ids, E7-03). [editRegistry.js](home3d/src/lib/editRegistry.js)
+> `kindNaming(kind)` mappe le `kind` → système/type (`sketch.rect` →
+> `structure`/`forme`) ; les vrais objets MEP/ouvertures déclareront le leur. Store
+> ([useStore.js](home3d/src/store/useStore.js)) : zone/niveau **« courants »** (défaut
+> des nouvelles formes, **seedés** depuis `metadata.model.zones[0]`/`levels[0]`),
+> `buildAppObject`, action **`setObjectNaming`** (recalcule l'index dans le nouveau
+> bucket, met à jour la zone courante ; historisée zundo). **Inspector**
+> ([EditBar.jsx](home3d/src/components/EditBar.jsx)) : affiche le node name conforme
+> + **sélecteurs Zone** (zones du modèle) et **Niveau** (libellés FR) câblés sur
+> `setObjectNaming` (directive IHM respectée). **Round-trip GLB** (E10-04) : le node
+> exporté porte le nom conforme + extras `layer/type/zone/level/index` (comme un node
+> pipeline), [loadModel.js](home3d/src/lib/loadModel.js) les relit (repli
+> registre+défauts pour un GLB pré-E12-06). Vérifié au navigateur sur le modèle démo :
+> 6 formes nommées, changement zone/niveau → nom + index recalculés, **round-trip
+> export→reload** (noms conformes, champs préservés), aucune erreur console ;
+> `lint`/`build` OK. **Reste Slice 0** : cercle/arc (E13-02/03), VCB du Push/Pull
+> (E12-08, profondeur d'extrusion au clavier). Avec E12-06, **Slice 0 a livré tout le
+> socle d'édition + nommage** ; ne restent que les primitives cercle/arc.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
