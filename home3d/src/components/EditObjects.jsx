@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import useStore from '../store/useStore.js'
-import { generateObject, disposeObject } from '../lib/editRegistry.js'
+import { generateObject, disposeObject, referencePoints } from '../lib/editRegistry.js'
 import {
   groundFrame,
   faceFrame,
@@ -13,6 +13,9 @@ import {
 import {
   midpoint,
   closestPointOnSegment,
+  closestPointOnLine,
+  closestPointBetweenLines,
+  axisColorForDir,
   pickBestSnap,
   SNAP_COLORS,
 } from '../lib/snapping.js'
@@ -31,6 +34,8 @@ const MIN_SIZE = 0.05 // m — en deçà, le tracé est ignoré (clic accidentel
 const PREVIEW_SIZE = 1.6 // m — emprise de l'aperçu du plan au survol
 const PREVIEW_DIV = 4 // subdivisions de la grille d'aperçu
 const SNAP_THRESHOLD_PX = 14 // rayon d'accroche à l'écran (E12-03)
+const INFER_SOURCES = 12 // # de références les plus proches alimentant axes/intersections
+const INFER_LINE_LEN = 60 // m — demi-longueur d'une ligne d'inférence dessinée
 
 // Grille (segments dans le plan XY local centré) — en LIGNES, pour ne pas
 // teinter le modèle derrière.
@@ -135,10 +140,15 @@ function probeSketch(event, glbScene, rc, nodes) {
   return { frame: groundFrame(), hit: null }
 }
 
-// Position écran (pixels, repère canvas) d'un point monde.
+// Position écran (pixels, repère canvas) d'un point monde. Vecteur réutilisé : le
+// snapping projette des dizaines de candidats par déplacement souris.
+const _projV = new THREE.Vector3()
 function worldToScreen(point, camera, rect) {
-  const v = new THREE.Vector3(point[0], point[1], point[2]).project(camera)
-  return { x: (v.x * 0.5 + 0.5) * rect.width, y: (-v.y * 0.5 + 0.5) * rect.height }
+  _projV.set(point[0], point[1], point[2]).project(camera)
+  return {
+    x: (_projV.x * 0.5 + 0.5) * rect.width,
+    y: (-_projV.y * 0.5 + 0.5) * rect.height,
+  }
 }
 
 // Sommets monde du triangle touché.
@@ -152,29 +162,124 @@ function triangleWorldVerts(hit) {
   })
 }
 
-// Meilleure accroche (sommet/milieu/arête) du triangle touché, dans le seuil px.
-function computeSnap(hit, event, camera, gl) {
-  if (!hit) return null
-  const [a, b, c] = triangleWorldVerts(hit)
-  const cw = [hit.point.x, hit.point.y, hit.point.z]
-  const candidates = [
-    { type: 'endpoint', point: a },
-    { type: 'endpoint', point: b },
-    { type: 'endpoint', point: c },
-    { type: 'midpoint', point: midpoint(a, b) },
-    { type: 'midpoint', point: midpoint(b, c) },
-    { type: 'midpoint', point: midpoint(c, a) },
-    { type: 'edge', point: closestPointOnSegment(cw, a, b) },
-    { type: 'edge', point: closestPointOnSegment(cw, b, c) },
-    { type: 'edge', point: closestPointOnSegment(cw, c, a) },
-  ]
-  const rect = gl.domElement.getBoundingClientRect()
-  for (const cand of candidates) {
-    const s = worldToScreen(cand.point, camera, rect)
-    cand.sx = s.x
-    cand.sy = s.y
+// Projection orthogonale d'un point sur le plan d'esquisse actif. Le tracé vit sur
+// CE plan : on y ramène toute accroche (sinon le marqueur 3D et le coin du
+// rectangle, reprojeté par worldToPlane, divergeraient). Une référence hors plan
+// donne ainsi un point ALIGNÉ sur le plan (sa « colonne »), pas une accroche hors-sol.
+function projectToPlane(p, frame) {
+  const o = frame.origin
+  const n = frame.normal
+  const d = (p[0] - o[0]) * n[0] + (p[1] - o[1]) * n[1] + (p[2] - o[2]) * n[2]
+  return [p[0] - n[0] * d, p[1] - n[1] * d, p[2] - n[2] * d]
+}
+
+// Les `k` candidats dont la projection écran est la plus proche du curseur (borne
+// le coût et le bruit des axes/intersections : O(k²) intersections au lieu de O(n²)).
+function nearestByScreen(points, cursor, camera, rect, k) {
+  const scored = points.map((p) => {
+    const s = worldToScreen(p.point, camera, rect)
+    return { ...p, sx: s.x, sy: s.y, d: Math.hypot(s.x - cursor.x, s.y - cursor.y) }
+  })
+  scored.sort((a, b) => a.d - b.d)
+  return scored.slice(0, k)
+}
+
+/**
+ * Meilleure accroche dans le seuil px. Candidats :
+ *  - POINTS précis (sommets/milieux/centres) du triangle survolé ET des objets app,
+ *    ramenés sur le plan actif ;
+ *  - en cours de tracé seulement : ARÊTES du triangle, AXES (u/v du plan passant par
+ *    une référence) et INTERSECTIONS de ces axes — les inférences linéaires.
+ * @returns {{type, point, color?, lines?}|null}
+ */
+function computeSnap({
+  hit,
+  objects,
+  frame,
+  drawing,
+  freeWorld,
+  startWorld,
+  cursor,
+  camera,
+  rect,
+}) {
+  const proj = (p) => projectToPlane(p, frame)
+
+  // 1) Points précis (projetés sur le plan actif).
+  const points = []
+  let tri = null
+  if (hit) {
+    tri = triangleWorldVerts(hit).map(proj)
+    const [a, b, c] = tri
+    points.push(
+      { type: 'endpoint', point: a },
+      { type: 'endpoint', point: b },
+      { type: 'endpoint', point: c },
+      { type: 'midpoint', point: midpoint(a, b) },
+      { type: 'midpoint', point: midpoint(b, c) },
+      { type: 'midpoint', point: midpoint(c, a) }
+    )
   }
-  const cursor = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+  for (const o of Object.values(objects)) {
+    for (const rp of referencePoints(o))
+      points.push({ type: rp.type, point: proj(rp.point) })
+  }
+  // Le point de départ du tracé est lui aussi une référence d'inférence.
+  if (drawing && startWorld) points.push({ type: 'endpoint', point: proj(startWorld) })
+
+  const candidates = [...points]
+
+  if (drawing) {
+    // 1b) Arêtes du triangle survolé (point le plus proche du curseur libre).
+    if (tri) {
+      const [a, b, c] = tri
+      candidates.push(
+        { type: 'edge', point: closestPointOnSegment(freeWorld, a, b) },
+        { type: 'edge', point: closestPointOnSegment(freeWorld, b, c) },
+        { type: 'edge', point: closestPointOnSegment(freeWorld, c, a) }
+      )
+    }
+    // 2) Axes + intersections, dans le plan, autour des références les plus proches.
+    const near = nearestByScreen(points, cursor, camera, rect, INFER_SOURCES)
+    const uColor = axisColorForDir(frame.u)
+    const vColor = axisColorForDir(frame.v)
+    const uLines = []
+    const vLines = []
+    for (const p of near) {
+      const lu = { origin: p.point, dir: frame.u, color: uColor }
+      const lv = { origin: p.point, dir: frame.v, color: vColor }
+      uLines.push(lu)
+      vLines.push(lv)
+      candidates.push(
+        {
+          type: 'axis',
+          point: closestPointOnLine(freeWorld, lu.origin, lu.dir),
+          color: uColor,
+          lines: [lu],
+        },
+        {
+          type: 'axis',
+          point: closestPointOnLine(freeWorld, lv.origin, lv.dir),
+          color: vColor,
+          lines: [lv],
+        }
+      )
+    }
+    for (const lu of uLines) {
+      for (const lv of vLines) {
+        const x = closestPointBetweenLines(lu.origin, lu.dir, lv.origin, lv.dir)
+        if (x) candidates.push({ type: 'intersection', point: x, lines: [lu, lv] })
+      }
+    }
+  }
+
+  for (const cand of candidates) {
+    if (cand.sx === undefined) {
+      const s = worldToScreen(cand.point, camera, rect)
+      cand.sx = s.x
+      cand.sy = s.y
+    }
+  }
   return pickBestSnap(candidates, cursor, SNAP_THRESHOLD_PX)
 }
 
@@ -318,14 +423,15 @@ function DraftPreview({ draft }) {
 }
 
 // Marqueur d'accroche (E12-03) : petit losange coloré au point de snap, dessiné
-// par-dessus (depthTest off) pour rester visible.
+// par-dessus (depthTest off) pour rester visible. Les accroches `axis` portent leur
+// propre couleur d'axe (`snap.color`) ; les autres suivent SNAP_COLORS[type].
 function SnapMarker({ snap }) {
   const geo = useMemo(() => new THREE.OctahedronGeometry(0.06), [])
   useEffect(() => () => geo.dispose(), [geo])
   return (
     <mesh position={snap.point} geometry={geo} raycast={() => null} renderOrder={4}>
       <meshBasicMaterial
-        color={SNAP_COLORS[snap.type] ?? '#ffffff'}
+        color={snap.color ?? SNAP_COLORS[snap.type] ?? '#ffffff'}
         transparent
         depthTest={false}
         depthWrite={false}
@@ -334,11 +440,58 @@ function SnapMarker({ snap }) {
   )
 }
 
+// Lignes d'inférence (E12-03) : longues droites colorées passant par le point de
+// snap le long de leur direction d'axe (1 pour une accroche `axis`, 2 pour une
+// `intersection`), dessinées par-dessus comme les axes de SketchUp.
+function InferenceLines({ snap }) {
+  const { geos, lines } = useMemo(() => {
+    const ls = snap.lines ?? []
+    const p = snap.point
+    const gs = ls.map((l) => {
+      const d = l.dir
+      const g = new THREE.BufferGeometry()
+      g.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(
+          [
+            p[0] - d[0] * INFER_LINE_LEN,
+            p[1] - d[1] * INFER_LINE_LEN,
+            p[2] - d[2] * INFER_LINE_LEN,
+            p[0] + d[0] * INFER_LINE_LEN,
+            p[1] + d[1] * INFER_LINE_LEN,
+            p[2] + d[2] * INFER_LINE_LEN,
+          ],
+          3
+        )
+      )
+      return g
+    })
+    return { geos: gs, lines: ls }
+  }, [snap])
+  useEffect(() => () => geos.forEach((g) => g.dispose()), [geos])
+
+  return (
+    <>
+      {geos.map((g, i) => (
+        <line key={i} geometry={g} raycast={() => null} renderOrder={3}>
+          <lineBasicMaterial
+            color={lines[i].color}
+            transparent
+            opacity={0.85}
+            depthTest={false}
+            depthWrite={false}
+          />
+        </line>
+      ))}
+    </>
+  )
+}
+
 // Surface de captation du tracé (outil Rectangle) : un grand quad de sol qui
 // fournit le rayon souris. Le plan d'esquisse est déduit du contexte (sol ou
 // face survolée). Pendant le tracé, on reprojette le rayon sur le plan VERROUILLÉ,
 // avec accroche (snapping) aux sommets/milieux/arêtes survolés (E12-03).
-function SketchSurface({ glbScene, nodes }) {
+function SketchSurface({ glbScene, nodes, objects }) {
   const setDraft = useStore((state) => state.setDraft)
   const createObject = useStore((state) => state.createObject)
   const [hover, setHover] = useState(null)
@@ -357,34 +510,80 @@ function SketchSurface({ glbScene, nodes }) {
     return event.ray.intersectPlane(plane, pt) ? [pt.x, pt.y, pt.z] : null
   }
 
+  const cursorOf = (event) => {
+    const rect = gl.domElement.getBoundingClientRect()
+    return { rect, cursor: { x: event.clientX - rect.left, y: event.clientY - rect.top } }
+  }
+
   const onPointerMove = (event) => {
     const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
-    const snap = computeSnap(hit, event, camera, gl)
+    const { rect, cursor } = cursorOf(event)
     if (drawing.current) {
       const d = useStore.getState().draft
       if (!d) return
-      // Accroche prioritaire, sinon projection libre sur le plan verrouillé.
-      const world = snap ? snap.point : projectOnFrame(event, d.frame)
-      if (!world) return
+      // Plan VERROUILLÉ : point libre du rayon + accroche (axes/intersections actifs).
+      const freeWorld = projectOnFrame(event, d.frame)
+      if (!freeWorld) return
+      const startWorld = planeToWorld(d.start[0], d.start[1], d.frame)
+      const snap = computeSnap({
+        hit,
+        objects,
+        frame: d.frame,
+        drawing: true,
+        freeWorld,
+        startWorld,
+        cursor,
+        camera,
+        rect,
+      })
+      const world = snap ? snap.point : freeWorld
       const [s, t] = worldToPlane(world, d.frame)
       setDraft({ ...d, current: [s, t], snap })
       return
     }
-    // Survol : aperçu du plan contextuel (centré sur l'accroche le cas échéant).
-    const point =
-      snap?.point ??
-      (frame.type === 'face'
-        ? frame.origin
-        : [event.point.x, event.point.y, event.point.z])
+    // Survol : accroche aux POINTS (sommets/milieux/centres) ; aperçu du plan
+    // contextuel centré sur l'accroche le cas échéant.
+    const contextWorld = projectOnFrame(event, frame) ?? [
+      event.point.x,
+      event.point.y,
+      event.point.z,
+    ]
+    const snap = computeSnap({
+      hit,
+      objects,
+      frame,
+      drawing: false,
+      freeWorld: contextWorld,
+      startWorld: null,
+      cursor,
+      camera,
+      rect,
+    })
+    const point = snap?.point ?? (frame.type === 'face' ? frame.origin : contextWorld)
     setHover({ point, u: frame.u, v: frame.v, normal: frame.normal, snap })
   }
 
   const onPointerDown = (event) => {
     event.stopPropagation()
     const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
-    const snap = computeSnap(hit, event, camera, gl)
-    const world = snap?.point ??
-      projectOnFrame(event, frame) ?? [event.point.x, event.point.y, event.point.z]
+    const { rect, cursor } = cursorOf(event)
+    const contextWorld = projectOnFrame(event, frame) ?? [
+      event.point.x,
+      event.point.y,
+      event.point.z,
+    ]
+    const snap = computeSnap({
+      hit,
+      objects,
+      frame,
+      drawing: false,
+      freeWorld: contextWorld,
+      startWorld: null,
+      cursor,
+      camera,
+      rect,
+    })
+    const world = snap?.point ?? contextWorld
     const [s, t] = worldToPlane(world, frame)
     drawing.current = true
     setHover(null) // masque l'aperçu de survol pendant le tracé
@@ -425,6 +624,7 @@ function SketchSurface({ glbScene, nodes }) {
     <>
       {hover && <ContextualPlanePreview hover={hover} />}
       {hover?.snap && <SnapMarker snap={hover.snap} />}
+      {hover?.snap?.lines && <InferenceLines snap={hover.snap} />}
       <mesh
         rotation-x={-Math.PI / 2}
         onPointerDown={onPointerDown}
@@ -565,9 +765,10 @@ export default function EditObjects() {
           onStartPush={onStartPush}
         />
       ))}
-      {drawing && <SketchSurface glbScene={glb?.scene} nodes={nodes} />}
+      {drawing && <SketchSurface glbScene={glb?.scene} nodes={nodes} objects={objects} />}
       {draft && <DraftPreview draft={draft} />}
       {draft?.snap && <SnapMarker snap={draft.snap} />}
+      {draft?.snap?.lines && <InferenceLines snap={draft.snap} />}
     </>
   )
 }

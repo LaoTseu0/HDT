@@ -4,8 +4,12 @@ import assert from 'node:assert/strict'
 import {
   midpoint,
   closestPointOnSegment,
+  closestPointOnLine,
+  closestPointBetweenLines,
+  axisColorForDir,
   pickBestSnap,
   SNAP_PRIORITY,
+  AXIS_COLORS,
 } from '../src/lib/snapping.js'
 
 // Module snapping PUR (maths sur tableaux) → testable hors navigateur.
@@ -68,5 +72,65 @@ describe('pickBestSnap', () => {
   it('l’ordre de priorité est sommet > milieu > arête', () => {
     assert.ok(SNAP_PRIORITY.endpoint > SNAP_PRIORITY.midpoint)
     assert.ok(SNAP_PRIORITY.midpoint > SNAP_PRIORITY.edge)
+  })
+
+  it('les points précis priment sur les inférences linéaires (intersection/axe)', () => {
+    assert.ok(SNAP_PRIORITY.endpoint > SNAP_PRIORITY.intersection)
+    assert.ok(SNAP_PRIORITY.intersection > SNAP_PRIORITY.midpoint)
+    assert.ok(SNAP_PRIORITY.edge > SNAP_PRIORITY.axis)
+  })
+
+  it('conserve les champs d’inférence (color/lines) du candidat retenu', () => {
+    const line = { origin: [0, 0, 0], dir: [1, 0, 0], color: '#abc' }
+    const best = pickBestSnap(
+      [
+        {
+          type: 'axis',
+          point: [1, 0, 0],
+          color: '#abc',
+          lines: [line],
+          sx: 101,
+          sy: 100,
+        },
+      ],
+      cursor,
+      12
+    )
+    assert.equal(best.color, '#abc')
+    assert.deepEqual(best.lines, [line])
+    assert.equal(best.sx, undefined) // coordonnées écran retirées
+  })
+})
+
+describe('closestPointOnLine', () => {
+  it('projette sur la droite infinie (au-delà des bornes du segment)', () => {
+    // p au-dessus de x=5 → projection (5,0,0) même si « hors » d’un segment unité.
+    assert.ok(vclose(closestPointOnLine([5, 3, 0], [0, 0, 0], [2, 0, 0]), [5, 0, 0]))
+  })
+})
+
+describe('closestPointBetweenLines', () => {
+  it('intersection de deux droites coplanaires sécantes', () => {
+    const p = closestPointBetweenLines([0, 0, 0], [1, 0, 0], [3, 0, 0], [0, 0, 1])
+    assert.ok(vclose(p, [3, 0, 0]))
+  })
+
+  it('renvoie null pour des droites parallèles', () => {
+    assert.equal(
+      closestPointBetweenLines([0, 0, 0], [1, 0, 0], [0, 5, 0], [1, 0, 0]),
+      null
+    )
+  })
+})
+
+describe('axisColorForDir', () => {
+  it('colore selon l’axe monde quasi colinéaire (X/Y/Z)', () => {
+    assert.equal(axisColorForDir([1, 0, 0]), AXIS_COLORS.x)
+    assert.equal(axisColorForDir([0, -1, 0]), AXIS_COLORS.y) // signe indifférent
+    assert.equal(axisColorForDir([0, 0, 2]), AXIS_COLORS.z) // non unitaire ok
+  })
+
+  it('direction en biais → couleur « off » (magenta)', () => {
+    assert.equal(axisColorForDir([1, 1, 0]), AXIS_COLORS.off)
   })
 })

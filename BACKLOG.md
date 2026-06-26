@@ -465,6 +465,34 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > node names conformes + zone (E12-06). Coalescence d'historique pendant la frappe :
 > à raffiner.
 
+> **Slice 0 — avancement (2026-06-26, incrément 5 : E12-03 snapping, inc. 2).**
+> Extension de l'inférence aux trois cibles attendues. **(1) Accroche à tes formes** :
+> chaque objet app expose ses points de référence (`referencePoints` dans
+> [editRegistry.js](home3d/src/lib/editRegistry.js), **analytique** depuis params +
+> repère, cohérent avec `generateRect`) — 4 coins + 4 milieux + centre par face, et
+> faces base/haute + milieux verticaux pour une boîte extrudée ; ajoutés aux candidats
+> du snapping. **(2) Axes** : pendant le tracé, accroche sur une droite passant par une
+> référence le long de **u/v du plan actif**, avec **ligne d'inférence colorée façon
+> SketchUp** (X rouge, Y vertical bleu, Z vert ; biais → magenta — `axisColorForDir`).
+> **(3) Intersections** : croisement de deux axes (`closestPointBetweenLines`), marqueur
+> magenta + les deux lignes. Tout est **ramené sur le plan d'esquisse actif**
+> (`projectToPlane`) pour que marqueur et coin du rectangle coïncident (une référence
+> hors plan donne un alignement « en colonne » sur le plan, pas une accroche hors-sol).
+> Priorité d'accroche : **sommet > intersection > milieu > arête > axe**. Coût borné :
+> seules les ~12 références les plus proches du curseur (écran) alimentent axes et
+> intersections. Module pur [snapping.js](home3d/src/lib/snapping.js)
+> (`closestPointOnLine`, `closestPointBetweenLines`, `axisColorForDir`, `WORLD_AXES`/
+> `AXIS_COLORS`) ; composant [EditObjects.jsx](home3d/src/components/EditObjects.jsx)
+> (`computeSnap` enrichi, `InferenceLines`). Tests étendus
+> ([snapping.test.mjs](home3d/script/snapping.test.mjs) + nouveau
+> [editRegistry.test.mjs](home3d/script/editRegistry.test.mjs) : 74 verts). Vérifié au
+> navigateur sur le modèle démo : 2 rectangles tracés (le 2ᵉ près du 1ᵉʳ → accroche
+> objets app + axes + intersections actifs), aucune erreur console. **Reste E12-03** :
+> références du **mur importé hors triangle survolé** (requêtes de proximité accélérées
+> `three-mesh-bvh`), **parallèle/perpendiculaire**, **snap grille**. **Reste Slice 0** :
+> saisie numérique VCB (E12-04), cercle/arc (E13-02/03), node names conformes + zone
+> (E12-06).
+
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
 et le **mode visite** opérationnel (vol libre, puis collisions).
