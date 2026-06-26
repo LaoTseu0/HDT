@@ -244,7 +244,7 @@ snapping, modèle paramétrique. Voir [docs/edit-mode-design.md](docs/edit-mode-
 | E12-01 | En tant qu'utilisateur, je veux basculer View ↔ Edit avec une palette d'outils et un inspector afin de créer/éditer des objets. | Bascule de mode ; **palette d'outils à icônes + tooltips** (directive IHM) ; panneau propriétés (lecture **et** édition des params de l'objet sélectionné). | M | 5 |
 | E12-02 | En tant qu'utilisateur, je veux que le plan d'esquisse soit **déduit du contexte** (façon SketchUp) afin de créer sans choisir de plan manuellement. | Dessin sur le **sol / niveau 0** par défaut ; sur la **face survolée** quand le curseur est sur un mesh (le plan = cette face) ; **aucun sélecteur de plan manuel** ; feedback visuel discret du plan actif. **Révisé 2026-06-24** : abandon du menu XZ/YZ/niveau au profit du paradigme SketchUp contextuel ; les « points de référence » (arêtes/intersections) relèvent de E12-03. | M | 5 |
 | E12-03 | En tant qu'utilisateur, je veux du snapping/inférence afin de placer précisément et confortablement. | Snap sur grille, extrémités/milieux, sommets/arêtes des meshes (accéléré par `three-mesh-bvh`), axes X/Y/Z, parallèle/perpendiculaire ; marqueurs + lignes d'inférence ; pas de chute de framerate. | M | 13 |
-| E12-04 | En tant qu'utilisateur, je veux saisir une cote au clavier pendant un tracé afin d'être exact. | Taper une longueur/rayon fixe la cote ; unités en mètres (façon VCB SketchUp). | S | 3 |
+| E12-04 ✅ | En tant qu'utilisateur, je veux saisir une cote au clavier pendant un tracé afin d'être exact. | Taper une longueur/rayon fixe la cote ; unités en mètres (façon VCB SketchUp). | S | 3 |
 | E12-05 | En tant que dev, je veux un modèle paramétrique afin que les objets créés soient ré-éditables après rechargement. | `extras.edit { kind, plane, params, variant }` ; registre `kind→générateur` ; géométrie **régénérée au chargement** depuis les params ; `dims` recalculés (cohérent E2-10). | M | 8 |
 | E12-06 | En tant que dev, je veux des node names auto-générés conformes afin de garder le contrat de nommage sans plugin SketchUp. | Nom `système__type__zone__niveau__index` ; index auto-incrémenté par (système, zone, niveau) ; zone choisie dans l'inspector (zone courante par défaut) ; passe la regex de validation. | M | 5 |
 | E12-07 | En tant qu'utilisateur, je veux déplacer/tourner/redimensionner un objet par manipulation directe. | `TransformControls` (déplacer/tourner) + poignées de redimensionnement paramétrique ; respecte le snapping et l'undo/redo. Absorbe **E10-01**. | M | 5 |
@@ -523,6 +523,30 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > du plan) ; sa vraie valeur viendra avec les outils **ligne/arc** (E13-02/03). **Reste
 > Slice 0** : saisie numérique VCB (E12-04), cercle/arc (E13-02/03), node names conformes
 > + zone (E12-06).
+
+> **Slice 0 — avancement (2026-06-26, incrément 7 : E12-04 saisie VCB).** Saisie de
+> cote au clavier pendant le tracé Rectangle, façon **VCB SketchUp**. Pendant un
+> glissé, taper « **Largeur ; Profondeur** » (séparateur de cote `;`, décimale `,`
+> ou `.`, en mètres) fixe les cotes ; **Entrée** committe immédiatement, ou bien la
+> cote tapée s'applique au **relâché** ; une cote omise garde la valeur du glissé
+> (`2;` = largeur seule, `;0,8` = profondeur seule). La **direction** du glissé est
+> conservée (seul le coin de départ est fixe). Modules **purs** testés : parsing +
+> application au tracé [vcb.js](home3d/src/lib/vcb.js)
+> ([vcb.test.mjs](home3d/script/vcb.test.mjs), 11 verts → **94** au total), et
+> construction du rectangle extraite [sketchRect.js](home3d/src/lib/sketchRect.js)
+> (partagée entre glissé et clavier). Le commit du tracé est centralisé dans une
+> action store **`commitDraft`** (gère la cote VCB **et** la garde clic-accidentel
+> `MIN_SIZE`, levée dès qu'une cote est tapée), appelée au relâché
+> ([EditObjects.jsx](home3d/src/components/EditObjects.jsx)) comme à l'Entrée. La
+> frappe est captée **avant** les raccourcis ([App.jsx](home3d/src/App.jsx),
+> `handleVcbKey`) pour ne pas déclencher R/G/V/E en tapant des chiffres ; **Échap**
+> efface la saisie (tracé maintenu) puis annule le tracé. Boîte de mesure HTML en
+> bas à droite [VCBOverlay.jsx](home3d/src/components/VCBOverlay.jsx) (cotes vives ou
+> texte tapé souligné). Vérifié au navigateur : `2;3` écrase un glissé 2,59 × 0,24
+> (Entrée), `1;0,5` appliqué au relâché sans Entrée, décimale virgule OK, aucune
+> erreur console ; `lint`/`build` OK. **Reste Slice 0** : cercle/arc (E13-02/03) —
+> qui réutiliseront la VCB pour le rayon —, node names conformes + zone (E12-06).
+> VCB du Push/Pull (E12-08, profondeur d'extrusion au clavier) : à brancher de même.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

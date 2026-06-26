@@ -1,6 +1,15 @@
 import { create } from 'zustand'
 import { useStore as useZustandStore } from 'zustand'
 import { temporal } from 'zundo'
+import { rectPayloadFromDraft, MIN_SIZE } from '../lib/sketchRect.js'
+import { parseVcb, applyVcbToDraft } from '../lib/vcb.js'
+
+// Id auto d'un objet app : `app-<kind>-NNN`, incrémenté par kind (E12-06 affinera
+// avec la convention système__type__zone__niveau__index).
+function makeObjectId(objects, kind) {
+  const n = Object.values(objects).filter((o) => o.kind === kind).length + 1
+  return `app-${kind.replace(/\./g, '-')}-${String(n).padStart(3, '0')}`
+}
 
 // Store Zustand — structure V2-ready (cf. cahier des charges, E7-01).
 // Toute mutation passe par une action nommée. Depuis la V2 (Slice 0), le store
@@ -87,6 +96,7 @@ const useStore = create(
         set({
           editMode: on,
           draft: null,
+          vcbText: '',
           activeTool: 'select',
           extrude: null,
           hoveredNode: null,
@@ -95,6 +105,7 @@ const useStore = create(
         set((state) => ({
           editMode: !state.editMode,
           draft: null,
+          vcbText: '',
           activeTool: 'select',
           extrude: null,
           hoveredNode: null,
@@ -102,9 +113,39 @@ const useStore = create(
       // Changer d'outil efface le survol résiduel (Model coupe sa surbrillance
       // hors outil Sélection — sinon un highlight figé resterait).
       setActiveTool: (tool) =>
-        set({ activeTool: tool, draft: null, extrude: null, hoveredNode: null }),
+        set({ activeTool: tool, draft: null, vcbText: '', extrude: null, hoveredNode: null }),
       draft: null,
       setDraft: (draft) => set({ draft }),
+
+      // E12-04 : cote saisie au clavier pendant un tracé (VCB façon SketchUp).
+      // Éphémère (non historisé), alimenté par les raccourcis clavier (App.jsx).
+      vcbText: '',
+      setVcbText: (vcbText) => set({ vcbText }),
+
+      // Committe le tracé courant en objet app. Appelé au relâché du glissé
+      // (EditObjects) ET à la validation clavier (Entrée). Si une cote VCB a été
+      // tapée, elle prime (et lève la garde clic-accidentel MIN_SIZE).
+      commitDraft: () =>
+        set((state) => {
+          const d = state.draft
+          if (!d) return state
+          const parsed = state.vcbText ? parseVcb(state.vcbText) : null
+          const eff = applyVcbToDraft(d, parsed)
+          if (!parsed) {
+            const w = Math.abs(d.current[0] - d.start[0])
+            const dep = Math.abs(d.current[1] - d.start[1])
+            if (w < MIN_SIZE || dep < MIN_SIZE) return { draft: null, vcbText: '' }
+          }
+          const payload = rectPayloadFromDraft(eff.start, eff.current, d.frame)
+          if (!payload) return { draft: null, vcbText: '' }
+          const id = makeObjectId(state.objects, payload.kind)
+          return {
+            objects: { ...state.objects, [id]: { id, ...payload } },
+            selectedNode: id,
+            draft: null,
+            vcbText: '',
+          }
+        }),
 
       // E12-03 : accroche à la grille du plan d'esquisse (préférence d'outil, pas
       // historisée). Candidat de plus basse priorité : la géométrie l'emporte
@@ -125,8 +166,7 @@ const useStore = create(
       objects: {},
       createObject: ({ kind, params, plane }) =>
         set((state) => {
-          const n = Object.values(state.objects).filter((o) => o.kind === kind).length + 1
-          const id = `app-${kind.replace(/\./g, '-')}-${String(n).padStart(3, '0')}`
+          const id = makeObjectId(state.objects, kind)
           return {
             objects: { ...state.objects, [id]: { id, kind, params, plane } },
             selectedNode: id,
@@ -191,6 +231,7 @@ const useStore = create(
           // sinon édition vierge.
           objects: objects ?? {},
           draft: null,
+          vcbText: '',
           editMode: false,
           extrude: null,
         }),
