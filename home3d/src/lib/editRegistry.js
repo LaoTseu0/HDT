@@ -101,6 +101,55 @@ export function generateObject(obj) {
   return object3d
 }
 
+// Points de référence d'accroche d'un objet app (E12-03, « accroche à tes formes »).
+// Renvoie des points MONDE typés (sommet/milieu) que le snapping ajoute à ses
+// candidats. Calcul ANALYTIQUE depuis params + repère du plan (pas de lecture de
+// géométrie three) → cohérent par construction avec ce que `generateRect` rend.
+//   - rectangle plat : 4 coins (endpoint) + 4 milieux d'arête + centre (midpoint) ;
+//   - boîte extrudée (hauteur_m) : idem sur la face base ET la face haute, plus le
+//     milieu des 4 arêtes verticales.
+// `origin` du plan = centre de la face BASE (cf. placeOnPlane/generateRect).
+export function referencePoints(obj) {
+  if (obj.kind !== 'sketch.rect') return []
+  const { origin, u, v, normal } = frameOfObjectPlane(obj.plane)
+  const hu = Math.max(Number(obj.params.largeur_m) || 0, 0.001) / 2
+  const hv = Math.max(Number(obj.params.profondeur_m) || 0, 0.001) / 2
+  const h = Number(obj.params.hauteur_m) || 0
+  const solid = Math.abs(h) >= 0.001
+
+  // Point = origin + su·u + sv·v + sn·normal.
+  const at = (su, sv, sn) => [
+    origin[0] + u[0] * su + v[0] * sv + normal[0] * sn,
+    origin[1] + u[1] * su + v[1] * sv + normal[1] * sn,
+    origin[2] + u[2] * su + v[2] * sv + normal[2] * sn,
+  ]
+  // Une face plane à l'altitude `sn` (le long de la normale) : coins, milieux, centre.
+  const face = (sn) => [
+    { type: 'endpoint', point: at(-hu, -hv, sn) },
+    { type: 'endpoint', point: at(hu, -hv, sn) },
+    { type: 'endpoint', point: at(hu, hv, sn) },
+    { type: 'endpoint', point: at(-hu, hv, sn) },
+    { type: 'midpoint', point: at(0, -hv, sn) },
+    { type: 'midpoint', point: at(hu, 0, sn) },
+    { type: 'midpoint', point: at(0, hv, sn) },
+    { type: 'midpoint', point: at(-hu, 0, sn) },
+    { type: 'midpoint', point: at(0, 0, sn) }, // centre
+  ]
+
+  const pts = face(0)
+  if (solid) {
+    pts.push(...face(h))
+    // Milieux des arêtes verticales (mi-hauteur).
+    pts.push(
+      { type: 'midpoint', point: at(-hu, -hv, h / 2) },
+      { type: 'midpoint', point: at(hu, -hv, h / 2) },
+      { type: 'midpoint', point: at(hu, hv, h / 2) },
+      { type: 'midpoint', point: at(-hu, hv, h / 2) }
+    )
+  }
+  return pts
+}
+
 // Dimensions dérivées des params (cohérent avec les `dims` V1, E2-10).
 export function deriveDims(obj) {
   if (obj.kind === 'sketch.rect') {
