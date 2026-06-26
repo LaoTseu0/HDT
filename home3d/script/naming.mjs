@@ -32,7 +32,7 @@ export const LAYERS_CONFIG = {
 const COMBINING_MARKS = new RegExp('[\\u0300-\\u036f]', 'g')
 
 /** Normalise un segment : minuscules, accents retirés, espaces/tirets → `_`. */
-function normalizeSegment(segment) {
+export function normalizeSegment(segment) {
   return segment
     .normalize('NFD')
     .replace(COMBINING_MARKS, '')

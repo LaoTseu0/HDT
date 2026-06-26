@@ -1,6 +1,17 @@
 import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
 import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
+import { nodeName, LEVELS } from '../lib/naming.js'
+
+// Libellés FR des niveaux (segment `level` de la convention de nommage).
+const LEVEL_LABELS = {
+  ss: 'Sous-sol',
+  rdc: 'Rez-de-chaussée',
+  r1: 'R+1',
+  r2: 'R+2',
+  combles: 'Combles',
+  ext: 'Extérieur',
+}
 
 // Panneau d'édition (Edit mode, Slice 0) : barre d'outils à ICÔNES + tooltips
 // (directive IHM 2026-06-24), undo/redo (zundo, E10-03) et inspector éditable de
@@ -70,6 +81,26 @@ function GridIcon() {
   )
 }
 
+function SelectField({ label, value, options, onChange }) {
+  // Options acceptées en `'x'` ou `{ value, label }` → forme normalisée unique.
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }))
+  // La valeur courante peut manquer des options (zone par défaut, ou zone d'un
+  // objet rechargé absente du modèle courant) → on l'ajoute en tête.
+  if (!opts.some((o) => o.value === value)) opts.unshift({ value, label: value })
+  return (
+    <label className="edit-field">
+      <span>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)}>
+        {opts.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 function NumberField({ label, value, onChange, allowZero = false }) {
   return (
     <label className="edit-field">
@@ -116,6 +147,7 @@ export default function EditBar() {
   const objects = useStore((state) => state.objects)
   const selectedNode = useStore((state) => state.selectedNode)
   const updateObjectParams = useStore((state) => state.updateObjectParams)
+  const setObjectNaming = useStore((state) => state.setObjectNaming)
   const deleteObject = useStore((state) => state.deleteObject)
   const glb = useStore((state) => state.glb)
   const metadata = useStore((state) => state.metadata)
@@ -199,7 +231,19 @@ export default function EditBar() {
 
       {selectedObj ? (
         <div className="edit-inspector">
-          <code className="info-node-name">{selectedObj.id}</code>
+          <code className="info-node-name">{nodeName(selectedObj)}</code>
+          <SelectField
+            label="Zone"
+            value={selectedObj.zone}
+            options={metadata?.model?.zones ?? []}
+            onChange={(zone) => setObjectNaming(selectedObj.id, { zone })}
+          />
+          <SelectField
+            label="Niveau"
+            value={selectedObj.level}
+            options={LEVELS.map((id) => ({ value: id, label: LEVEL_LABELS[id] ?? id }))}
+            onChange={(level) => setObjectNaming(selectedObj.id, { level })}
+          />
           <NumberField
             label="Largeur (m)"
             value={selectedObj.params.largeur_m}

@@ -7,10 +7,10 @@
 // l'app la REGÉNÈRE depuis les params (cf. loadModel.extractModelData) → le
 // fichier reste ré-éditable.
 //
-// NB Slice 0 : les primitives d'esquisse (sketch.*) ne relèvent d'aucun système
-// technique, donc pas de `layer/type/zone/level/index` ni de nom conforme à la
-// convention ici — c'est l'objet de E12-06 (génération des node names + zone)
-// pour les vrais objets MEP/ouvertures. Le node name reste l'id app.
+// E12-06 : chaque objet app porte un node name CONFORME
+// (`système__type__zone__niveau__index`, dérivé via lib/naming) ET les extras
+// `layer/type/zone/level/index` correspondants — comme un node issu du pipeline.
+// Le fichier ré-exporté passe donc la regex de validation (`script/process.mjs`).
 //
 // La géométrie importée (coquille SketchUp) est ré-exportée telle quelle. Elle
 // ressort DÉCOMPRESSÉE (GLTFExporter ne fait pas de Draco) : repasser le fichier
@@ -19,11 +19,20 @@
 import * as THREE from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { generateObject, deriveDims } from './editRegistry.js'
+import { nodeName } from './naming.js'
 
-// Extras d'un node créé in-app. `edit` est le bloc qui rend l'objet ré-éditable.
+// Extras d'un node créé in-app. `layer/type/zone/level/index` = métadonnées de
+// convention (cohérentes avec un node pipeline) ; `edit` = bloc qui rend l'objet
+// ré-éditable (régénération depuis params au chargement) ; `source: 'app'` le
+// distingue de la coquille importée.
 export function buildAppNodeExtras(obj) {
   const extras = {
     source: 'app',
+    layer: obj.system,
+    type: obj.type,
+    zone: obj.zone,
+    level: obj.level,
+    index: obj.index,
     edit: { kind: obj.kind, plane: obj.plane, params: obj.params },
     material: '',
     notes: '',
@@ -58,7 +67,7 @@ export async function buildEditedGLB({ scene, objects, metadata }) {
   for (const obj of Object.values(objects)) {
     const baked = generateObject(obj)
     if (!baked) continue
-    baked.name = obj.id
+    baked.name = nodeName(obj) // node name conforme (E12-06), pas l'id interne
     baked.userData = buildAppNodeExtras(obj)
     // Les enfants (remplissage/arêtes) ne portent pas de métadonnées métier.
     baked.traverse((child) => {
