@@ -106,6 +106,12 @@ const useStore = create(
       draft: null,
       setDraft: (draft) => set({ draft }),
 
+      // E12-03 : accroche à la grille du plan d'esquisse (préférence d'outil, pas
+      // historisée). Candidat de plus basse priorité : la géométrie l'emporte
+      // toujours, la grille ne « tire » qu'en l'absence de référence proche.
+      gridSnap: false,
+      toggleGridSnap: () => set((state) => ({ gridSnap: !state.gridSnap })),
+
       // E12-08 : aperçu éphémère d'un Push/Pull en cours =
       // { id, paramKey, value, origin } (la face cliquée fixe quelle cote bouge).
       // NON historisé (zundo partialize n'historise que `objects`) ; committé en

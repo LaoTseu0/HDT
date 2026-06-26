@@ -15,7 +15,8 @@ export default function App() {
   const toggleEditMode = useStore((state) => state.toggleEditMode)
 
   // Raccourcis clavier globaux : R = recentrer (E4-03), P = perf dev (E8-01),
-  // V = Orbite/Visite (E17-01), E = View/Edit, Ctrl+Z / Ctrl+Maj+Z = undo/redo.
+  // V = Orbite/Visite (E17-01), E = View/Edit, G = accroche grille (E12-03),
+  // Ctrl+Z / Ctrl+Maj+Z = undo/redo.
   useEffect(() => {
     const onKeyDown = (event) => {
       const tag = event.target?.tagName
@@ -48,6 +49,8 @@ export default function App() {
       const key = event.key.toLowerCase()
       if (key === 'e') toggleEditMode()
       if (key === 'v') toggleViewMode()
+      // G bascule l'accroche grille (utile uniquement en édition).
+      if (key === 'g' && editMode) useStore.getState().toggleGridSnap()
       // R recentre la caméra (sans objet en mode visite : caméra pilotée par le vol libre).
       if (key === 'r' && viewMode === 'orbit') requestFit()
       if (key === 'p' && import.meta.env.DEV) togglePerf()

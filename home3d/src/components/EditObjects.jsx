@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import useStore from '../store/useStore.js'
 import { generateObject, disposeObject, referencePoints } from '../lib/editRegistry.js'
+import { ensureBoundsTree, meshReferencesNear } from '../lib/bvh.js'
 import {
   groundFrame,
   faceFrame,
@@ -34,8 +35,10 @@ const MIN_SIZE = 0.05 // m — en deçà, le tracé est ignoré (clic accidentel
 const PREVIEW_SIZE = 1.6 // m — emprise de l'aperçu du plan au survol
 const PREVIEW_DIV = 4 // subdivisions de la grille d'aperçu
 const SNAP_THRESHOLD_PX = 14 // rayon d'accroche à l'écran (E12-03)
+const SNAP_QUERY_MARGIN = 1.6 // sur-collecte BVH vs seuil px (le gate exact reste pickBestSnap)
 const INFER_SOURCES = 12 // # de références les plus proches alimentant axes/intersections
 const INFER_LINE_LEN = 60 // m — demi-longueur d'une ligne d'inférence dessinée
+const GRID_STEP_M = 0.1 // pas de la grille d'accroche (E12-03)
 
 // Grille (segments dans le plan XY local centré) — en LIGNES, pour ne pas
 // teinter le modèle derrière.
@@ -151,6 +154,20 @@ function worldToScreen(point, camera, rect) {
   }
 }
 
+// Rayon MONDE correspondant à `pixels` à l'écran, à la profondeur d'un point — pour
+// dimensionner la requête de proximité BVH d'après le seuil d'accroche en pixels
+// (constant à l'écran, façon SketchUp, quel que soit le zoom).
+const _radV = new THREE.Vector3()
+function worldRadiusForPixels(point, pixels, camera, rect) {
+  if (camera.isOrthographicCamera) {
+    const worldPerPx = (camera.top - camera.bottom) / camera.zoom / rect.height
+    return pixels * worldPerPx
+  }
+  const dist = camera.position.distanceTo(_radV.set(point[0], point[1], point[2]))
+  const worldHeight = 2 * dist * Math.tan((camera.fov * Math.PI) / 360)
+  return pixels * (worldHeight / rect.height)
+}
+
 // Sommets monde du triangle touché.
 function triangleWorldVerts(hit) {
   const pos = hit.object.geometry.attributes.position
@@ -184,12 +201,39 @@ function nearestByScreen(points, cursor, camera, rect, k) {
   return scored.slice(0, k)
 }
 
+// Références d'accroche du MESH importé près du curseur. Requête de proximité
+// `three-mesh-bvh` (E12-03) : sommets + arêtes des triangles à portée d'écran,
+// PAS seulement le triangle directement survolé. Repli sur le triangle survolé si
+// le mesh n'a pas de boundsTree. Renvoie sommets et arêtes en MONDE (non projetés).
+function meshRefsNear(hit, freeWorld, camera, rect) {
+  const radius = worldRadiusForPixels(
+    freeWorld,
+    SNAP_THRESHOLD_PX * SNAP_QUERY_MARGIN,
+    camera,
+    rect
+  )
+  const refs = meshReferencesNear(hit.object, freeWorld, radius)
+  if (refs) return refs
+  // Fallback : le seul triangle survolé (comportement E12-03 inc.1).
+  const [a, b, c] = triangleWorldVerts(hit)
+  return {
+    verts: [a, b, c],
+    edges: [
+      [a, b],
+      [b, c],
+      [c, a],
+    ],
+  }
+}
+
 /**
  * Meilleure accroche dans le seuil px. Candidats :
- *  - POINTS précis (sommets/milieux/centres) du triangle survolé ET des objets app,
- *    ramenés sur le plan actif ;
- *  - en cours de tracé seulement : ARÊTES du triangle, AXES (u/v du plan passant par
- *    une référence) et INTERSECTIONS de ces axes — les inférences linéaires.
+ *  - POINTS précis : sommets + milieux d'arête du mesh importé proche du curseur
+ *    (requête BVH, E12-03), références des objets app, le tout ramené sur le plan
+ *    actif ;
+ *  - en cours de tracé seulement : ARÊTES (mesh proche), AXES (u/v du plan passant
+ *    par une référence) et INTERSECTIONS de ces axes — les inférences linéaires ;
+ *  - GRILLE du plan (si activée) — accroche de dernier recours.
  * @returns {{type, point, color?, lines?}|null}
  */
 function computeSnap({
@@ -202,23 +246,19 @@ function computeSnap({
   cursor,
   camera,
   rect,
+  gridSnap,
 }) {
   const proj = (p) => projectToPlane(p, frame)
 
   // 1) Points précis (projetés sur le plan actif).
   const points = []
-  let tri = null
+  let meshEdges = null // arêtes du mesh (projetées) — pour les candidats `edge`
   if (hit) {
-    tri = triangleWorldVerts(hit).map(proj)
-    const [a, b, c] = tri
-    points.push(
-      { type: 'endpoint', point: a },
-      { type: 'endpoint', point: b },
-      { type: 'endpoint', point: c },
-      { type: 'midpoint', point: midpoint(a, b) },
-      { type: 'midpoint', point: midpoint(b, c) },
-      { type: 'midpoint', point: midpoint(c, a) }
-    )
+    const refs = meshRefsNear(hit, freeWorld, camera, rect)
+    for (const v of refs.verts) points.push({ type: 'endpoint', point: proj(v) })
+    meshEdges = refs.edges.map(([a, b]) => [proj(a), proj(b)])
+    for (const [pa, pb] of meshEdges)
+      points.push({ type: 'midpoint', point: midpoint(pa, pb) })
   }
   for (const o of Object.values(objects)) {
     for (const rp of referencePoints(o))
@@ -230,14 +270,10 @@ function computeSnap({
   const candidates = [...points]
 
   if (drawing) {
-    // 1b) Arêtes du triangle survolé (point le plus proche du curseur libre).
-    if (tri) {
-      const [a, b, c] = tri
-      candidates.push(
-        { type: 'edge', point: closestPointOnSegment(freeWorld, a, b) },
-        { type: 'edge', point: closestPointOnSegment(freeWorld, b, c) },
-        { type: 'edge', point: closestPointOnSegment(freeWorld, c, a) }
-      )
+    // 1b) Arêtes du mesh proche (point le plus proche du curseur libre).
+    if (meshEdges) {
+      for (const [a, b] of meshEdges)
+        candidates.push({ type: 'edge', point: closestPointOnSegment(freeWorld, a, b) })
     }
     // 2) Axes + intersections, dans le plan, autour des références les plus proches.
     const near = nearestByScreen(points, cursor, camera, rect, INFER_SOURCES)
@@ -271,6 +307,15 @@ function computeSnap({
         if (x) candidates.push({ type: 'intersection', point: x, lines: [lu, lv] })
       }
     }
+  }
+
+  // 3) Grille du plan (E12-03) : intersection de grille la plus proche, en (s,t).
+  // Priorité minimale → n'emporte qu'à défaut de toute autre référence proche.
+  if (gridSnap) {
+    const [s, t] = worldToPlane(freeWorld, frame)
+    const gs = Math.round(s / GRID_STEP_M) * GRID_STEP_M
+    const gt = Math.round(t / GRID_STEP_M) * GRID_STEP_M
+    candidates.push({ type: 'grid', point: planeToWorld(gs, gt, frame) })
   }
 
   for (const cand of candidates) {
@@ -494,6 +539,7 @@ function InferenceLines({ snap }) {
 function SketchSurface({ glbScene, nodes, objects }) {
   const setDraft = useStore((state) => state.setDraft)
   const createObject = useStore((state) => state.createObject)
+  const gridSnap = useStore((state) => state.gridSnap)
   const [hover, setHover] = useState(null)
   const drawing = useRef(false)
   const rc = useMemo(() => new THREE.Raycaster(), [])
@@ -535,6 +581,7 @@ function SketchSurface({ glbScene, nodes, objects }) {
         cursor,
         camera,
         rect,
+        gridSnap,
       })
       const world = snap ? snap.point : freeWorld
       const [s, t] = worldToPlane(world, d.frame)
@@ -558,6 +605,7 @@ function SketchSurface({ glbScene, nodes, objects }) {
       cursor,
       camera,
       rect,
+      gridSnap,
     })
     const point = snap?.point ?? (frame.type === 'face' ? frame.origin : contextWorld)
     setHover({ point, u: frame.u, v: frame.v, normal: frame.normal, snap })
@@ -582,6 +630,7 @@ function SketchSurface({ glbScene, nodes, objects }) {
       cursor,
       camera,
       rect,
+      gridSnap,
     })
     const world = snap?.point ?? contextWorld
     const [s, t] = worldToPlane(world, frame)
@@ -665,6 +714,13 @@ export default function EditObjects() {
   const selectable = editMode && activeTool === 'select'
   const drawing = editMode && activeTool === 'rect'
   const pushable = editMode && activeTool === 'pushpull'
+
+  // E12-03 : indexer le modèle importé (BVH three-mesh-bvh) à l'entrée d'Edit mode
+  // — accélère le raycast du tracé ET les requêtes de proximité du snapping. Coût
+  // one-time, payé seulement quand on édite (pas pour un simple viewer).
+  useEffect(() => {
+    if (editMode && glb?.scene) ensureBoundsTree(glb.scene)
+  }, [editMode, glb])
 
   // ── Push/Pull (E12-08) : extruder/redimensionner par la face cliquée ─────────
   // Marche sur TOUTE face d'une forme : la face détermine la cote modifiée

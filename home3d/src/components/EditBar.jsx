@@ -56,6 +56,20 @@ function ToolIcon({ id }) {
   )
 }
 
+// Icône du toggle d'accroche à la grille (E12-03).
+function GridIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        d="M4 9h16M4 15h16M9 4v16M15 4v16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      />
+    </svg>
+  )
+}
+
 function NumberField({ label, value, onChange, allowZero = false }) {
   return (
     <label className="edit-field">
@@ -105,6 +119,8 @@ export default function EditBar() {
   const deleteObject = useStore((state) => state.deleteObject)
   const glb = useStore((state) => state.glb)
   const metadata = useStore((state) => state.metadata)
+  const gridSnap = useStore((state) => state.gridSnap)
+  const toggleGridSnap = useStore((state) => state.toggleGridSnap)
 
   // pastStates/futureStates du store temporel zundo (réactif).
   const canUndo = useTemporal((state) => state.pastStates.length > 0)
@@ -167,6 +183,16 @@ export default function EditBar() {
             <ToolIcon id={tool.id} />
           </button>
         ))}
+        {/* Toggle (pas un outil) : accroche à la grille du plan (E12-03). */}
+        <button
+          className="edit-tool"
+          aria-pressed={gridSnap}
+          aria-label="Accroche à la grille"
+          title="Accroche à la grille (G) — aligne sur un pas de 0,1 m"
+          onClick={toggleGridSnap}
+        >
+          <GridIcon />
+        </button>
       </div>
 
       {TOOL_HINTS[activeTool] && <p className="edit-hint">{TOOL_HINTS[activeTool]}</p>}

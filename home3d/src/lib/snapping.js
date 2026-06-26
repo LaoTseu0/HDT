@@ -83,23 +83,26 @@ export function axisColorForDir(dir) {
 }
 
 // Priorité d'accroche (la plus forte gagne à seuil égal). Les POINTS précis priment
-// sur les inférences linéaires : sommet > intersection > milieu > arête > axe.
+// sur les inférences linéaires, et la grille ne l'emporte qu'en dernier recours :
+// sommet > intersection > milieu > arête > axe > grille.
 export const SNAP_PRIORITY = {
   endpoint: 5,
   intersection: 4,
   midpoint: 3,
   edge: 2,
   axis: 1,
+  grid: 0,
 }
 
 // Couleurs des marqueurs par type (convention SketchUp : vert=sommet, cyan=milieu,
-// rouge=sur l'arête, magenta=intersection). Les accroches `axis` portent leur propre
-// couleur d'axe (champ `color`), posée par le composant.
+// rouge=sur l'arête, magenta=intersection, gris=grille). Les accroches `axis`
+// portent leur propre couleur d'axe (champ `color`), posée par le composant.
 export const SNAP_COLORS = {
   endpoint: '#22c55e',
   midpoint: '#22d3ee',
   edge: '#ef4444',
   intersection: '#d946ef',
+  grid: '#94a3b8',
 }
 
 /**

@@ -80,6 +80,24 @@ describe('pickBestSnap', () => {
     assert.ok(SNAP_PRIORITY.edge > SNAP_PRIORITY.axis)
   })
 
+  it('la grille est l’accroche de plus basse priorité', () => {
+    assert.ok(SNAP_PRIORITY.axis > SNAP_PRIORITY.grid)
+    assert.equal(SNAP_PRIORITY.grid, Math.min(...Object.values(SNAP_PRIORITY)))
+  })
+
+  it('une référence géométrique l’emporte sur la grille à seuil égal', () => {
+    const cands = [
+      { type: 'grid', point: [1, 0, 0], sx: 102, sy: 100 }, // plus proche
+      { type: 'axis', point: [2, 0, 0], sx: 106, sy: 100 }, // plus loin mais prioritaire
+    ]
+    assert.equal(pickBestSnap(cands, cursor, 12).type, 'axis')
+  })
+
+  it('la grille accroche en l’absence de toute autre référence', () => {
+    const best = pickBestSnap([{ type: 'grid', point: [1, 0, 0], sx: 104, sy: 100 }], cursor, 12)
+    assert.equal(best.type, 'grid')
+  })
+
   it('conserve les champs d’inférence (color/lines) du candidat retenu', () => {
     const line = { origin: [0, 0, 0], dir: [1, 0, 0], color: '#abc' }
     const best = pickBestSnap(

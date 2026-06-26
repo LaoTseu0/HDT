@@ -493,6 +493,37 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > saisie numérique VCB (E12-04), cercle/arc (E13-02/03), node names conformes + zone
 > (E12-06).
 
+> **Slice 0 — avancement (2026-06-26, incrément 6 : E12-03 snapping, inc. 3).**
+> Deux des trois cibles restantes de l'inférence. **(1) Références du mur importé hors
+> triangle survolé** via `three-mesh-bvh` (la pièce phare). Nouveau module pur three
+> [bvh.js](home3d/src/lib/bvh.js) : `patchBVH` (prototypes `computeBoundsTree`/
+> `acceleratedRaycast`, idempotent — un mesh sans boundsTree retombe sur le raycast
+> natif), `ensureBoundsTree` (indexe les meshes à l'**entrée d'Edit mode**, coût
+> one-time, pas pour un simple viewer), et `meshReferencesNear(mesh, centre, rayon)` :
+> **requête de proximité** (`boundsTree.shapecast`, test sphère en espace **local** du
+> mesh) qui renvoie sommets + arêtes **dédupliqués** des triangles à portée — donc on
+> accroche désormais aux coins/arêtes d'un mur **même quand le curseur est sur un autre
+> triangle**. Le rayon de requête est dérivé du seuil d'accroche en **pixels**
+> (`worldRadiusForPixels`, constant à l'écran façon SketchUp), coût borné par `maxTris`.
+> [EditObjects.jsx](home3d/src/components/EditObjects.jsx) : `computeSnap` remplace la
+> collecte mono-triangle (E12-03 inc.1) par cette requête BVH (repli triangle survolé
+> conservé), et le raycast du tracé est lui aussi accéléré. **(2) Snap grille** : flag
+> store `gridSnap` + `toggleGridSnap` (préférence non historisée), candidat de **plus
+> basse priorité** (`grid` < `axis` dans `SNAP_PRIORITY` — la géométrie l'emporte
+> toujours, la grille ne « tire » qu'à défaut), pas de 0,1 m sur le plan, marqueur gris.
+> Toggle **barre d'outils à icône `#` + tooltip** (directive IHM) dans
+> [EditBar.jsx](home3d/src/components/EditBar.jsx) + raccourci **G**
+> ([App.jsx](home3d/src/App.jsx)). Tests : nouveau [bvh.test.mjs](home3d/script/bvh.test.mjs)
+> (proximité/dédup sur cube, transformée monde, budget `maxTris`) + grille dans
+> [snapping.test.mjs](home3d/script/snapping.test.mjs) — **83 verts**, `lint`/`build`
+> OK. Vérifié au navigateur sur le modèle démo réel : entrée en édition (BVH construit
+> sans erreur), toggle grille fonctionnel (`aria-pressed`), aucune erreur console.
+> **Reste E12-03** : **parallèle/perpendiculaire** — délibérément reporté : c'est une
+> inférence de *direction de tracé*, sans objet pour le Rectangle (côtés fixés sur u/v
+> du plan) ; sa vraie valeur viendra avec les outils **ligne/arc** (E13-02/03). **Reste
+> Slice 0** : saisie numérique VCB (E12-04), cercle/arc (E13-02/03), node names conformes
+> + zone (E12-06).
+
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
 et le **mode visite** opérationnel (vol libre, puis collisions).
