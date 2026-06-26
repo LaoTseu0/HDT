@@ -31,7 +31,6 @@ const DRAFT_FILL = '#8fc7ff'
 const DRAFT_EDGE = '#cfe4f8'
 const PLANE_FILL = '#378add'
 const PLANE_EDGE = '#5a9fd6'
-const MIN_SIZE = 0.05 // m — en deçà, le tracé est ignoré (clic accidentel)
 const PREVIEW_SIZE = 1.6 // m — emprise de l'aperçu du plan au survol
 const PREVIEW_DIV = 4 // subdivisions de la grille d'aperçu
 const SNAP_THRESHOLD_PX = 14 // rayon d'accroche à l'écran (E12-03)
@@ -538,7 +537,6 @@ function InferenceLines({ snap }) {
 // avec accroche (snapping) aux sommets/milieux/arêtes survolés (E12-03).
 function SketchSurface({ glbScene, nodes, objects }) {
   const setDraft = useStore((state) => state.setDraft)
-  const createObject = useStore((state) => state.createObject)
   const gridSnap = useStore((state) => state.gridSnap)
   const [hover, setHover] = useState(null)
   const drawing = useRef(false)
@@ -636,37 +634,17 @@ function SketchSurface({ glbScene, nodes, objects }) {
     const [s, t] = worldToPlane(world, frame)
     drawing.current = true
     setHover(null) // masque l'aperçu de survol pendant le tracé
+    useStore.getState().setVcbText('') // nouvelle saisie VCB pour ce tracé
     setDraft({ start: [s, t], current: [s, t], frame, snap })
     event.target.setPointerCapture?.(event.pointerId)
   }
 
+  // Relâché : committe le tracé via le store (gère cote VCB éventuelle + garde
+  // clic accidentel). Si la VCB a déjà committé (Entrée), draft est null → no-op.
   const onPointerUp = () => {
     if (!drawing.current) return
     drawing.current = false
-    const d = useStore.getState().draft
-    if (!d) return
-    const w = Math.abs(d.current[0] - d.start[0])
-    const depth = Math.abs(d.current[1] - d.start[1])
-    if (w < MIN_SIZE || depth < MIN_SIZE) {
-      setDraft(null)
-      return
-    }
-    const sc = (d.start[0] + d.current[0]) / 2
-    const tc = (d.start[1] + d.current[1]) / 2
-    const center = planeToWorld(sc, tc, d.frame)
-    createObject({
-      kind: 'sketch.rect',
-      params: { largeur_m: Number(w.toFixed(3)), profondeur_m: Number(depth.toFixed(3)) },
-      // origin = centre de la forme ; le repère (u/v/normal) fige l'orientation.
-      plane: {
-        type: d.frame.type,
-        origin: center,
-        normal: d.frame.normal,
-        u: d.frame.u,
-        v: d.frame.v,
-        ...(d.frame.faceOf ? { faceOf: d.frame.faceOf } : {}),
-      },
-    })
+    if (useStore.getState().draft) useStore.getState().commitDraft()
   }
 
   return (

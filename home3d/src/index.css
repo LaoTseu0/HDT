@@ -227,6 +227,56 @@ button.secondary {
   z-index: 20;
 }
 
+/* Boîte de mesure VCB (E12-04) — bas droite, façon SketchUp */
+.vcb-box {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 14px;
+  border: 1px solid #3a3d4a;
+  border-radius: 8px;
+  background: rgba(26, 28, 36, 0.92);
+  font-size: 13px;
+  z-index: 20;
+}
+
+.vcb-label {
+  color: #9aa0b0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+
+.vcb-value {
+  color: #e8e9ee;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  min-width: 90px;
+}
+
+.vcb-typed {
+  color: #8fc7ff;
+  border-bottom: 1px solid #8fc7ff;
+}
+
+.vcb-unit {
+  color: #9aa0b0;
+}
+
+.vcb-idle {
+  color: #6b7080;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.vcb-hint {
+  color: #6b7080;
+  font-size: 11px;
+}
+
 /* État vide : invite au drag & drop / file picker */
 .empty-state {
   position: absolute;

@@ -5,7 +5,42 @@ import LayerPanel from './components/LayerPanel.jsx'
 import InfoPanel from './components/InfoPanel.jsx'
 import VisitOverlay from './components/VisitOverlay.jsx'
 import EditBar from './components/EditBar.jsx'
+import VCBOverlay from './components/VCBOverlay.jsx'
 import useStore from './store/useStore.js'
+
+// Saisie VCB (E12-04) pendant un tracé : construit la chaîne tapée, valide à
+// Entrée, efface à Échap (si non vide). Renvoie true si la touche est consommée.
+function handleVcbKey(event) {
+  const { vcbText, setVcbText, commitDraft } = useStore.getState()
+  const k = event.key
+  if (k === 'Enter') {
+    event.preventDefault()
+    commitDraft()
+    return true
+  }
+  if (k === 'Escape') {
+    // Non vide : effacer la saisie (le tracé continue). Vide : laisser Échap
+    // annuler le tracé (retour outil Sélection, géré plus bas).
+    if (vcbText) {
+      event.preventDefault()
+      setVcbText('')
+      return true
+    }
+    return false
+  }
+  if (k === 'Backspace') {
+    event.preventDefault()
+    setVcbText(vcbText.slice(0, -1))
+    return true
+  }
+  // Chiffres + séparateurs de cote/décimale.
+  if (/^[0-9]$/.test(k) || k === ',' || k === '.' || k === ';') {
+    event.preventDefault()
+    setVcbText(vcbText + k)
+    return true
+  }
+  return false
+}
 
 export default function App() {
   const requestFit = useStore((state) => state.requestFit)
@@ -22,6 +57,10 @@ export default function App() {
       const tag = event.target?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       const { viewMode, pointerLocked, editMode, setActiveTool } = useStore.getState()
+
+      // VCB (E12-04) : pendant un tracé, on capte la saisie de cote AVANT les
+      // raccourcis (sinon taper une cote déclencherait R/G/V/E…).
+      if (editMode && useStore.getState().draft && handleVcbKey(event)) return
 
       // Undo/redo (Edit mode uniquement) : Ctrl/Cmd+Z, +Maj pour rétablir ; Ctrl+Y.
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
@@ -66,6 +105,7 @@ export default function App() {
       <LayerPanel />
       <EditBar />
       <InfoPanel />
+      <VCBOverlay />
       <VisitOverlay />
     </div>
   )
