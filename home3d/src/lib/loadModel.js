@@ -6,6 +6,8 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js'
+import { kindNaming } from './editRegistry.js'
+import { DEFAULT_ZONE, DEFAULT_LEVEL } from './naming.js'
 
 // Calque de repli pour les meshes sans extras (E3-03) — seul élément
 // de config côté app, tout le reste vient des extras du GLB.
@@ -79,10 +81,23 @@ export function extractModelData(gltf) {
     // correctif WeakMap — sinon applyAppearance le ré-utiliserait comme
     // matériau (couleur sérialisée en nombre → mesh non rendu).
     if (ud && '__origMaterial' in ud) delete ud.__origMaterial
-    // Objet créé in-app : reconstruit depuis ses params, sous-arbre ignoré.
+    // Objet créé in-app : reconstruit depuis ses params, sous-arbre ignoré. Les
+    // champs de nommage (E12-06) sont relus des extras ; repli sur le registre +
+    // défauts pour un GLB exporté avant E12-06 (node name non conforme = id).
     if (ud?.source === 'app' && ud?.edit) {
       const { kind, params, plane } = ud.edit
-      objects[object.name] = { id: object.name, kind, params, plane }
+      const fallback = kindNaming(kind)
+      objects[object.name] = {
+        id: object.name,
+        kind,
+        params,
+        plane,
+        system: ud.layer ?? fallback.system,
+        type: ud.type ?? fallback.type,
+        zone: ud.zone ?? DEFAULT_ZONE,
+        level: ud.level ?? DEFAULT_LEVEL,
+        index: Number(ud.index) || 1,
+      }
       appNodes.push(object)
       return
     }

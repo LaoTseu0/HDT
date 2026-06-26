@@ -87,6 +87,21 @@ export function isKnownKind(kind) {
   return kind in REGISTRY
 }
 
+// Contrat de nommage par `kind` (E12-06) : système (= calque) + type composant le
+// node name conforme `système__type__zone__niveau__index`. La zone/niveau viennent
+// de l'inspector, l'index est auto-incrémenté (cf. lib/naming). Les primitives
+// d'esquisse de Slice 0 (`sketch.*`) ne relèvent d'aucun système technique : on les
+// rattache à `structure` (volume/forme). Les vrais objets MEP/ouvertures des slices
+// suivantes déclareront ici leur propre système/type.
+const KIND_NAMING = {
+  'sketch.rect': { system: 'structure', type: 'forme' },
+}
+
+/** Système/type de nommage d'un `kind` (repli `structure`/`forme`). */
+export function kindNaming(kind) {
+  return KIND_NAMING[kind] ?? { system: 'structure', type: 'forme' }
+}
+
 // Génère l'Object3D d'un objet app. Le tag son id sur le groupe et ses enfants
 // pour que le raycast de sélection remonte à l'objet métier.
 export function generateObject(obj) {

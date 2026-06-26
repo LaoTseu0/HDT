@@ -3,12 +3,36 @@ import { useStore as useZustandStore } from 'zustand'
 import { temporal } from 'zundo'
 import { rectPayloadFromDraft, MIN_SIZE } from '../lib/sketchRect.js'
 import { parseVcb, applyVcbToDraft } from '../lib/vcb.js'
+import { kindNaming } from '../lib/editRegistry.js'
+import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
 
-// Id auto d'un objet app : `app-<kind>-NNN`, incrémenté par kind (E12-06 affinera
-// avec la convention système__type__zone__niveau__index).
-function makeObjectId(objects, kind) {
-  const n = Object.values(objects).filter((o) => o.kind === kind).length + 1
-  return `app-${kind.replace(/\./g, '-')}-${String(n).padStart(3, '0')}`
+// Id interne STABLE d'un objet app (clé du map `objects`, jamais affichée). Le
+// node name conforme (système__type__zone__niveau__index) en est DÉCOUPLÉ et
+// dérivé via lib/naming → on peut changer zone/niveau sans re-keyer le store
+// (E12-06, cohérent avec l'immutabilité des ids E7-03). Max+1 sur le suffixe pour
+// ne pas réutiliser un id après suppression.
+function makeStableId(objects) {
+  let max = 0
+  for (const id of Object.keys(objects)) {
+    const m = /^app-(\d+)$/.exec(id)
+    if (m) {
+      const n = Number(m[1])
+      if (n > max) max = n
+    }
+  }
+  return `app-${max + 1}`
+}
+
+// Assemble un objet app complet depuis un payload de tracé { kind, params, plane }
+// et la zone/niveau courants → champs de nommage (système/type du registre, index
+// auto-incrémenté par bucket). Le node name est dérivé à l'affichage/export.
+function buildAppObject(state, payload) {
+  const id = makeStableId(state.objects)
+  const { system, type } = kindNaming(payload.kind)
+  const zone = state.currentZone || DEFAULT_ZONE
+  const level = state.currentLevel || DEFAULT_LEVEL
+  const index = nextIndex(state.objects, { system, zone, level })
+  return { id, system, type, zone, level, index, ...payload }
 }
 
 // Store Zustand — structure V2-ready (cf. cahier des charges, E7-01).
@@ -138,10 +162,10 @@ const useStore = create(
           }
           const payload = rectPayloadFromDraft(eff.start, eff.current, d.frame)
           if (!payload) return { draft: null, vcbText: '' }
-          const id = makeObjectId(state.objects, payload.kind)
+          const obj = buildAppObject(state, payload)
           return {
-            objects: { ...state.objects, [id]: { id, ...payload } },
-            selectedNode: id,
+            objects: { ...state.objects, [obj.id]: obj },
+            selectedNode: obj.id,
             draft: null,
             vcbText: '',
           }
@@ -164,13 +188,39 @@ const useStore = create(
       // est DÉRIVÉE des params par le registre (lib/editRegistry) → ré-éditable
       // et régénérable au chargement (E12-05). Seul ce champ est historisé (zundo).
       objects: {},
-      createObject: ({ kind, params, plane }) =>
+      createObject: (payload) =>
         set((state) => {
-          const id = makeObjectId(state.objects, kind)
+          const obj = buildAppObject(state, payload)
           return {
-            objects: { ...state.objects, [id]: { id, kind, params, plane } },
-            selectedNode: id,
+            objects: { ...state.objects, [obj.id]: obj },
+            selectedNode: obj.id,
             draft: null,
+          }
+        }),
+
+      // E12-06 : zone / niveau « courants » — défaut des nouvelles formes. Seedés
+      // depuis le modèle chargé (1re zone/1er niveau présents), mis à jour quand on
+      // change la zone/niveau d'un objet dans l'inspector (la valeur « colle » pour
+      // les tracés suivants, façon zone courante).
+      currentZone: DEFAULT_ZONE,
+      currentLevel: DEFAULT_LEVEL,
+
+      // E12-06 : change zone et/ou niveau de l'objet sélectionné → recalcule l'index
+      // dans le nouveau bucket (système, zone, niveau) et reconstruit le node name
+      // (dérivé). Historisé (mutation de `objects`) ; met aussi à jour la zone/niveau
+      // courants. L'`id` (clé) reste stable — pas de renommage de clé.
+      setObjectNaming: (id, patch) =>
+        set((state) => {
+          const obj = state.objects[id]
+          if (!obj) return state
+          const zone = patch.zone !== undefined ? patch.zone : obj.zone
+          const level = patch.level !== undefined ? patch.level : obj.level
+          if (zone === obj.zone && level === obj.level) return state
+          const index = nextIndex(state.objects, { system: obj.system, zone, level }, id)
+          return {
+            objects: { ...state.objects, [id]: { ...obj, zone, level, index } },
+            currentZone: zone,
+            currentLevel: level,
           }
         }),
       // `planePatch` optionnel (Push/Pull sur une face latérale, E12-08) : déplace
@@ -230,6 +280,10 @@ const useStore = create(
           // Objets app reconstruits depuis les extras.edit du GLB (E10-04),
           // sinon édition vierge.
           objects: objects ?? {},
+          // E12-06 : zone/niveau courants seedés depuis le modèle (1re zone/1er
+          // niveau présents) → défaut des formes créées ensuite.
+          currentZone: metadata?.model?.zones?.[0] ?? DEFAULT_ZONE,
+          currentLevel: metadata?.model?.levels?.[0] ?? DEFAULT_LEVEL,
           draft: null,
           vcbText: '',
           editMode: false,
