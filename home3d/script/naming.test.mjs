@@ -9,8 +9,10 @@ import {
   LAYERS_CONFIG,
   NODE_NAME_REGEX,
   SYSTEMS,
+  collectCandidateNodes,
   computeDims,
   isCandidateNode,
+  isExporterGeomName,
   parseNodeName,
   stripExporterPrefix,
   validateNodeName,
@@ -194,6 +196,89 @@ describe('isCandidateNode', () => {
 
   it('ignore un wrapper de regroupement sans mesh ni `__`', () => {
     assert.equal(isCandidateNode(fakeNode('SketchUp_Group', null)), false)
+  })
+})
+
+describe('isExporterGeomName', () => {
+  it('reconnaît le nom générique `Geom3D` (sans suffixe)', () => {
+    assert.equal(isExporterGeomName('Geom3D'), true)
+  })
+
+  it('ne reconnaît pas `Geom3D_…` (préfixe d’un groupe nommé)', () => {
+    assert.equal(isExporterGeomName('Geom3D_structure__bloc__maison__rdc__001'), false)
+  })
+
+  it('ne reconnaît pas un nom propre quelconque', () => {
+    assert.equal(isExporterGeomName('structure__mur_porteur__salon__rdc__001'), false)
+    assert.equal(isExporterGeomName(''), false)
+  })
+})
+
+describe('collectCandidateNodes — sélection tree-aware (issue #11)', () => {
+  // Faux node minimal : getName / getMesh / listChildren, comme un Node
+  // gltf-transform. `children` par défaut vide.
+  const node = (name, { mesh = null, children = [] } = {}) => ({
+    getName: () => name,
+    getMesh: () => mesh,
+    listChildren: () => children,
+  })
+  const names = (nodes) => nodes.map((n) => n.getName())
+
+  it('absorbe les fragments `Geom3D` par-matériau sous un groupe nommé', () => {
+    // Reproduit `maison_raw.glb` : un mur nommé dont la géométrie est éclatée
+    // par l'exporteur en un morceau au matériau par défaut (qui garde le nom du
+    // groupe après normalisation) + plusieurs fragments texturés `Geom3D`.
+    const wall = node('structure__mur_porteur__combles__ss__001', {
+      children: [
+        node('Geom3D', { mesh: {} }),
+        node('structure__mur_porteur__combles__ss__001', { mesh: {} }),
+        node('Geom3D', { mesh: {} }),
+        node('Geom3D', { mesh: {} }),
+      ],
+    })
+    const candidates = collectCandidateNodes([wall])
+    // Une seule entité métier : le mur (dédupliqué avec sa géométrie homonyme),
+    // aucun fragment `Geom3D`.
+    assert.deepEqual(names(candidates), ['structure__mur_porteur__combles__ss__001'])
+  })
+
+  it('garde un `Geom3D` orphelin (géométrie hors groupe → reste rejetée)', () => {
+    const loose = node('Geom3D', { mesh: {} })
+    const candidates = collectCandidateNodes([loose])
+    assert.deepEqual(names(candidates), ['Geom3D'])
+    assert.equal(validateNodeName(candidates[0].getName()).valid, false)
+  })
+
+  it('déduplique `Geom3D` orphelins multiples en une seule erreur', () => {
+    const candidates = collectCandidateNodes([
+      node('Geom3D', { mesh: {} }),
+      node('Geom3D', { mesh: {} }),
+    ])
+    assert.deepEqual(names(candidates), ['Geom3D'])
+  })
+
+  it('conserve chaque node anonyme (mesh sans nom) comme erreur distincte', () => {
+    const candidates = collectCandidateNodes([
+      node('', { mesh: {} }),
+      node('', { mesh: {} }),
+    ])
+    assert.equal(candidates.length, 2)
+  })
+
+  it('ignore les wrappers sans mesh ni `__` (ex. `Active View`)', () => {
+    const candidates = collectCandidateNodes([node('Active View')])
+    assert.deepEqual(candidates, [])
+  })
+
+  it('retient des groupes nommés imbriqués comme éléments distincts', () => {
+    const parent = node('structure__bloc__maison__rdc__001', {
+      children: [node('ouvertures__porte_int__couloir__rdc__001', { mesh: {} })],
+    })
+    const candidates = collectCandidateNodes([parent])
+    assert.deepEqual(names(candidates), [
+      'structure__bloc__maison__rdc__001',
+      'ouvertures__porte_int__couloir__rdc__001',
+    ])
   })
 })
 

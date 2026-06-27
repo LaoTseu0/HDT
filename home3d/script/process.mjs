@@ -23,8 +23,8 @@ import { draco } from '@gltf-transform/functions'
 import draco3d from 'draco3dgltf'
 import {
   LAYERS_CONFIG,
+  collectCandidateNodes,
   computeDims,
-  isCandidateNode,
   parseNodeName,
   stripExporterPrefix,
   validateNodeName,
@@ -92,24 +92,16 @@ function normalizeExporterNames(document) {
   return renamed
 }
 
-// Candidats à la convention, dédupliqués par nom : après normalisation, un
-// groupe SketchUp et sa géométrie `Geom3D_` partagent le même nom — on ne
-// retient qu'une entité par nom pour ne pas valider / enrichir / rapporter deux
-// fois la même chose. Les nodes anonymes (mesh sans nom) sont tous conservés,
-// chacun étant une erreur distincte.
+// Candidats à la convention : sélection tree-aware déléguée à `naming.mjs`
+// (dédup par nom, absorption des fragments `Geom3D` par-matériau sous un groupe
+// nommé — issue #11). On part des racines de scène pour disposer de la
+// hiérarchie (ancêtres) que `listNodes()` à plat ne donne pas.
 function listCandidateNodes(document) {
-  const seen = new Set()
-  const candidates = []
-  for (const node of document.getRoot().listNodes()) {
-    if (!isCandidateNode(node)) continue
-    const name = node.getName()
-    if (name !== '') {
-      if (seen.has(name)) continue
-      seen.add(name)
-    }
-    candidates.push(node)
-  }
-  return candidates
+  const roots = document
+    .getRoot()
+    .listScenes()
+    .flatMap((scene) => scene.listChildren())
+  return collectCandidateNodes(roots)
 }
 
 // --- 1. Validation des noms de nodes (E2-02) + rapport d'erreurs (E2-03) ---

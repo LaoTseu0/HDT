@@ -118,14 +118,30 @@ export function parseNodeName(name) {
 // de chaque groupe/composant nommé : un groupe `structure__…__001` produit un
 // enfant mesh `Geom3D_structure__…__001` (issue #7). Le préfixe n'est pas
 // configurable depuis SketchUp. On le retire avant validation/parsing pour que
-// le mesh hérite du nom propre du groupe. `Geom3D` seul (géométrie laissée
-// hors groupe) n'a PAS de `_` suffixe : il n'est donc pas retiré et reste
-// rejeté, ce qui force l'encapsulation dans un groupe nommé.
+// le mesh hérite du nom propre du groupe.
+//
+// `Geom3D` seul (sans `_` suffixe) est le nom générique donné par l'exporteur
+// à un morceau de géométrie sans nom propre. Il survient dans DEUX cas :
+//   - géométrie réellement laissée hors d'un groupe nommé → faute à rejeter ;
+//   - fragment par-matériau d'un groupe nommé : l'exporteur découpe la
+//     géométrie en une mesh par matériau (issue #11), et seul le morceau au
+//     matériau par défaut hérite du nom du groupe ; les morceaux texturés
+//     sortent en `Geom3D`.
+// On ne peut pas les distinguer sur le seul nom : la discrimination est faite
+// au niveau de l'arbre par `collectCandidateNodes` (présence d'un ancêtre nommé).
 const EXPORTER_GEOM_PREFIX = /^Geom3D_/
 
 /** Retire le préfixe `Geom3D_` ajouté par l'exporteur SketchUp, s'il est présent. */
 export function stripExporterPrefix(name) {
   return name.replace(EXPORTER_GEOM_PREFIX, '')
+}
+
+/**
+ * Vrai si `name` est le nom générique `Geom3D` que l'exporteur donne à une
+ * géométrie sans nom propre (géométrie hors groupe OU fragment par-matériau).
+ */
+export function isExporterGeomName(name) {
+  return name === 'Geom3D'
 }
 
 /**
@@ -135,6 +151,43 @@ export function stripExporterPrefix(name) {
  */
 export function isCandidateNode(node) {
   return node.getMesh() !== null || node.getName().includes('__')
+}
+
+/**
+ * Sélectionne les nodes candidats à la convention dans un arbre de scène
+ * (parcours préfixe, déjà normalisé : préfixe `Geom3D_` retiré en amont).
+ *
+ * Tree-aware (issue #11) : un fragment `Geom3D` (mesh par-matériau produit par
+ * l'exporteur) situé sous un groupe valablement nommé est **absorbé** par ce
+ * groupe — il n'est pas un candidat distinct, sa géométrie étant déjà couverte
+ * par le parcours de sous-arbre des dims. Un `Geom3D` **sans ancêtre nommé**
+ * reste candidat (vraie géométrie hors groupe → rejetée à la validation).
+ *
+ * Dédupliqué par nom : un groupe et sa géométrie partagent le même nom après
+ * normalisation, on ne retient qu'une entité par nom. Les nodes anonymes (mesh
+ * sans nom) sont tous conservés, chacun étant une erreur distincte.
+ *
+ * @param {Iterable} roots nodes racine de la scène (avec getName/getMesh/listChildren)
+ */
+export function collectCandidateNodes(roots) {
+  const seen = new Set()
+  const candidates = []
+  const walk = (node, hasNamedAncestor) => {
+    const name = node.getName()
+    const absorbed = isExporterGeomName(name) && hasNamedAncestor
+    if (!absorbed && isCandidateNode(node)) {
+      if (name === '') {
+        candidates.push(node)
+      } else if (!seen.has(name)) {
+        seen.add(name)
+        candidates.push(node)
+      }
+    }
+    const namedHere = validateNodeName(name).valid
+    for (const child of node.listChildren()) walk(child, hasNamedAncestor || namedHere)
+  }
+  for (const node of roots) walk(node, false)
+  return candidates
 }
 
 // --- Dimensions calculées depuis la géométrie (issue #9) ---
