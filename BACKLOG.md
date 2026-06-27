@@ -260,7 +260,7 @@ Premier livrable d'Edit mode, **sans booléen**.
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E13-01 | En tant qu'utilisateur, je veux dessiner un rectangle paramétrique afin de poser une forme de base. | Tracé 2 coins (ou centre + coin) sur le plan actif ; paramétrique ; snapping actif. | M | 3 |
-| E13-02 | En tant qu'utilisateur, je veux dessiner un cercle paramétrique. | Centre + rayon ; saisie numérique du rayon possible (E12-04). | M | 2 |
+| E13-02 ✅ | En tant qu'utilisateur, je veux dessiner un cercle paramétrique. | Centre + rayon ; saisie numérique du rayon possible (E12-04). | M | 2 |
 | E13-03 | En tant qu'utilisateur, je veux dessiner un arc de cercle paramétrique. | 3 points (ou centre + début + fin) ; paramétrique. | M | 3 |
 | E13-04 | En tant qu'utilisateur, je veux éditer les paramètres d'une primitive afin de l'ajuster après coup. | Sélection → inspector affiche/édite les cotes ; poignées de redimensionnement ; undo/redo ; **survit au rechargement** (E12-05). | M | 3 |
 
@@ -578,6 +578,33 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > `lint`/`build` OK. **Reste Slice 0** : cercle/arc (E13-02/03), VCB du Push/Pull
 > (E12-08, profondeur d'extrusion au clavier). Avec E12-06, **Slice 0 a livré tout le
 > socle d'édition + nommage** ; ne restent que les primitives cercle/arc.
+
+> **Slice 0 — avancement (2026-06-27, incrément 9 : E13-02 cercle paramétrique).**
+> Outil **Cercle** (centre + rayon) qui réemploie toute la machinerie du Rectangle :
+> plan d'esquisse contextuel (E12-02), snapping/inférence (E12-03), VCB clavier
+> (E12-04), Push/Pull (E12-08, le cercle s'extrude en **cylindre**), inspector +
+> undo/redo, et le **nommage conforme** (E12-06, type `disque`). Nouveau `kind`
+> `sketch.circle` dans [editRegistry.js](home3d/src/lib/editRegistry.js)
+> (`generateCircle` : `CircleGeometry` plat / `CylinderGeometry` d'axe Z extrudé,
+> contours via `EdgesGeometry` à seuil 30° pour ne garder que les cercles base/haut ;
+> `referencePoints` = centre + 4 quadrants par face ; `deriveDims` = diamètre×diamètre×
+> hauteur ; `kindNaming` → `structure`/`disque`). Module pur
+> [sketchCircle.js](home3d/src/lib/sketchCircle.js) (`circlePayloadFromDraft`, rayon =
+> distance centre→bord) et **VCB rayon** dans [vcb.js](home3d/src/lib/vcb.js)
+> (`parseVcbRadius`/`applyVcbRadiusToDraft` : une valeur = le rayon, direction du
+> glissé conservée). Le tracé porte désormais un `draft.tool` (rect|circle) :
+> [useStore.js](home3d/src/store/useStore.js) `commitDraft` branche dessus (parsing
+> VCB, garde clic-accidentel, constructeur de payload), [EditObjects.jsx](home3d/src/components/EditObjects.jsx)
+> `SketchSurface` reçoit l'outil et `DraftPreview` rend un disque ou un rectangle. UI :
+> **icône cercle + tooltip** ([EditBar.jsx](home3d/src/components/EditBar.jsx), directive
+> IHM), champ **Rayon** dans l'inspector (selon `kind`), overlay VCB « Rayon » + invite
+> « Tapez R puis Entrée » ([VCBOverlay.jsx](home3d/src/components/VCBOverlay.jsx)). Tests :
+> [sketchCircle.test.mjs](home3d/script/sketchCircle.test.mjs) (payload, VCB rayon,
+> références, dims) → **112 verts** ; `lint`/`build` OK. Vérifié au navigateur sur le
+> modèle démo : disque plat + cylindre extrudé rendus (contours nets), VCB rayon
+> (`3` écrase le glissé), inspector Rayon, round-trip export→reload (cercles + noms
+> conformes préservés), aucune erreur console. **Reste Slice 0** : **arc** (E13-03),
+> VCB du Push/Pull (E12-08).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

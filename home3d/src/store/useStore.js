@@ -2,7 +2,13 @@ import { create } from 'zustand'
 import { useStore as useZustandStore } from 'zustand'
 import { temporal } from 'zundo'
 import { rectPayloadFromDraft, MIN_SIZE } from '../lib/sketchRect.js'
-import { parseVcb, applyVcbToDraft } from '../lib/vcb.js'
+import { circlePayloadFromDraft } from '../lib/sketchCircle.js'
+import {
+  parseVcb,
+  applyVcbToDraft,
+  parseVcbRadius,
+  applyVcbRadiusToDraft,
+} from '../lib/vcb.js'
 import { kindNaming } from '../lib/editRegistry.js'
 import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
 
@@ -153,14 +159,27 @@ const useStore = create(
         set((state) => {
           const d = state.draft
           if (!d) return state
-          const parsed = state.vcbText ? parseVcb(state.vcbText) : null
-          const eff = applyVcbToDraft(d, parsed)
-          if (!parsed) {
-            const w = Math.abs(d.current[0] - d.start[0])
-            const dep = Math.abs(d.current[1] - d.start[1])
-            if (w < MIN_SIZE || dep < MIN_SIZE) return { draft: null, vcbText: '' }
+          // L'outil du tracé (cercle vs rectangle) décide du parsing VCB, de la
+          // garde clic-accidentel et du constructeur de payload.
+          let payload
+          if ((d.tool ?? 'rect') === 'circle') {
+            const parsed = state.vcbText ? parseVcbRadius(state.vcbText) : null
+            const eff = applyVcbRadiusToDraft(d, parsed)
+            if (!parsed) {
+              const r = Math.hypot(d.current[0] - d.start[0], d.current[1] - d.start[1])
+              if (r < MIN_SIZE) return { draft: null, vcbText: '' }
+            }
+            payload = circlePayloadFromDraft(eff.start, eff.current, d.frame)
+          } else {
+            const parsed = state.vcbText ? parseVcb(state.vcbText) : null
+            const eff = applyVcbToDraft(d, parsed)
+            if (!parsed) {
+              const w = Math.abs(d.current[0] - d.start[0])
+              const dep = Math.abs(d.current[1] - d.start[1])
+              if (w < MIN_SIZE || dep < MIN_SIZE) return { draft: null, vcbText: '' }
+            }
+            payload = rectPayloadFromDraft(eff.start, eff.current, d.frame)
           }
-          const payload = rectPayloadFromDraft(eff.start, eff.current, d.frame)
           if (!payload) return { draft: null, vcbText: '' }
           const obj = buildAppObject(state, payload)
           return {

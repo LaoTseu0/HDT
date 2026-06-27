@@ -42,6 +42,13 @@ function ToolIcon({ id }) {
       </svg>
     )
   }
+  if (id === 'circle') {
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    )
+  }
   // pushpull
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -132,11 +139,17 @@ const TOOLS = [
     label: 'Rectangle',
     hint: 'Dessiner un rectangle (sol ou face survolée)',
   },
+  {
+    id: 'circle',
+    label: 'Cercle',
+    hint: 'Dessiner un cercle (centre puis rayon)',
+  },
   { id: 'pushpull', label: 'Push/Pull', hint: 'Donner du volume à une face (extrusion)' },
 ]
 
 const TOOL_HINTS = {
   rect: 'Tracez un rectangle : sur le sol, ou directement sur une face survolée du modèle.',
+  circle: 'Cliquez le centre puis glissez pour le rayon. Tapez une valeur pour le fixer.',
   pushpull: 'Cliquez une forme et tirez pour l’extruder le long de sa normale.',
 }
 
@@ -244,16 +257,26 @@ export default function EditBar() {
             options={LEVELS.map((id) => ({ value: id, label: LEVEL_LABELS[id] ?? id }))}
             onChange={(level) => setObjectNaming(selectedObj.id, { level })}
           />
-          <NumberField
-            label="Largeur (m)"
-            value={selectedObj.params.largeur_m}
-            onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
-          />
-          <NumberField
-            label="Profondeur (m)"
-            value={selectedObj.params.profondeur_m}
-            onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
-          />
+          {selectedObj.kind === 'sketch.circle' ? (
+            <NumberField
+              label="Rayon (m)"
+              value={selectedObj.params.rayon_m}
+              onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
+            />
+          ) : (
+            <>
+              <NumberField
+                label="Largeur (m)"
+                value={selectedObj.params.largeur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
+              />
+              <NumberField
+                label="Profondeur (m)"
+                value={selectedObj.params.profondeur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
+              />
+            </>
+          )}
           <NumberField
             label="Hauteur (m)"
             value={selectedObj.params.hauteur_m}
