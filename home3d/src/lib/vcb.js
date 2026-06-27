@@ -55,3 +55,28 @@ export function applyVcbToDraft(draft, parsed) {
   const nt = parsed.depth != null ? t0 + sgnD * parsed.depth : t1
   return { ...draft, current: [ns, nt] }
 }
+
+/**
+ * Parse la saisie VCB d'un cercle : une seule valeur = le rayon en mètres.
+ * @returns {{ radius:number } | null} `null` si vide ou invalide.
+ */
+export function parseVcbRadius(text) {
+  if (!text) return null
+  const v = parseToken(text.split(';')[0])
+  return v == null || v === undefined ? null : { radius: v }
+}
+
+/**
+ * Applique un rayon VCB à un tracé de cercle, en CONSERVANT la direction du
+ * glissé (le centre reste fixe, on n'ajuste que la distance centre→bord).
+ * @param {{start:number[], current:number[]}} draft
+ * @param {{ radius:number } | null} parsed
+ */
+export function applyVcbRadiusToDraft(draft, parsed) {
+  if (!parsed) return draft
+  const [s0, t0] = draft.start
+  const [s1, t1] = draft.current
+  const len = Math.hypot(s1 - s0, t1 - t0) || 1
+  const k = parsed.radius / len
+  return { ...draft, current: [s0 + (s1 - s0) * k, t0 + (t1 - t0) * k] }
+}

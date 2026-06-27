@@ -434,8 +434,15 @@ function ContextualPlanePreview({ hover }) {
   )
 }
 
-// Aperçu du rectangle en cours de tracé (coordonnées (s,t) du plan verrouillé).
+// Aperçu du tracé en cours (coordonnées (s,t) du plan verrouillé) : rectangle ou
+// cercle selon l'outil. Le centre/contour reprend exactement la géométrie qui sera
+// générée au commit (cf. lib/editRegistry).
 function DraftPreview({ draft }) {
+  if ((draft.tool ?? 'rect') === 'circle') return <CircleDraftPreview draft={draft} />
+  return <RectDraftPreview draft={draft} />
+}
+
+function RectDraftPreview({ draft }) {
   const { frame } = draft
   const w = Math.max(Math.abs(draft.current[0] - draft.start[0]), 0.001)
   const d = Math.max(Math.abs(draft.current[1] - draft.start[1]), 0.001)
@@ -460,6 +467,42 @@ function DraftPreview({ draft }) {
       </mesh>
       <lineSegments>
         <edgesGeometry args={[geo]} />
+        <lineBasicMaterial color={DRAFT_EDGE} />
+      </lineSegments>
+    </group>
+  )
+}
+
+// Aperçu cercle : centre = `start`, rayon = distance centre→`current` dans le plan.
+function CircleDraftPreview({ draft }) {
+  const { frame } = draft
+  const r = Math.max(
+    Math.hypot(draft.current[0] - draft.start[0], draft.current[1] - draft.start[1]),
+    0.001
+  )
+  const center = liftedAlongNormal(
+    planeToWorld(draft.start[0], draft.start[1], frame),
+    frame.normal,
+    0.004
+  )
+  const quat = useMemo(() => frameQuaternion(frame.u, frame.v, frame.normal), [frame])
+
+  const geo = useMemo(() => new THREE.CircleGeometry(r, 48), [r])
+  useEffect(() => () => geo.dispose(), [geo])
+
+  return (
+    <group position={center} quaternion={quat}>
+      <mesh geometry={geo}>
+        <meshBasicMaterial
+          color={DRAFT_FILL}
+          transparent
+          opacity={0.25}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+      <lineSegments>
+        <edgesGeometry args={[geo, 30]} />
         <lineBasicMaterial color={DRAFT_EDGE} />
       </lineSegments>
     </group>
@@ -535,7 +578,7 @@ function InferenceLines({ snap }) {
 // fournit le rayon souris. Le plan d'esquisse est déduit du contexte (sol ou
 // face survolée). Pendant le tracé, on reprojette le rayon sur le plan VERROUILLÉ,
 // avec accroche (snapping) aux sommets/milieux/arêtes survolés (E12-03).
-function SketchSurface({ glbScene, nodes, objects }) {
+function SketchSurface({ tool, glbScene, nodes, objects }) {
   const setDraft = useStore((state) => state.setDraft)
   const gridSnap = useStore((state) => state.gridSnap)
   const [hover, setHover] = useState(null)
@@ -635,7 +678,8 @@ function SketchSurface({ glbScene, nodes, objects }) {
     drawing.current = true
     setHover(null) // masque l'aperçu de survol pendant le tracé
     useStore.getState().setVcbText('') // nouvelle saisie VCB pour ce tracé
-    setDraft({ start: [s, t], current: [s, t], frame, snap })
+    // `tool` distingue rectangle (2 coins) et cercle (centre + rayon) au commit.
+    setDraft({ start: [s, t], current: [s, t], frame, snap, tool })
     event.target.setPointerCapture?.(event.pointerId)
   }
 
@@ -690,7 +734,7 @@ export default function EditObjects() {
   const raycaster = useThree((state) => state.raycaster)
 
   const selectable = editMode && activeTool === 'select'
-  const drawing = editMode && activeTool === 'rect'
+  const drawing = editMode && (activeTool === 'rect' || activeTool === 'circle')
   const pushable = editMode && activeTool === 'pushpull'
 
   // E12-03 : indexer le modèle importé (BVH three-mesh-bvh) à l'entrée d'Edit mode
@@ -799,7 +843,14 @@ export default function EditObjects() {
           onStartPush={onStartPush}
         />
       ))}
-      {drawing && <SketchSurface glbScene={glb?.scene} nodes={nodes} objects={objects} />}
+      {drawing && (
+        <SketchSurface
+          tool={activeTool}
+          glbScene={glb?.scene}
+          nodes={nodes}
+          objects={objects}
+        />
+      )}
       {draft && <DraftPreview draft={draft} />}
       {draft?.snap && <SnapMarker snap={draft.snap} />}
       {draft?.snap?.lines && <InferenceLines snap={draft.snap} />}
