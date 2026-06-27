@@ -201,8 +201,16 @@
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E9-01 | En tant que modeleur, je veux un plugin Ruby SketchUp avec des dropdowns (système, type, zone, niveau) afin de générer les noms de nodes sans faute de frappe. | Plugin `.rb` installable ; le nom généré passe la regex de validation ; index auto-incrémenté. | C | 8 |
+| E9-01 ✅ | En tant que modeleur, je veux un plugin Ruby SketchUp avec des dropdowns (système, type, zone, niveau) afin de générer les noms de nodes sans faute de frappe. | Plugin `.rb` installable ; le nom généré passe la regex de validation ; index auto-incrémenté. | C | 8 |
 | E9-02 ✅ | En tant que modeleur, je veux une checklist/doc du workflow SketchUp (Tags exacts, pièges : Tags cachés non exportés, un seul Tag par objet) afin d'exporter un GLB exploitable du premier coup. | Doc `docs/workflow-sketchup.md` couvrant Tags, nommage, export GLB, exécution du pipeline. | S | 2 |
+
+> **E9-01 livré le 2026-06-27** — extension SketchUp Ruby dans `sketchup-plugin/`
+> (loader `home_designer_namer.rb` + `home_designer_namer/main.rb`). Dropdowns
+> système/type/zone/niveau, normalisation + regex **alignées sur `naming.mjs`**
+> (noms garantis valides), index auto en `max+1` par bucket, assignation du Tag =
+> système, action **« Vérifier les noms du modèle »** qui sélectionne le « bloc
+> unique » / noms fautifs. Menu *Extensions > Home Designer* + clic droit.
+> Install : cf. `sketchup-plugin/README.md`.
 
 ---
 

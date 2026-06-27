@@ -79,8 +79,11 @@ terrain__jardin__ext__ext__001
 > **hors groupe** est exportée sous le nom `Geom3D` seul (sans suffixe) et reste
 > **rejetée** : tout objet exportable doit être encapsulé dans un Groupe nommé.
 
-> **V2 (backlog E9-01)** : un plugin Ruby SketchUp avec dropdowns générera ces
-> noms automatiquement. En attendant : copier-coller un nom valide et modifier.
+> **Plugin SketchUp (E9-01)** : l'extension `sketchup-plugin/` génère ces noms
+> automatiquement (dropdowns système/type/zone/niveau, index auto, Tag assigné).
+> Menu *Extensions > Home Designer > Nommer la sélection…*. Installation et
+> usage : `sketchup-plugin/README.md`. Sans le plugin : copier-coller un nom
+> valide et modifier.
 
 ---
 
