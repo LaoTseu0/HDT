@@ -49,6 +49,21 @@ function ToolIcon({ id }) {
       </svg>
     )
   }
+  if (id === 'arc') {
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          d="M4 18 A 14 14 0 0 1 20 18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+        <circle cx="4" cy="18" r="1.8" fill="currentColor" />
+        <circle cx="20" cy="18" r="1.8" fill="currentColor" />
+      </svg>
+    )
+  }
   // pushpull
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -108,19 +123,22 @@ function SelectField({ label, value, options, onChange }) {
   )
 }
 
-function NumberField({ label, value, onChange, allowZero = false }) {
+function NumberField({ label, value, onChange, allowZero = false, signed = false, step = '0.05' }) {
+  // `signed` : valeur réelle non nulle (ex. balayage d'arc en degrés, ±360).
+  const min = signed ? undefined : allowZero ? '0' : '0.01'
   return (
     <label className="edit-field">
       <span>{label}</span>
       <input
         type="number"
-        min={allowZero ? '0' : '0.01'}
-        step="0.05"
+        min={min}
+        step={step}
         value={value ?? 0}
         onChange={(event) => {
           const v = parseFloat(event.target.value)
-          if (!Number.isNaN(v) && (allowZero ? v >= 0 : v > 0))
-            onChange(Number(v.toFixed(3)))
+          if (Number.isNaN(v)) return
+          const ok = signed ? v !== 0 : allowZero ? v >= 0 : v > 0
+          if (ok) onChange(Number(v.toFixed(3)))
         }}
       />
     </label>
@@ -144,12 +162,18 @@ const TOOLS = [
     label: 'Cercle',
     hint: 'Dessiner un cercle (centre puis rayon)',
   },
+  {
+    id: 'arc',
+    label: 'Arc',
+    hint: 'Dessiner un arc (centre, début, fin)',
+  },
   { id: 'pushpull', label: 'Push/Pull', hint: 'Donner du volume à une face (extrusion)' },
 ]
 
 const TOOL_HINTS = {
   rect: 'Tracez un rectangle : sur le sol, ou directement sur une face survolée du modèle.',
   circle: 'Cliquez le centre puis glissez pour le rayon. Tapez une valeur pour le fixer.',
+  arc: 'Cliquez le centre, puis le début (rayon), puis la fin (balayage). Tapez une valeur pour la fixer.',
   pushpull: 'Cliquez une forme et tirez pour l’extruder le long de sa normale.',
 }
 
@@ -263,6 +287,21 @@ export default function EditBar() {
               value={selectedObj.params.rayon_m}
               onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
             />
+          ) : selectedObj.kind === 'sketch.arc' ? (
+            <>
+              <NumberField
+                label="Rayon (m)"
+                value={selectedObj.params.rayon_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
+              />
+              <NumberField
+                label="Balayage (°)"
+                value={selectedObj.params.angle_balayage_deg}
+                signed
+                step="5"
+                onChange={(v) => updateObjectParams(selectedObj.id, { angle_balayage_deg: v })}
+              />
+            </>
           ) : (
             <>
               <NumberField

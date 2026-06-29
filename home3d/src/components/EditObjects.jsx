@@ -11,6 +11,7 @@ import {
   planeToWorld,
   extrudeHeightFromRay,
 } from '../lib/workPlanes.js'
+import { angleOf, nextSweep } from '../lib/sketchArc.js'
 import {
   midpoint,
   closestPointOnSegment,
@@ -99,12 +100,17 @@ function pickPushAxis(obj, event) {
       .normalize()
     fn = [wn.x, wn.y, wn.z]
   }
-  const axes = [
-    { vec: u, key: 'largeur_m', anchored: false },
-    { vec: v, key: 'profondeur_m', anchored: false },
-    { vec: n, key: 'hauteur_m', anchored: true },
-  ]
-  let best = axes[2]
+  // L'arc n'a pas de cotes u/v (courbe ouverte) : seule l'extrusion le long de la
+  // normale (mur courbe) a un sens → on restreint le Push/Pull à `hauteur_m`.
+  const axes =
+    obj.kind === 'sketch.arc'
+      ? [{ vec: n, key: 'hauteur_m', anchored: true }]
+      : [
+          { vec: u, key: 'largeur_m', anchored: false },
+          { vec: v, key: 'profondeur_m', anchored: false },
+          { vec: n, key: 'hauteur_m', anchored: true },
+        ]
+  let best = axes[axes.length - 1]
   let bestDot = 0
   for (const a of axes) {
     const d = dot3(fn, a.vec)
@@ -438,7 +444,9 @@ function ContextualPlanePreview({ hover }) {
 // cercle selon l'outil. Le centre/contour reprend exactement la géométrie qui sera
 // générée au commit (cf. lib/editRegistry).
 function DraftPreview({ draft }) {
-  if ((draft.tool ?? 'rect') === 'circle') return <CircleDraftPreview draft={draft} />
+  const tool = draft.tool ?? 'rect'
+  if (tool === 'circle') return <CircleDraftPreview draft={draft} />
+  if (tool === 'arc') return <ArcDraftPreview draft={draft} />
   return <RectDraftPreview draft={draft} />
 }
 
@@ -504,6 +512,68 @@ function CircleDraftPreview({ draft }) {
       <lineSegments>
         <edgesGeometry args={[geo, 30]} />
         <lineBasicMaterial color={DRAFT_EDGE} />
+      </lineSegments>
+    </group>
+  )
+}
+
+// Aperçu de l'arc en cours (E13-03), selon l'étape du draft. Construit dans le
+// repère local du plan (origine = centre, comme le générateur) :
+//   - étape 'radius' : cercle support complet (faible) + rayon center→curseur ;
+//   - étape 'sweep'  : arc tracé (a0 → a0+balayage) + rayons aux deux extrémités.
+function ArcDraftPreview({ draft }) {
+  const { frame, center } = draft
+  const centerWorld = liftedAlongNormal(
+    planeToWorld(center[0], center[1], frame),
+    frame.normal,
+    0.004
+  )
+  const quat = useMemo(() => frameQuaternion(frame.u, frame.v, frame.normal), [frame])
+
+  const { arcGeo, guideGeo } = useMemo(() => {
+    const sweepStage = draft.stage === 'sweep'
+    const ref = sweepStage ? draft.start : draft.current
+    const r = Math.max(Math.hypot(ref[0] - center[0], ref[1] - center[1]), 0.001)
+    const a0 = sweepStage ? draft.startAngle : 0
+    const sweep = sweepStage ? draft.sweepRad || 0 : 2 * Math.PI
+    const seg = Math.max(8, Math.ceil((Math.abs(sweep) / (2 * Math.PI)) * 96))
+    const arcPts = []
+    for (let i = 0; i <= seg; i++) {
+      const a = a0 + (sweep * i) / seg
+      arcPts.push(r * Math.cos(a), r * Math.sin(a), 0)
+    }
+    const arc = new THREE.BufferGeometry()
+    arc.setAttribute('position', new THREE.Float32BufferAttribute(arcPts, 3))
+
+    // Rayons-guides : center→curseur (radius) ou center→début + center→fin (sweep).
+    const g = []
+    if (sweepStage) {
+      const e = a0 + sweep
+      g.push(0, 0, 0, r * Math.cos(a0), r * Math.sin(a0), 0)
+      g.push(0, 0, 0, r * Math.cos(e), r * Math.sin(e), 0)
+    } else {
+      g.push(0, 0, 0, draft.current[0] - center[0], draft.current[1] - center[1], 0)
+    }
+    const guide = new THREE.BufferGeometry()
+    guide.setAttribute('position', new THREE.Float32BufferAttribute(g, 3))
+    return { arcGeo: arc, guideGeo: guide }
+  }, [draft, center])
+
+  useEffect(
+    () => () => {
+      arcGeo.dispose()
+      guideGeo.dispose()
+    },
+    [arcGeo, guideGeo]
+  )
+
+  return (
+    <group position={centerWorld} quaternion={quat}>
+      <line geometry={arcGeo} raycast={() => null} renderOrder={3}>
+        <lineBasicMaterial color={DRAFT_EDGE} transparent depthWrite={false} />
+      </line>
+      <lineSegments geometry={guideGeo} raycast={() => null} renderOrder={3}>
+        <lineBasicMaterial color={DRAFT_FILL} transparent opacity={0.5} depthWrite={false} />
       </lineSegments>
     </group>
   )
@@ -602,35 +672,58 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
     return { rect, cursor: { x: event.clientX - rect.left, y: event.clientY - rect.top } }
   }
 
-  const onPointerMove = (event) => {
-    const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
+  // Résout le point (s,t) accroché sur le plan VERROUILLÉ d'un tracé en cours, et
+  // le balayage accumulé pour un arc en étape 'sweep'. Mutualisé entre le
+  // déplacement (move) et les clics intermédiaires de l'arc (down).
+  const resolveOnLockedFrame = (event, d) => {
+    const { hit } = probeSketch(event, glbScene, rc, nodes)
     const { rect, cursor } = cursorOf(event)
-    if (drawing.current) {
+    const freeWorld = projectOnFrame(event, d.frame)
+    if (!freeWorld) return null
+    const ref = d.tool === 'arc' ? (d.stage === 'sweep' ? d.start : d.center) : d.start
+    const startWorld = planeToWorld(ref[0], ref[1], d.frame)
+    const snap = computeSnap({
+      hit,
+      objects,
+      frame: d.frame,
+      drawing: true,
+      freeWorld,
+      startWorld,
+      cursor,
+      camera,
+      rect,
+      gridSnap,
+    })
+    const world = snap ? snap.point : freeWorld
+    const [s, t] = worldToPlane(world, d.frame)
+    const patch = { ...d, current: [s, t], snap }
+    if (d.tool === 'arc' && d.stage === 'sweep') {
+      patch.sweepRad = nextSweep(d.sweepRad || 0, d.startAngle, angleOf(d.center, [s, t]))
+    }
+    return patch
+  }
+
+  const onPointerMove = (event) => {
+    // Arc (multi-clics) : tant qu'un draft existe, suivre le curseur sans bouton
+    // pressé (pas de drag) ; sinon retomber sur le survol comme les autres outils.
+    if (tool === 'arc') {
+      const d = useStore.getState().draft
+      if (d) {
+        const patch = resolveOnLockedFrame(event, d)
+        if (patch) setDraft(patch)
+        return
+      }
+    } else if (drawing.current) {
       const d = useStore.getState().draft
       if (!d) return
-      // Plan VERROUILLÉ : point libre du rayon + accroche (axes/intersections actifs).
-      const freeWorld = projectOnFrame(event, d.frame)
-      if (!freeWorld) return
-      const startWorld = planeToWorld(d.start[0], d.start[1], d.frame)
-      const snap = computeSnap({
-        hit,
-        objects,
-        frame: d.frame,
-        drawing: true,
-        freeWorld,
-        startWorld,
-        cursor,
-        camera,
-        rect,
-        gridSnap,
-      })
-      const world = snap ? snap.point : freeWorld
-      const [s, t] = worldToPlane(world, d.frame)
-      setDraft({ ...d, current: [s, t], snap })
+      const patch = resolveOnLockedFrame(event, d)
+      if (patch) setDraft(patch)
       return
     }
     // Survol : accroche aux POINTS (sommets/milieux/centres) ; aperçu du plan
     // contextuel centré sur l'accroche le cas échéant.
+    const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
+    const { rect, cursor } = cursorOf(event)
     const contextWorld = projectOnFrame(event, frame) ?? [
       event.point.x,
       event.point.y,
@@ -675,6 +768,23 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
     })
     const world = snap?.point ?? contextWorld
     const [s, t] = worldToPlane(world, frame)
+
+    // Arc : tracé en 3 CLICS (pas de glissé). 1er clic = centre ; clics suivants
+    // = verrouille rayon (étape 'radius'→'sweep') puis fixe le balayage (commit).
+    if (tool === 'arc') {
+      const d = useStore.getState().draft
+      if (!d) {
+        setHover(null)
+        useStore.getState().setVcbText('')
+        setDraft({ tool: 'arc', stage: 'radius', frame, center: [s, t], current: [s, t], snap })
+        return
+      }
+      const patch = resolveOnLockedFrame(event, d)
+      if (patch) setDraft(patch)
+      useStore.getState().commitDraft()
+      return
+    }
+
     drawing.current = true
     setHover(null) // masque l'aperçu de survol pendant le tracé
     useStore.getState().setVcbText('') // nouvelle saisie VCB pour ce tracé
@@ -684,9 +794,9 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   }
 
   // Relâché : committe le tracé via le store (gère cote VCB éventuelle + garde
-  // clic accidentel). Si la VCB a déjà committé (Entrée), draft est null → no-op.
+  // clic accidentel). L'arc commit au clic (pas au relâché) → ignoré ici.
   const onPointerUp = () => {
-    if (!drawing.current) return
+    if (tool === 'arc' || !drawing.current) return
     drawing.current = false
     if (useStore.getState().draft) useStore.getState().commitDraft()
   }
@@ -734,7 +844,9 @@ export default function EditObjects() {
   const raycaster = useThree((state) => state.raycaster)
 
   const selectable = editMode && activeTool === 'select'
-  const drawing = editMode && (activeTool === 'rect' || activeTool === 'circle')
+  const drawing =
+    editMode &&
+    (activeTool === 'rect' || activeTool === 'circle' || activeTool === 'arc')
   const pushable = editMode && activeTool === 'pushpull'
 
   // E12-03 : indexer le modèle importé (BVH three-mesh-bvh) à l'entrée d'Edit mode

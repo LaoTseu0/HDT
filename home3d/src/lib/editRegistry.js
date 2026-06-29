@@ -127,9 +127,111 @@ function generateCircle(params, plane) {
   return group
 }
 
+// sketch.arc — arc de cercle d'esquisse sur le plan d'esquisse (E13-03),
+// optionnellement extrudé en MUR COURBE (ruban) par Push/Pull / hauteur.
+// params : { rayon_m, angle_debut_deg, angle_balayage_deg, hauteur_m? }, repère
+// u→X/v→Y/normal→Z (cf. placeOnPlane) ; origin = CENTRE du cercle support.
+const ARC_FULL_SEG = 96 // segments pour un tour complet (densité du maillage)
+const ARC_TUBE_R = 0.025 // rayon du « trait » d'un arc plat (m) — corps cliquable
+
+// Échantillonne l'arc en points LOCAUX [x,y] (z=0) dans le plan XY du repère.
+function arcLocalPoints(params) {
+  const r = Math.max(Number(params.rayon_m) || 0, 0.001)
+  const a0 = (Number(params.angle_debut_deg) || 0) * (Math.PI / 180)
+  const sweep = (Number(params.angle_balayage_deg) || 0) * (Math.PI / 180)
+  const seg = Math.max(2, Math.ceil((Math.abs(sweep) / (2 * Math.PI)) * ARC_FULL_SEG))
+  const pts = []
+  for (let i = 0; i <= seg; i++) {
+    const a = a0 + (sweep * i) / seg
+    pts.push([r * Math.cos(a), r * Math.sin(a)])
+  }
+  return pts
+}
+
+function generateArc(params, plane) {
+  const h = Number(params.hauteur_m) || 0
+  const solid = Math.abs(h) >= 0.001
+  const pts = arcLocalPoints(params)
+
+  let fillGeo
+  let edgeGeo
+  if (solid) {
+    // Ruban (mur courbe) : 2 anneaux (z=0 et z=h) cousus en quads.
+    const z = h
+    const position = []
+    const index = []
+    for (const [x, y] of pts) {
+      position.push(x, y, 0, x, y, z)
+    }
+    for (let i = 0; i < pts.length - 1; i++) {
+      const b0 = i * 2
+      const t0 = b0 + 1
+      const b1 = b0 + 2
+      const t1 = b0 + 3
+      index.push(b0, b1, t1, b0, t1, t0)
+    }
+    fillGeo = new THREE.BufferGeometry()
+    fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(position, 3))
+    fillGeo.setIndex(index)
+    fillGeo.computeVertexNormals()
+    // Contours : polylignes base + haut + les deux montants d'extrémité.
+    const ep = []
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x0, y0] = pts[i]
+      const [x1, y1] = pts[i + 1]
+      ep.push(x0, y0, 0, x1, y1, 0, x0, y0, z, x1, y1, z)
+    }
+    const [xa, ya] = pts[0]
+    const [xb, yb] = pts[pts.length - 1]
+    ep.push(xa, ya, 0, xa, ya, z, xb, yb, 0, xb, yb, z)
+    edgeGeo = new THREE.BufferGeometry()
+    edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3))
+  } else {
+    // Plat : « trait » = fin tube le long de l'arc (corps cliquable/visible) ;
+    // contour = la polyligne centrale (trait net par-dessus).
+    const curve = new THREE.CatmullRomCurve3(
+      pts.map(([x, y]) => new THREE.Vector3(x, y, 0)),
+      false,
+      'catmullrom',
+      0
+    )
+    fillGeo = new THREE.TubeGeometry(curve, Math.max(pts.length - 1, 1), ARC_TUBE_R, 6, false)
+    const lp = []
+    for (const [x, y] of pts) lp.push(x, y, 0)
+    edgeGeo = new THREE.BufferGeometry()
+    edgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3))
+  }
+
+  const fill = new THREE.Mesh(
+    fillGeo,
+    new THREE.MeshStandardMaterial({
+      color: FILL_COLOR,
+      transparent: true,
+      opacity: solid ? 0.5 : 0.6,
+      side: THREE.DoubleSide,
+      depthWrite: solid,
+    })
+  )
+  fill.name = '__fill'
+
+  // Contour = ligne ouverte continue (Line, pas LineSegments) pour le plat ;
+  // segments disjoints pour le ruban → LineSegments. On choisit selon `solid`.
+  const edges = solid
+    ? new THREE.LineSegments(edgeGeo, new THREE.LineBasicMaterial({ color: EDGE_COLOR }))
+    : new THREE.Line(edgeGeo, new THREE.LineBasicMaterial({ color: EDGE_COLOR }))
+  edges.name = '__edges'
+  edges.raycast = () => {}
+
+  const group = new THREE.Group()
+  group.add(fill, edges)
+  placeOnPlane(group, plane)
+  return group
+}
+
 const REGISTRY = {
   'sketch.rect': generateRect,
   'sketch.circle': generateCircle,
+  'sketch.arc': generateArc,
 }
 
 export function isKnownKind(kind) {
@@ -145,6 +247,7 @@ export function isKnownKind(kind) {
 const KIND_NAMING = {
   'sketch.rect': { system: 'structure', type: 'forme' },
   'sketch.circle': { system: 'structure', type: 'disque' },
+  'sketch.arc': { system: 'structure', type: 'arc' },
 }
 
 /** Système/type de nommage d'un `kind` (repli `structure`/`forme`). */
@@ -231,6 +334,26 @@ export function referencePoints(obj) {
     return pts
   }
 
+  if (obj.kind === 'sketch.arc') {
+    const r = Math.max(Number(obj.params.rayon_m) || 0, 0.001)
+    const a0 = (Number(obj.params.angle_debut_deg) || 0) * (Math.PI / 180)
+    const sweep = (Number(obj.params.angle_balayage_deg) || 0) * (Math.PI / 180)
+    const ang = (a) => [r * Math.cos(a), r * Math.sin(a)]
+    const [sx, sy] = ang(a0) // début
+    const [mx, my] = ang(a0 + sweep / 2) // milieu de l'arc
+    const [ex, ey] = ang(a0 + sweep) // fin
+    // Centre + extrémités + milieu de l'arc, par face.
+    const face = (sn) => [
+      { type: 'midpoint', point: at(0, 0, sn) }, // centre
+      { type: 'endpoint', point: at(sx, sy, sn) },
+      { type: 'endpoint', point: at(ex, ey, sn) },
+      { type: 'midpoint', point: at(mx, my, sn) },
+    ]
+    const pts = face(0)
+    if (solid) pts.push(...face(h))
+    return pts
+  }
+
   return []
 }
 
@@ -248,6 +371,25 @@ export function deriveDims(obj) {
     return {
       largeur_m: d,
       profondeur_m: d,
+      hauteur_m: Math.abs(Number(obj.params.hauteur_m) || 0),
+    }
+  }
+  if (obj.kind === 'sketch.arc') {
+    // Emprise = bounding box de la polyligne de l'arc dans le plan (u/v).
+    const pts = arcLocalPoints(obj.params)
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    for (const [x, y] of pts) {
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (y < minY) minY = y
+      if (y > maxY) maxY = y
+    }
+    return {
+      largeur_m: Number((maxX - minX).toFixed(3)),
+      profondeur_m: Number((maxY - minY).toFixed(3)),
       hauteur_m: Math.abs(Number(obj.params.hauteur_m) || 0),
     }
   }

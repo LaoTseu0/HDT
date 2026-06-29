@@ -269,7 +269,7 @@ Premier livrable d'Edit mode, **sans booléen**.
 |---|---|---|---|---|
 | E13-01 | En tant qu'utilisateur, je veux dessiner un rectangle paramétrique afin de poser une forme de base. | Tracé 2 coins (ou centre + coin) sur le plan actif ; paramétrique ; snapping actif. | M | 3 |
 | E13-02 ✅ | En tant qu'utilisateur, je veux dessiner un cercle paramétrique. | Centre + rayon ; saisie numérique du rayon possible (E12-04). | M | 2 |
-| E13-03 | En tant qu'utilisateur, je veux dessiner un arc de cercle paramétrique. | 3 points (ou centre + début + fin) ; paramétrique. | M | 3 |
+| E13-03 ✅ | En tant qu'utilisateur, je veux dessiner un arc de cercle paramétrique. | 3 points (ou centre + début + fin) ; paramétrique. | M | 3 |
 | E13-04 | En tant qu'utilisateur, je veux éditer les paramètres d'une primitive afin de l'ajuster après coup. | Sélection → inspector affiche/édite les cotes ; poignées de redimensionnement ; undo/redo ; **survit au rechargement** (E12-05). | M | 3 |
 
 ---
@@ -613,6 +613,41 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > (`3` écrase le glissé), inspector Rayon, round-trip export→reload (cercles + noms
 > conformes préservés), aucune erreur console. **Reste Slice 0** : **arc** (E13-03),
 > VCB du Push/Pull (E12-08).
+
+> **Slice 0 — avancement (2026-06-29, incrément 10 : E13-03 arc paramétrique).**
+> Outil **Arc** « centre + début + fin » (3 clics, façon SketchUp), dernière
+> primitive de Slice 0. Réemploie toute la machinerie : plan d'esquisse contextuel
+> (E12-02, l'arc se pose sur le sol ou la face survolée), snapping/inférence
+> (E12-03), VCB clavier (E12-04), inspector + undo/redo, nommage conforme (E12-06,
+> type `arc`), Push/Pull (E12-08). Interaction **multi-clics** (et non glissé) :
+> clic 1 = centre, clic 2 = début (fixe **rayon** + angle de départ), clic 3 = fin
+> (fixe le **balayage**). Le balayage est **accumulé** au déplacement (`nextSweep`)
+> pour franchir **±180°** (arcs majeurs) sans saut — vérifié à 200°. Nouveau `kind`
+> `sketch.arc` dans [editRegistry.js](home3d/src/lib/editRegistry.js)
+> (`generateArc` : **plat** = fin tube le long de l'arc (corps cliquable) + trait
+> net ; **extrudé** (`hauteur_m`) = **mur courbe** (ruban cousu base/haut) ;
+> `referencePoints` = centre + début + fin + milieu par face ; `deriveDims` =
+> bounding box de l'arc dans le plan ; `kindNaming` → `structure`/`arc`). Module pur
+> [sketchArc.js](home3d/src/lib/sketchArc.js) (`radiusOf`, `angleOf`, `nextSweep`
+> balayage accumulé, `arcPayloadFromDraft`) et **VCB angle** dans
+> [vcb.js](home3d/src/lib/vcb.js) (`parseVcbAngle`, signé). Le tracé porte
+> `draft.stage` (radius|sweep) : [useStore.js](home3d/src/store/useStore.js)
+> `commitDraft` → `commitArc` (étape `radius` verrouille et **avance**, étape
+> `sweep` **crée** l'objet) ; [EditObjects.jsx](home3d/src/components/EditObjects.jsx)
+> `SketchSurface` gère le flux clic (pas de drag) + `ArcDraftPreview` (cercle support
+> + rayons-guides en étape radius, arc + 2 rayons en étape sweep). Push/Pull restreint
+> à la normale pour l'arc (seul `hauteur_m` a un sens — courbe ouverte). UI : **icône
+> arc + tooltip** ([EditBar.jsx](home3d/src/components/EditBar.jsx), directive IHM),
+> champs **Rayon** + **Balayage (°)** (signé) dans l'inspector, overlay VCB adapté à
+> l'étape ([VCBOverlay.jsx](home3d/src/components/VCBOverlay.jsx)), saisie du signe
+> `-` admise ([App.jsx](home3d/src/App.jsx)). Tests :
+> [sketchArc.test.mjs](home3d/script/sketchArc.test.mjs) (rayon/angle, balayage
+> accumulé >180°, payload, VCB angle, références, dims) → **131 verts** ; `lint`/
+> `build` OK. Vérifié au navigateur sur le modèle démo : arc tracé sur une face du
+> toit, édition balayage 200° (arc majeur) + hauteur 1,5 m (mur courbe), VCB rayon
+> `2`/angle `90`, node name conforme, undo/redo, aucune erreur console. **Slice 0
+> est CLOSE** (rect/cercle/arc + socle d'édition complet) ; reste optionnel : VCB du
+> Push/Pull (E12-08). Prochaine étape : **Slice 1 — Ouvertures (CSG, E14 ph.1)**.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

@@ -33,8 +33,8 @@ function handleVcbKey(event) {
     setVcbText(vcbText.slice(0, -1))
     return true
   }
-  // Chiffres + séparateurs de cote/décimale.
-  if (/^[0-9]$/.test(k) || k === ',' || k === '.' || k === ';') {
+  // Chiffres + séparateurs de cote/décimale + signe (angle d'arc négatif).
+  if (/^[0-9]$/.test(k) || k === ',' || k === '.' || k === ';' || k === '-') {
     event.preventDefault()
     setVcbText(vcbText + k)
     return true
