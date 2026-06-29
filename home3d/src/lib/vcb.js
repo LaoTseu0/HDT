@@ -80,3 +80,17 @@ export function applyVcbRadiusToDraft(draft, parsed) {
   const k = parsed.radius / len
   return { ...draft, current: [s0 + (s1 - s0) * k, t0 + (t1 - t0) * k] }
 }
+
+/**
+ * Parse la saisie VCB d'un angle (balayage d'arc, E13-03) : une valeur en DEGRÉS,
+ * signe et magnitude > 360 admis (arc majeur, sens horaire/anti-horaire).
+ * Diffère de parseToken (qui rejette ≤ 0) : un angle peut être négatif.
+ * @returns {{ angleDeg:number } | null} `null` si vide ou non numérique.
+ */
+export function parseVcbAngle(text) {
+  if (!text) return null
+  const t = String(text).split(';')[0].trim().replace(',', '.')
+  if (t === '' || t === '-' || t === '.') return null
+  const v = Number(t)
+  return Number.isFinite(v) && v !== 0 ? { angleDeg: v } : null
+}

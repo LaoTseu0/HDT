@@ -3,11 +3,13 @@ import { useStore as useZustandStore } from 'zustand'
 import { temporal } from 'zundo'
 import { rectPayloadFromDraft, MIN_SIZE } from '../lib/sketchRect.js'
 import { circlePayloadFromDraft } from '../lib/sketchCircle.js'
+import { arcPayloadFromDraft, radiusOf, angleOf, DEG2RAD } from '../lib/sketchArc.js'
 import {
   parseVcb,
   applyVcbToDraft,
   parseVcbRadius,
   applyVcbRadiusToDraft,
+  parseVcbAngle,
 } from '../lib/vcb.js'
 import { kindNaming } from '../lib/editRegistry.js'
 import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
@@ -39,6 +41,62 @@ function buildAppObject(state, payload) {
   const level = state.currentLevel || DEFAULT_LEVEL
   const index = nextIndex(state.objects, { system, zone, level })
   return { id, system, type, zone, level, index, ...payload }
+}
+
+// Commit d'un tracé d'ARC (E13-03), piloté par l'étape du draft (multi-clics) :
+//   - étape 'radius' : verrouille rayon + angle de départ (clic DÉBUT ou VCB
+//     rayon), puis AVANCE vers l'étape 'sweep' (aucun objet créé) ;
+//   - étape 'sweep'  : fixe le balayage (clic FIN ou VCB angle) et CRÉE l'objet.
+// `nextSweep` a déjà accumulé `d.sweepRad` pendant le déplacement (arcs majeurs).
+function commitArc(state, d) {
+  if (d.stage === 'radius') {
+    const parsed = state.vcbText ? parseVcbRadius(state.vcbText) : null
+    let radiusPoint = d.current
+    let r = radiusOf(d.center, d.current)
+    if (parsed) {
+      r = parsed.radius
+      const len = radiusOf(d.center, d.current) || 1
+      const dir =
+        len > 1e-6
+          ? [(d.current[0] - d.center[0]) / len, (d.current[1] - d.center[1]) / len]
+          : [1, 0] // pas encore bougé → départ par défaut le long de +u
+      radiusPoint = [d.center[0] + dir[0] * r, d.center[1] + dir[1] * r]
+    }
+    // Clic accidentel sur le centre (sans VCB ni glissé) : rester en l'état.
+    if (!parsed && r < MIN_SIZE) return state
+    return {
+      draft: {
+        ...d,
+        start: radiusPoint,
+        current: radiusPoint,
+        stage: 'sweep',
+        sweepRad: 0,
+        startAngle: angleOf(d.center, radiusPoint),
+      },
+      vcbText: '',
+    }
+  }
+  // étape 'sweep'
+  const r = radiusOf(d.center, d.start)
+  const parsedA = state.vcbText ? parseVcbAngle(state.vcbText) : null
+  let sweepRad = d.sweepRad || 0
+  if (parsedA) {
+    if (parsedA.angleDeg < 0) {
+      sweepRad = parsedA.angleDeg * DEG2RAD // signe explicite
+    } else {
+      const sign = sweepRad < 0 ? -1 : 1 // valeur positive → on garde le sens du tracé
+      sweepRad = sign * parsedA.angleDeg * DEG2RAD
+    }
+  }
+  const payload = arcPayloadFromDraft(d.center, r, d.startAngle, sweepRad, d.frame)
+  if (!payload) return { draft: null, vcbText: '' }
+  const obj = buildAppObject(state, payload)
+  return {
+    objects: { ...state.objects, [obj.id]: obj },
+    selectedNode: obj.id,
+    draft: null,
+    vcbText: '',
+  }
 }
 
 // Store Zustand — structure V2-ready (cf. cahier des charges, E7-01).
@@ -159,10 +217,12 @@ const useStore = create(
         set((state) => {
           const d = state.draft
           if (!d) return state
-          // L'outil du tracé (cercle vs rectangle) décide du parsing VCB, de la
-          // garde clic-accidentel et du constructeur de payload.
+          // L'outil du tracé décide du parsing VCB, de la garde clic-accidentel et
+          // du constructeur de payload. L'arc est multi-étapes (cf. commitArc).
+          const tool = d.tool ?? 'rect'
+          if (tool === 'arc') return commitArc(state, d)
           let payload
-          if ((d.tool ?? 'rect') === 'circle') {
+          if (tool === 'circle') {
             const parsed = state.vcbText ? parseVcbRadius(state.vcbText) : null
             const eff = applyVcbRadiusToDraft(d, parsed)
             if (!parsed) {
