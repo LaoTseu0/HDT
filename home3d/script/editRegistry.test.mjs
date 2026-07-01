@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { referencePoints } from '../src/lib/editRegistry.js'
+import { referencePoints, generateObject, deriveDims } from '../src/lib/editRegistry.js'
+import { JOINERY_KIND } from '../src/lib/joinery.js'
 
 // referencePoints est PUR (params + repère du plan → points monde) : testable hors
 // navigateur, sans rendu three. Il alimente l'« accroche à tes formes » (E12-03).
@@ -60,5 +61,52 @@ describe('referencePoints', () => {
     const pts = referencePoints(obj)
     assert.ok(has(pts, 'endpoint', [1, 2, 0])) // coin haut-droit (v=+Y monte)
     assert.ok(has(pts, 'endpoint', [-1, 0, 0])) // coin bas-gauche
+  })
+
+  it('menuiserie (E14-05) : même repère seuil que l’ouverture hôte', () => {
+    // Mur dans le plan XY, seuil (origin) à y=1 : coins v∈[0,h], u∈[-w/2,w/2].
+    const obj = {
+      kind: JOINERY_KIND,
+      params: { largeur_m: 1.6, hauteur_m: 1.4, epaisseur_m: 0.06, profondeur_m: 0.08 },
+      plane: { origin: [0, 1, 0], u: [1, 0, 0], v: [0, 1, 0], normal: [0, 0, 1] },
+    }
+    const pts = referencePoints(obj)
+    assert.equal(pts.length, 9)
+    assert.ok(has(pts, 'endpoint', [-0.8, 1, 0])) // coin seuil gauche
+    assert.ok(has(pts, 'endpoint', [0.8, 2.4, 0])) // coin haut droit
+    assert.ok(has(pts, 'midpoint', [0, 1.7, 0])) // centre
+  })
+})
+
+// Générateur menuiserie (E14-05) : structure du groupe (cadre fusionné + vitrage
+// + arêtes) et dims dérivées — pur three, exécutable hors navigateur.
+describe('joinery.frame (générateur)', () => {
+  const obj = {
+    id: 'app-9',
+    kind: JOINERY_KIND,
+    params: { largeur_m: 1.6, hauteur_m: 1.4, epaisseur_m: 0.06, profondeur_m: 0.08 },
+    plane: { origin: [2, 1, 0.15], u: [1, 0, 0], v: [0, 1, 0], normal: [0, 0, 1] },
+  }
+
+  it('génère cadre (__fill), vitrage (__glass) et arêtes (__edges)', () => {
+    const g = generateObject(obj)
+    assert.ok(g)
+    const fill = g.getObjectByName('__fill')
+    const glass = g.getObjectByName('__glass')
+    const edges = g.getObjectByName('__edges')
+    assert.ok(fill?.isMesh)
+    assert.ok(glass?.isMesh)
+    assert.ok(edges?.isLineSegments)
+    assert.ok(fill.geometry.attributes.position.count > 0)
+    assert.ok(glass.material.transparent) // vitrage translucide
+    assert.equal(g.userData.appObjectId, 'app-9')
+  })
+
+  it('deriveDims : u→largeur, v→hauteur, normal→profondeur', () => {
+    assert.deepEqual(deriveDims(obj), {
+      largeur_m: 1.6,
+      profondeur_m: 0.08,
+      hauteur_m: 1.4,
+    })
   })
 })
