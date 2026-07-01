@@ -13,6 +13,7 @@ import {
 } from '../lib/vcb.js'
 import { kindNaming } from '../lib/editRegistry.js'
 import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
+import { DEFAULT_OPENING_PRESET } from '../lib/opening.js'
 
 // Id interne STABLE d'un objet app (clé du map `objects`, jamais affichée). Le
 // node name conforme (système__type__zone__niveau__index) en est DÉCOUPLÉ et
@@ -266,6 +267,12 @@ const useStore = create(
       // toujours, la grille ne « tire » qu'en l'absence de référence proche.
       gridSnap: false,
       toggleGridSnap: () => set((state) => ({ gridSnap: !state.gridSnap })),
+
+      // E14-04 : gabarit d'ouverture sélectionné avant la pose (classique/large/
+      // étroite, cf. lib/opening `OPENING_PRESETS`). Préférence d'outil, pas
+      // historisée ; l'instance posée reste modifiable ensuite dans l'inspector.
+      openingPreset: DEFAULT_OPENING_PRESET,
+      setOpeningPreset: (preset) => set({ openingPreset: preset }),
 
       // E12-08 : aperçu éphémère d'un Push/Pull en cours =
       // { id, paramKey, value, origin } (la face cliquée fixe quelle cote bouge).

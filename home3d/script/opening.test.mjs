@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { faceFrame } from '../src/lib/workPlanes.js'
-import { openingPayload, DEFAULT_OPENING } from '../src/lib/opening.js'
+import { openingPayload, DEFAULT_OPENING, OPENING_PRESETS } from '../src/lib/opening.js'
 import { referencePoints, kindNaming } from '../src/lib/editRegistry.js'
 import { nodeName, NODE_NAME_REGEX } from '../src/lib/naming.js'
 
@@ -33,6 +33,24 @@ describe('openingPayload', () => {
     const frame = faceFrame([0, 0.2, 0], [0, 0, 1]) // clic bas → seuil sous 0
     const p = openingPayload([0, 0.2, 0], frame)
     assert.equal(p.params.allege_m, 0)
+  })
+})
+
+describe('OPENING_PRESETS (gabarits, E14-04)', () => {
+  it('3 gabarits distincts, classique = défaut historique', () => {
+    assert.deepEqual(Object.keys(OPENING_PRESETS).sort(), ['classique', 'etroite', 'large'])
+    assert.deepEqual(OPENING_PRESETS.classique, DEFAULT_OPENING)
+    assert.ok(OPENING_PRESETS.large.largeur_m > OPENING_PRESETS.classique.largeur_m)
+    assert.ok(OPENING_PRESETS.etroite.largeur_m < OPENING_PRESETS.classique.largeur_m)
+  })
+
+  it('openingPayload applique le gabarit passé (largeur ET hauteur, seuil recalculé)', () => {
+    const frame = faceFrame([3, 2, 0], [0, 0, 1])
+    const p = openingPayload([3, 2, 0], frame, OPENING_PRESETS.large)
+    assert.equal(p.params.largeur_m, OPENING_PRESETS.large.largeur_m)
+    assert.equal(p.params.hauteur_m, OPENING_PRESETS.large.hauteur_m)
+    // seuil descendu d'½ hauteur du gabarit (1,4/2 = 0,7) sous le clic (y=2) → 1,3.
+    assert.ok(close(p.plane.origin[1], 1.3))
   })
 })
 

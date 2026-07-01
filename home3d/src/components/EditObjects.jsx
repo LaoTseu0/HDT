@@ -12,7 +12,7 @@ import {
   extrudeHeightFromRay,
 } from '../lib/workPlanes.js'
 import { angleOf, nextSweep } from '../lib/sketchArc.js'
-import { openingPayload } from '../lib/opening.js'
+import { openingPayload, OPENING_PRESETS, DEFAULT_OPENING_PRESET } from '../lib/opening.js'
 import {
   midpoint,
   closestPointOnSegment,
@@ -652,6 +652,7 @@ function InferenceLines({ snap }) {
 function SketchSurface({ tool, glbScene, nodes, objects }) {
   const setDraft = useStore((state) => state.setDraft)
   const gridSnap = useStore((state) => state.gridSnap)
+  const openingPreset = useStore((state) => state.openingPreset)
   const [hover, setHover] = useState(null)
   const drawing = useRef(false)
   const rc = useMemo(() => new THREE.Raycaster(), [])
@@ -774,7 +775,8 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
     // point cliqué devient le centre ; l'objet référence le mur par `frame.faceOf`.
     if (tool === 'opening') {
       if (frame.type !== 'face') return // ignore un clic sur le sol
-      useStore.getState().createObject(openingPayload(world, frame))
+      const dims = OPENING_PRESETS[openingPreset] ?? OPENING_PRESETS[DEFAULT_OPENING_PRESET]
+      useStore.getState().createObject(openingPayload(world, frame, dims))
       setHover(null)
       return
     }

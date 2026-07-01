@@ -13,8 +13,18 @@
 // l'ouverture VERS LE HAUT (seuil fixe), et l'allège = hauteur du seuil au-dessus
 // du sol (origin.y, sol supposé à y=0).
 
+// Gabarits d'ouverture (E14-04) : dims de départ sélectionnables avant la pose,
+// modifiables ensuite par instance dans l'inspector (comme les dims par défaut
+// d'avant E14-04, inchangées ici sous le nom `classique`).
+export const OPENING_PRESETS = {
+  classique: { largeur_m: 1.0, hauteur_m: 1.2 },
+  large: { largeur_m: 1.6, hauteur_m: 1.4 },
+  etroite: { largeur_m: 0.6, hauteur_m: 1.0 },
+}
+export const DEFAULT_OPENING_PRESET = 'classique'
+
 // Dimensions par défaut d'une fenêtre posée (m). Modifiables ensuite dans l'inspector.
-export const DEFAULT_OPENING = { largeur_m: 1.0, hauteur_m: 1.2 }
+export const DEFAULT_OPENING = OPENING_PRESETS[DEFAULT_OPENING_PRESET]
 
 /**
  * Payload `{ kind, params, plane }` d'une ouverture posée au point `point` (monde)
@@ -23,10 +33,12 @@ export const DEFAULT_OPENING = { largeur_m: 1.0, hauteur_m: 1.2 }
  * (origin), de sorte que l'ouverture soit centrée verticalement sur le clic.
  * @param {number[]} point point d'impact sur la face (monde)
  * @param {object} frame repère de la face { type, origin, u, v, normal, faceOf? }
+ * @param {{largeur_m:number, hauteur_m:number}} [dims] gabarit de départ (E14-04,
+ *   défaut `classique`) ; l'utilisateur peut ensuite l'ajuster dans l'inspector.
  * @returns payload prêt pour `createObject`.
  */
-export function openingPayload(point, frame) {
-  const H = DEFAULT_OPENING.hauteur_m
+export function openingPayload(point, frame, dims = DEFAULT_OPENING) {
+  const H = dims.hauteur_m
   // Seuil = clic − (H/2)·v (reste sur le plan de la face pour un mur vertical).
   const origin = [
     point[0] - frame.v[0] * (H / 2),
@@ -36,7 +48,7 @@ export function openingPayload(point, frame) {
   return {
     kind: 'opening.window',
     params: {
-      largeur_m: DEFAULT_OPENING.largeur_m,
+      largeur_m: dims.largeur_m,
       hauteur_m: H,
       allege_m: Number(Math.max(0, origin[1]).toFixed(3)), // hauteur du seuil / sol (y=0)
     },
