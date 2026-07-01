@@ -286,7 +286,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 | E14-01 ✅ | En tant qu'utilisateur, je veux déposer une ouverture paramétrique sur une face de mur afin de définir l'emplacement et la taille du vide. | Params **largeur / hauteur / allège** ; posée sur une face de mur ; référence le mur par node name (dégradation propre si mur absent). | M | 5 |
 | E14-02 ✅ | En tant que dev, je veux un booléen CSG sur le mur importé afin d'y faire un **vrai trou**. | `three-bvh-csg` : mur percé = mur importé − volume de l'ouverture ; **non-destructif** (mur d'origine conservé) ; découpe **recalculée au chargement** depuis les `edit` des ouvertures référençant le mur. | M | 13 |
 | E14-03 ✅ | En tant qu'utilisateur, je veux que l'app gère proprement un mur « sale » (non-manifold). | Détection d'un résultat CSG dégénéré (volume nul / explosion de triangles) → **fallback** « pose en surface sans trou » + message ; validé sur un **vrai export SketchUp**. | M | 5 |
-| E14-04 | En tant qu'utilisateur, je veux des gabarits d'ouverture (classique / large / étroite) afin d'aller vite. | Presets de dims sélectionnables ; modifiables ensuite par instance. | S | 2 |
+| E14-04 ✅ | En tant qu'utilisateur, je veux des gabarits d'ouverture (classique / large / étroite) afin d'aller vite. | Presets de dims sélectionnables ; modifiables ensuite par instance. | S | 2 |
 
 **Phase 2 — la menuiserie (cadre + vitrage)** — **après** Slice 2 (réutilise la pose de composants ①, **pas de booléen**).
 
@@ -710,6 +710,28 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > **suppression restaure exactement** l'origine (non-destructif), **export sans
 > erreur** (mur plein pendant le clone puis découpe rétablie), aucune erreur console.
 > **Slice 1 quasi close** ; reste **E14-04** (gabarits classique/large/étroite).
+
+> **Slice 1 — avancement (2026-07-01, incrément 3 : E14-04 gabarits d'ouverture).**
+> **Slice 1 CLOSE.** Trois gabarits sélectionnables avant la pose de l'outil
+> **Ouverture** : `OPENING_PRESETS` dans [opening.js](home3d/src/lib/opening.js)
+> (`classique` 1,0×1,2 m — dims historiques d'E14-01 —, `large` 1,6×1,4 m,
+> `etroite` 0,6×1,0 m) ; `openingPayload(point, frame, dims)` prend désormais le
+> gabarit en 3ᵉ argument (repli `classique`). Store
+> ([useStore.js](home3d/src/store/useStore.js)) : `openingPreset` + `setOpeningPreset`
+> — préférence d'outil **non historisée** (comme `gridSnap`, le `partialize` zundo
+> n'historise que `objects`). UI ([EditBar.jsx](home3d/src/components/EditBar.jsx)) :
+> **sous-barre à icônes + tooltips** (directive IHM) sous la palette d'outils,
+> visible seulement outil **Ouverture** actif ; icône = cadre + croisillon dont
+> l'aspect (carré/large/étroit) illustre le gabarit, tooltip donnant les cotes.
+> L'instance posée reste **modifiable ensuite** dans l'inspector existant (champs
+> Largeur/Hauteur/Allège inchangés). Tests :
+> [opening.test.mjs](home3d/script/opening.test.mjs) (3 gabarits distincts,
+> `openingPayload` applique le gabarit passé) → **140 verts** ; `lint`/`build` OK.
+> Vérifié au navigateur sur le modèle démo : gabarit **Large** sélectionné → fenêtre
+> posée sur un mur (`structure__mur_porteur__sejour__rdc__0…`) avec largeur 1,6 m /
+> hauteur 1,4 m dans l'inspecteur, aucune erreur console. **E14 phase 1 (le vide)
+> est complet** ; reste **E14 phase 2** (menuiserie cadre+vitrage, après Slice 2)
+> et **Slice 2 — Électricité (E15)**.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

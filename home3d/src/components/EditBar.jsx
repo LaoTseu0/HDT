@@ -2,6 +2,7 @@ import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
 import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
 import { nodeName, LEVELS } from '../lib/naming.js'
+import { OPENING_PRESETS } from '../lib/opening.js'
 
 // Libellés FR des niveaux (segment `level` de la convention de nommage).
 const LEVEL_LABELS = {
@@ -121,6 +122,35 @@ function GridIcon() {
   )
 }
 
+// Gabarits d'ouverture (E14-04) : rect + croisillon dont l'aspect (large/carré/
+// étroit) illustre le preset, façon ToolIcon. Modifiable ensuite par instance.
+const PRESET_RECTS = {
+  classique: { x: 6, y: 4, w: 12, h: 16 },
+  large: { x: 3, y: 6, w: 18, h: 12 },
+  etroite: { x: 8, y: 3, w: 8, h: 18 },
+}
+
+function PresetIcon({ id }) {
+  const { x, y, w, h } = PRESET_RECTS[id] ?? PRESET_RECTS.classique
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect x={x} y={y} width={w} height={h} rx="1" fill="none" stroke="currentColor" strokeWidth="2" />
+      <path
+        d={`M${x + w / 2} ${y}v${h}M${x} ${y + h / 2}h${w}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+    </svg>
+  )
+}
+
+const OPENING_PRESET_LIST = [
+  { id: 'classique', label: 'Classique' },
+  { id: 'large', label: 'Large' },
+  { id: 'etroite', label: 'Étroite' },
+]
+
 function SelectField({ label, value, options, onChange }) {
   // Options acceptées en `'x'` ou `{ value, label }` → forme normalisée unique.
   const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }))
@@ -198,7 +228,7 @@ const TOOL_HINTS = {
   circle: 'Cliquez le centre puis glissez pour le rayon. Tapez une valeur pour le fixer.',
   arc: 'Cliquez le centre, puis le début (rayon), puis la fin (balayage). Tapez une valeur pour la fixer.',
   opening:
-    'Cliquez sur une face de mur pour y poser une fenêtre. Ajustez largeur / hauteur / allège dans l’inspecteur.',
+    'Choisissez un gabarit puis cliquez sur une face de mur pour y poser une fenêtre. Ajustez largeur / hauteur / allège dans l’inspecteur.',
   pushpull: 'Cliquez une forme et tirez pour l’extruder le long de sa normale.',
 }
 
@@ -217,6 +247,8 @@ export default function EditBar() {
   const gridSnap = useStore((state) => state.gridSnap)
   const toggleGridSnap = useStore((state) => state.toggleGridSnap)
   const csgFallbackIds = useStore((state) => state.csgFallbackIds)
+  const openingPreset = useStore((state) => state.openingPreset)
+  const setOpeningPreset = useStore((state) => state.setOpeningPreset)
 
   // pastStates/futureStates du store temporel zundo (réactif).
   const canUndo = useTemporal((state) => state.pastStates.length > 0)
@@ -290,6 +322,26 @@ export default function EditBar() {
           <GridIcon />
         </button>
       </div>
+
+      {activeTool === 'opening' && (
+        <div className="edit-tools" role="toolbar" aria-label="Gabarit d'ouverture">
+          {OPENING_PRESET_LIST.map((preset) => {
+            const dims = OPENING_PRESETS[preset.id]
+            return (
+              <button
+                key={preset.id}
+                className="edit-tool"
+                aria-pressed={openingPreset === preset.id}
+                aria-label={preset.label}
+                title={`${preset.label} — ${dims.largeur_m} × ${dims.hauteur_m} m`}
+                onClick={() => setOpeningPreset(preset.id)}
+              >
+                <PresetIcon id={preset.id} />
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {TOOL_HINTS[activeTool] && <p className="edit-hint">{TOOL_HINTS[activeTool]}</p>}
 
