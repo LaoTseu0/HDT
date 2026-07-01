@@ -3,6 +3,7 @@ import useStore, { useTemporal } from '../store/useStore.js'
 import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
 import { nodeName, LEVELS } from '../lib/naming.js'
 import { OPENING_PRESETS } from '../lib/opening.js'
+import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from '../lib/elec.js'
 
 // Libellés FR des niveaux (segment `level` de la convention de nommage).
 const LEVEL_LABELS = {
@@ -83,6 +84,14 @@ function ToolIcon({ id }) {
       </svg>
     )
   }
+  if (id === 'elec') {
+    // Éclair (électricité).
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path d="M13 2L5 13h5l-1 9 8-12h-5z" fill="currentColor" />
+      </svg>
+    )
+  }
   // pushpull
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -104,6 +113,47 @@ function ToolIcon({ id }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  )
+}
+
+// Icônes des composants élec (sous-barre de l'outil Ouverture/Élec). Un pictogramme
+// distinct par catalogue, façon ToolIcon.
+function ElecCompIcon({ id }) {
+  if (id === 'elec.switch') {
+    // Interrupteur : cadre + bascule.
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect x="6" y="3" width="12" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+        <rect x="9" y="6" width="6" height="7" rx="1" fill="currentColor" />
+      </svg>
+    )
+  }
+  if (id === 'elec.junction') {
+    // Boîte de dérivation : rond + 4 départs.
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+  if (id === 'elec.meter') {
+    // Compteur : boîtier + afficheur.
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect x="4" y="3" width="16" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
+        <rect x="7" y="7" width="10" height="4" rx="1" fill="currentColor" />
+        <circle cx="12" cy="16" r="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      </svg>
+    )
+  }
+  // elec.outlet — prise : cadre + 2 trous.
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="9.5" cy="12" r="1.6" fill="currentColor" />
+      <circle cx="14.5" cy="12" r="1.6" fill="currentColor" />
     </svg>
   )
 }
@@ -220,8 +270,16 @@ const TOOLS = [
     label: 'Ouverture',
     hint: 'Poser une fenêtre sur une face de mur',
   },
+  {
+    id: 'elec',
+    label: 'Électricité',
+    hint: 'Poser un composant électrique sur une face de mur',
+  },
   { id: 'pushpull', label: 'Push/Pull', hint: 'Donner du volume à une face (extrusion)' },
 ]
+
+// Liste ordonnée des composants élec pour la sous-barre (E15-01/02).
+const ELEC_COMPONENT_LIST = ELEC_KINDS.map((id) => ({ id, label: ELEC_COMPONENTS[id].label }))
 
 const TOOL_HINTS = {
   rect: 'Tracez un rectangle : sur le sol, ou directement sur une face survolée du modèle.',
@@ -229,6 +287,8 @@ const TOOL_HINTS = {
   arc: 'Cliquez le centre, puis le début (rayon), puis la fin (balayage). Tapez une valeur pour la fixer.',
   opening:
     'Choisissez un gabarit puis cliquez sur une face de mur pour y poser une fenêtre. Ajustez largeur / hauteur / allège dans l’inspecteur.',
+  elec:
+    'Choisissez un composant puis cliquez sur une face de mur pour le poser. Ajustez la hauteur / sol dans l’inspecteur.',
   pushpull: 'Cliquez une forme et tirez pour l’extruder le long de sa normale.',
 }
 
@@ -240,6 +300,7 @@ export default function EditBar() {
   const selectedNode = useStore((state) => state.selectedNode)
   const updateObjectParams = useStore((state) => state.updateObjectParams)
   const setOpeningAllege = useStore((state) => state.setOpeningAllege)
+  const setObjectFloorHeight = useStore((state) => state.setObjectFloorHeight)
   const setObjectNaming = useStore((state) => state.setObjectNaming)
   const deleteObject = useStore((state) => state.deleteObject)
   const glb = useStore((state) => state.glb)
@@ -249,6 +310,8 @@ export default function EditBar() {
   const csgFallbackIds = useStore((state) => state.csgFallbackIds)
   const openingPreset = useStore((state) => state.openingPreset)
   const setOpeningPreset = useStore((state) => state.setOpeningPreset)
+  const elecComponent = useStore((state) => state.elecComponent)
+  const setElecComponent = useStore((state) => state.setElecComponent)
 
   // pastStates/futureStates du store temporel zundo (réactif).
   const canUndo = useTemporal((state) => state.pastStates.length > 0)
@@ -343,6 +406,26 @@ export default function EditBar() {
         </div>
       )}
 
+      {activeTool === 'elec' && (
+        <div className="edit-tools" role="toolbar" aria-label="Composant électrique">
+          {ELEC_COMPONENT_LIST.map((comp) => {
+            const dims = ELEC_COMPONENTS[comp.id].dims
+            return (
+              <button
+                key={comp.id}
+                className="edit-tool"
+                aria-pressed={elecComponent === comp.id}
+                aria-label={comp.label}
+                title={`${comp.label} — ${dims.largeur_m} × ${dims.hauteur_m} m`}
+                onClick={() => setElecComponent(comp.id)}
+              >
+                <ElecCompIcon id={comp.id} />
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {TOOL_HINTS[activeTool] && <p className="edit-hint">{TOOL_HINTS[activeTool]}</p>}
 
       {selectedObj ? (
@@ -360,7 +443,34 @@ export default function EditBar() {
             options={LEVELS.map((id) => ({ value: id, label: LEVEL_LABELS[id] ?? id }))}
             onChange={(level) => setObjectNaming(selectedObj.id, { level })}
           />
-          {selectedObj.kind === 'opening.window' ? (
+          {isElecKind(selectedObj.kind) ? (
+            <>
+              <NumberField
+                label="Largeur (m)"
+                value={selectedObj.params.largeur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
+              />
+              <NumberField
+                label="Hauteur (m)"
+                value={selectedObj.params.hauteur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
+              />
+              <NumberField
+                label="Profondeur (m)"
+                value={selectedObj.params.profondeur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
+              />
+              <NumberField
+                label="Hauteur / sol (m)"
+                value={selectedObj.plane?.origin?.[1] ?? 0}
+                allowZero
+                onChange={(v) => setObjectFloorHeight(selectedObj.id, v)}
+              />
+              <p className="edit-hint">
+                Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
+              </p>
+            </>
+          ) : selectedObj.kind === 'opening.window' ? (
             <>
               <NumberField
                 label="Largeur (m)"
