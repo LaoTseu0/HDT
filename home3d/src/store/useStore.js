@@ -14,6 +14,7 @@ import {
 import { kindNaming } from '../lib/editRegistry.js'
 import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
 import { DEFAULT_OPENING_PRESET } from '../lib/opening.js'
+import { DEFAULT_ELEC_KIND } from '../lib/elec.js'
 
 // Id interne STABLE d'un objet app (clé du map `objects`, jamais affichée). Le
 // node name conforme (système__type__zone__niveau__index) en est DÉCOUPLÉ et
@@ -274,6 +275,12 @@ const useStore = create(
       openingPreset: DEFAULT_OPENING_PRESET,
       setOpeningPreset: (preset) => set({ openingPreset: preset }),
 
+      // E15-01/02 : composant élec sélectionné avant la pose (prise/interrupteur/
+      // boîte/compteur, cf. lib/elec `ELEC_COMPONENTS`). Préférence d'outil, pas
+      // historisée ; l'instance posée reste modifiable ensuite dans l'inspector.
+      elecComponent: DEFAULT_ELEC_KIND,
+      setElecComponent: (kind) => set({ elecComponent: kind }),
+
       // E12-08 : aperçu éphémère d'un Push/Pull en cours =
       // { id, paramKey, value, origin } (la face cliquée fixe quelle cote bouge).
       // NON historisé (zundo partialize n'historise que `objects`) ; committé en
@@ -365,6 +372,25 @@ const useStore = create(
                 params: { ...obj.params, allege_m: next },
                 plane: { ...obj.plane, origin },
               },
+            },
+          }
+        }),
+
+      // E15-01 : régler la hauteur au-dessus du sol (y monde) du CENTRE d'un
+      // composant posé (élec…) → déplace `plane.origin` verticalement, garde le
+      // reste. Générique (contrairement à setOpeningAllege qui met aussi à jour un
+      // param `allege_m`). Historisé (mutation de `objects`).
+      setObjectFloorHeight: (id, height) =>
+        set((state) => {
+          const obj = state.objects[id]
+          if (!obj) return state
+          const h = Math.max(0, Number(height) || 0)
+          const o = obj.plane.origin
+          if (o[1] === h) return state
+          return {
+            objects: {
+              ...state.objects,
+              [id]: { ...obj, plane: { ...obj.plane, origin: [o[0], h, o[2]] } },
             },
           }
         }),

@@ -304,8 +304,8 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E15-01 | En tant qu'utilisateur, je veux poser prises, interrupteurs et boîtes de dérivation sur les murs. | Pose sur une **face de mur** ; catalogue + variantes (ex. interrupteur va-et-vient) ; hauteur/sol + orientation paramétrables. | M | 8 |
-| E15-02 | En tant qu'utilisateur, je veux poser un compteur électrique. | Objet ponctuel posé depuis le catalogue. | M | 2 |
+| E15-01 ✅ | En tant qu'utilisateur, je veux poser prises, interrupteurs et boîtes de dérivation sur les murs. | Pose sur une **face de mur** ; catalogue + variantes (ex. interrupteur va-et-vient) ; hauteur/sol + orientation paramétrables. | M | 8 |
+| E15-02 ✅ | En tant qu'utilisateur, je veux poser un compteur électrique. | Objet ponctuel posé depuis le catalogue. | M | 2 |
 | E15-03 | En tant qu'utilisateur, je veux router un câble électrique afin de relier les éléments. | Tracer un chemin → **section rectangulaire balayée** (low-poly, § 5.3) ; sections prédéfinies ; **coudes auto** aux sommets ; snapping aux objets/murs. | M | 13 |
 | E15-04 | En tant qu'utilisateur, je veux connecter logiquement un câble à une boîte/tableau (optionnel). | Notion de circuit : association câble ↔ boîte/tableau. | C | 8 |
 
@@ -732,6 +732,47 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > hauteur 1,4 m dans l'inspecteur, aucune erreur console. **E14 phase 1 (le vide)
 > est complet** ; reste **E14 phase 2** (menuiserie cadre+vitrage, après Slice 2)
 > et **Slice 2 — Électricité (E15)**.
+
+> **Slice 2 — avancement (2026-07-01, incrément 1 : E15-01/02 composants élec
+> ponctuels).** Début de la Slice 2 (électricité). **Catégorie ① « ponctuel »**
+> (cf. § 4) : poser un petit composant catalogue sur une **face de mur**, façon
+> ouverture (E14-01) — réemploie le plan d'esquisse contextuel (E12-02, la face
+> survolée) et le snapping (E12-03), **aucun booléen**. Nouvel outil **Électricité**
+> avec une **sous-barre à icônes + tooltips** (directive IHM) pour choisir le
+> composant : **prise** (`elec.outlet`), **interrupteur** (`elec.switch`), **boîte
+> de dérivation** (`elec.junction`), **compteur** (`elec.meter`). Clic sur une face
+> de mur → pose le composant sélectionné, qui **référence le mur par node name**
+> (`plane.faceOf`) ; un clic sur le sol est ignoré. Module **pur**
+> [elec.js](home3d/src/lib/elec.js) : catalogue `ELEC_COMPONENTS` (dims réalistes,
+> `type` de nommage conforme) + `elecPayload(point, frame, kind)` (origin = point
+> cliqué = **centre** du composant, repli prise si kind inconnu). Registre
+> [editRegistry.js](home3d/src/lib/editRegistry.js) : `generateElec` (boîte centrée
+> ressortie le long de +normal, teintée couleur du calque `elec` `#D85A30`),
+> partagé par les 4 kinds ; `referencePoints` (centre + 4 coins sur le mur),
+> `deriveDims` (u→largeur/v→hauteur/normal→profondeur), `kindNaming` (→ `elec`/type)
+> **dérivés du catalogue** pour éviter la redite. Store
+> ([useStore.js](home3d/src/store/useStore.js)) : `elecComponent` + `setElecComponent`
+> (préférence d'outil **non historisée**, comme `openingPreset`/`gridSnap`) et action
+> **générique** `setObjectFloorHeight` (déplace `plane.origin` en Y, réutilisable au
+> lieu du `setOpeningAllege` spécifique). Pose au clic dans
+> [EditObjects.jsx](home3d/src/components/EditObjects.jsx) `SketchSurface`
+> (`tool==='elec'`, comme l'ouverture) ; Push/Pull restreint aux `sketch.*` (une
+> ouverture / un composant posé ne s'extrude pas). UI
+> ([EditBar.jsx](home3d/src/components/EditBar.jsx)) : icône **éclair** + sous-barre
+> des 4 composants + inspector dédié (Largeur / Hauteur / Profondeur / **Hauteur /
+> sol** + node name du mur référencé). Round-trip GLB **générique** (le registre
+> gère `elec.*`, `plane.faceOf` persisté dans `extras.edit` ; WallCutter ignore les
+> non-`opening.window` → pas de CSG sur l'élec). Tests :
+> [elec.test.mjs](home3d/script/elec.test.mjs) (catalogue, payload + repli, dims,
+> références, nommage conforme des 4 types) → **147 verts** ; `lint`/`build` OK.
+> Vérifié au navigateur sur le modèle démo : outil Électricité + sous-barre, **prise
+> posée** sur un mur pignon (`elec__prise__combles__combles__001`, mur référencé
+> `structure__mur_porteur__sejour__rdc__005`), **compteur** posé
+> (`elec__compteur__combles__combles__002`), clic sol ignoré, inspector complet,
+> undo (retour à 1 objet), aucune erreur console. **Reste Slice 2** : **E15-03
+> câble routé** (catégorie ② linéaire, section rectangulaire balayée, § 5.3) — le
+> gros morceau — puis **E15-04** (circuits, optionnel). La menuiserie des fenêtres
+> (E14 ph.2) réutilisera cette pose de composants.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

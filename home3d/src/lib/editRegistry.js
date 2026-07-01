@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { frameOfObjectPlane } from './workPlanes.js'
+import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from './elec.js'
 
 // Registre paramétrique d'Edit mode (E12-05, cf. docs/edit-mode-design.md § 5.1).
 //
@@ -270,11 +271,50 @@ function generateOpening(params, plane) {
   return group
 }
 
+// elec.* — composants électriques ponctuels posés sur une face de mur (E15-01/02,
+// cf. lib/elec). params : { largeur_m (u), hauteur_m (v), profondeur_m (normal) }.
+// plane.origin = CENTRE du composant sur la face ; la boîte ressort le long de
+// +normal (extérieur du mur), sa face arrière affleurant le mur. Un seul générateur
+// pour tout le catalogue (seules les dims changent). Rendu = solide teinté « elec ».
+const ELEC_FILL = 0xd85a30 // couleur du calque `elec` (script/naming.mjs)
+const ELEC_EDGE = 0xf3b39a
+
+function generateElec(params, plane) {
+  const w = Math.max(Number(params.largeur_m) || 0, 0.001)
+  const hgt = Math.max(Number(params.hauteur_m) || 0, 0.001)
+  const dep = Math.max(Number(params.profondeur_m) || 0, 0.001)
+
+  // Géométrie locale : u→X, v→Y, normal→Z. Boîte centrée en (u,v) et décalée d'½
+  // profondeur le long de +Z → la face arrière est à normal=0 (sur le mur).
+  const geo = new THREE.BoxGeometry(w, hgt, dep)
+  geo.translate(0, 0, dep / 2)
+
+  const fill = new THREE.Mesh(
+    geo,
+    new THREE.MeshStandardMaterial({ color: ELEC_FILL, metalness: 0.1, roughness: 0.7 })
+  )
+  fill.name = '__fill'
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({ color: ELEC_EDGE })
+  )
+  edges.name = '__edges'
+  edges.raycast = () => {}
+
+  const group = new THREE.Group()
+  group.add(fill, edges)
+  placeOnPlane(group, plane)
+  return group
+}
+
 const REGISTRY = {
   'sketch.rect': generateRect,
   'sketch.circle': generateCircle,
   'sketch.arc': generateArc,
   'opening.window': generateOpening,
+  // Tout le catalogue élec partage `generateElec` (seules les dims diffèrent).
+  ...Object.fromEntries(ELEC_KINDS.map((k) => [k, generateElec])),
 }
 
 export function isKnownKind(kind) {
@@ -292,6 +332,10 @@ const KIND_NAMING = {
   'sketch.circle': { system: 'structure', type: 'disque' },
   'sketch.arc': { system: 'structure', type: 'arc' },
   'opening.window': { system: 'ouvertures', type: 'fenetre' },
+  // elec.* → système `elec`, type = celui du catalogue (prise, interrupteur…).
+  ...Object.fromEntries(
+    Object.entries(ELEC_COMPONENTS).map(([kind, c]) => [kind, { system: 'elec', type: c.type }])
+  ),
 }
 
 /** Système/type de nommage d'un `kind` (repli `structure`/`forme`). */
@@ -398,6 +442,20 @@ export function referencePoints(obj) {
     return pts
   }
 
+  if (isElecKind(obj.kind)) {
+    // Composant sur le mur : centre + 4 coins de la face arrière (plan du mur,
+    // normal=0). Repère centré en (u,v) (cf. generateElec).
+    const hw = Math.max(Number(obj.params.largeur_m) || 0, 0.001) / 2
+    const hh = Math.max(Number(obj.params.hauteur_m) || 0, 0.001) / 2
+    return [
+      { type: 'midpoint', point: at(0, 0, 0) }, // centre (sur le mur)
+      { type: 'endpoint', point: at(-hw, -hh, 0) },
+      { type: 'endpoint', point: at(hw, -hh, 0) },
+      { type: 'endpoint', point: at(hw, hh, 0) },
+      { type: 'endpoint', point: at(-hw, hh, 0) },
+    ]
+  }
+
   if (obj.kind === 'opening.window') {
     const hw = Math.max(Number(obj.params.largeur_m) || 0, 0.001) / 2
     const hh = Math.max(Number(obj.params.hauteur_m) || 0, 0.001)
@@ -452,6 +510,14 @@ export function deriveDims(obj) {
       largeur_m: Number((maxX - minX).toFixed(3)),
       profondeur_m: Number((maxY - minY).toFixed(3)),
       hauteur_m: Math.abs(Number(obj.params.hauteur_m) || 0),
+    }
+  }
+  if (isElecKind(obj.kind)) {
+    // u→largeur, v→hauteur, normal→profondeur (emprise du composant sur le mur).
+    return {
+      largeur_m: Number(obj.params.largeur_m) || 0,
+      profondeur_m: Number(obj.params.profondeur_m) || 0,
+      hauteur_m: Number(obj.params.hauteur_m) || 0,
     }
   }
   return null
