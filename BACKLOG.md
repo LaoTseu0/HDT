@@ -306,7 +306,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 |---|---|---|---|---|
 | E15-01 ✅ | En tant qu'utilisateur, je veux poser prises, interrupteurs et boîtes de dérivation sur les murs. | Pose sur une **face de mur** ; catalogue + variantes (ex. interrupteur va-et-vient) ; hauteur/sol + orientation paramétrables. | M | 8 |
 | E15-02 ✅ | En tant qu'utilisateur, je veux poser un compteur électrique. | Objet ponctuel posé depuis le catalogue. | M | 2 |
-| E15-03 | En tant qu'utilisateur, je veux router un câble électrique afin de relier les éléments. | Tracer un chemin → **section rectangulaire balayée** (low-poly, § 5.3) ; sections prédéfinies ; **coudes auto** aux sommets ; snapping aux objets/murs. | M | 13 |
+| E15-03 ✅ | En tant qu'utilisateur, je veux router un câble électrique afin de relier les éléments. | Tracer un chemin → **section rectangulaire balayée** (low-poly, § 5.3) ; sections prédéfinies ; **coudes auto** aux sommets ; snapping aux objets/murs. | M | 13 |
 | E15-04 | En tant qu'utilisateur, je veux connecter logiquement un câble à une boîte/tableau (optionnel). | Notion de circuit : association câble ↔ boîte/tableau. | C | 8 |
 
 ---
@@ -773,6 +773,40 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > câble routé** (catégorie ② linéaire, section rectangulaire balayée, § 5.3) — le
 > gros morceau — puis **E15-04** (circuits, optionnel). La menuiserie des fenêtres
 > (E14 ph.2) réutilisera cette pose de composants.
+
+> **Slice 2 — avancement (2026-07-01, incrément 2 : E15-03 câble routé).** Le gros
+> morceau de la Slice 2. **Catégorie ② « linéaire/routé »** (§ 5.3) : router un câble
+> élec par une **polyligne multi-clics** balayée avec une **section RECTANGULAIRE**
+> (4 faces/tronçon, pas de cylindre → basse résolution) et des **coudes d'onglet**
+> (mitre) aux sommets. Module **pur réutilisable par la plomberie** (E16)
+> [routing.js](home3d/src/lib/routing.js) : `dedupePath`, `pathLength`, `runRings`
+> (repère de section porté par le **plan bissecteur** à chaque sommet → jonctions
+> sans trou). Module pur [cable.js](home3d/src/lib/cable.js) : catalogue de sections
+> **gaine Ø16/20/25/32** (emprise rectangulaire = côté nominal, `diametre_mm`
+> conservé pour l'étiquetage), `cablePayloadFromPath` (déduplique, ≥ 2 sommets).
+> Registre [editRegistry.js](home3d/src/lib/editRegistry.js) : `generateRun`
+> (géométrie construite en coordonnées **MONDE** depuis `params.points`, **sans
+> placeOnPlane** — le run n'a pas de plan unique ; matériau opaque teinté `elec`),
+> `referencePoints` (chaque sommet = point d'accroche), `deriveDims` (bbox monde),
+> `kindNaming` `elec.cable` → `elec`/`cable`. Store
+> ([useStore.js](home3d/src/store/useStore.js)) : `cableSection` (préférence non
+> historisée) + `commitCable` ; le tracé porte `draft.tool='cable'` avec les sommets
+> en **monde** (chaque clic résolu sur le **plan contextuel frais**, pas un plan
+> verrouillé → le câble passe d'une face à l'autre). Interaction
+> ([EditObjects.jsx](home3d/src/components/EditObjects.jsx)) `SketchSurface`
+> (`tool==='cable'`) : clics successifs ajoutent un sommet, **double-clic** ou
+> **Entrée** termine, **Échap** annule ; `CableDraftPreview` (polyligne de l'aperçu).
+> UI ([EditBar.jsx](home3d/src/components/EditBar.jsx)) : **icône Câble** + **sous-barre
+> des sections** (carré-jauge) + inspector (section, `N sommets · longueur`). Push/Pull
+> exclu (déjà restreint aux `sketch.*`), WallCutter ignore les non-`opening.window`
+> (pas de CSG sur le câble). Round-trip GLB **générique** (`edit.params` porte `points`
+> + `section`). Tests : [routing.test.mjs](home3d/script/routing.test.mjs) +
+> [cable.test.mjs](home3d/script/cable.test.mjs) → **164 verts** ; `lint`/`build` OK.
+> Vérifié au navigateur sur le modèle démo : câble routé **sur les faces du toit**
+> (`elec__cable__combles__combles__001`, 3 sommets · 3,55 m), section **Ø20→Ø32**
+> régénère la géométrie (câble plus épais), undo/redo, aucune erreur console. **Reste
+> Slice 2** : **E15-04** (circuits, optionnel). La menuiserie des fenêtres (E14 ph.2)
+> réutilisera la pose de composants d'E15-01.
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
