@@ -327,6 +327,30 @@ const useStore = create(
             },
           }
         }),
+      // E14-01 : régler l'allège (hauteur du seuil au-dessus du sol) d'une
+      // ouverture → déplace `plane.origin` le long de l'axe vertical monde, en
+      // gardant la hauteur/largeur. Historisé (mutation de `objects`).
+      setOpeningAllege: (id, allege) =>
+        set((state) => {
+          const obj = state.objects[id]
+          if (!obj || obj.kind !== 'opening.window') return state
+          const next = Math.max(0, Number(allege) || 0)
+          const cur = Number(obj.params.allege_m) || 0
+          if (next === cur) return state
+          const o = obj.plane.origin
+          const origin = [o[0], o[1] + (next - cur), o[2]] // seuil monté/descendu
+          return {
+            objects: {
+              ...state.objects,
+              [id]: {
+                ...obj,
+                params: { ...obj.params, allege_m: next },
+                plane: { ...obj.plane, origin },
+              },
+            },
+          }
+        }),
+
       deleteObject: (id) =>
         set((state) => {
           if (!state.objects[id]) return state

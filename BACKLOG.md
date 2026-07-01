@@ -283,7 +283,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E14-01 | En tant qu'utilisateur, je veux déposer une ouverture paramétrique sur une face de mur afin de définir l'emplacement et la taille du vide. | Params **largeur / hauteur / allège** ; posée sur une face de mur ; référence le mur par node name (dégradation propre si mur absent). | M | 5 |
+| E14-01 ✅ | En tant qu'utilisateur, je veux déposer une ouverture paramétrique sur une face de mur afin de définir l'emplacement et la taille du vide. | Params **largeur / hauteur / allège** ; posée sur une face de mur ; référence le mur par node name (dégradation propre si mur absent). | M | 5 |
 | E14-02 | En tant que dev, je veux un booléen CSG sur le mur importé afin d'y faire un **vrai trou**. | `three-bvh-csg` : mur percé = mur importé − volume de l'ouverture ; **non-destructif** (mur d'origine conservé) ; découpe **recalculée au chargement** depuis les `edit` des ouvertures référençant le mur. | M | 13 |
 | E14-03 | En tant qu'utilisateur, je veux que l'app gère proprement un mur « sale » (non-manifold). | Détection d'un résultat CSG dégénéré (volume nul / explosion de triangles) → **fallback** « pose en surface sans trou » + message ; validé sur un **vrai export SketchUp**. | M | 5 |
 | E14-04 | En tant qu'utilisateur, je veux des gabarits d'ouverture (classique / large / étroite) afin d'aller vite. | Presets de dims sélectionnables ; modifiables ensuite par instance. | S | 2 |
@@ -648,6 +648,39 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > `2`/angle `90`, node name conforme, undo/redo, aucune erreur console. **Slice 0
 > est CLOSE** (rect/cercle/arc + socle d'édition complet) ; reste optionnel : VCB du
 > Push/Pull (E12-08). Prochaine étape : **Slice 1 — Ouvertures (CSG, E14 ph.1)**.
+
+> **Slice 1 — avancement (2026-07-01, incrément 1 : E14-01 ouverture posée).**
+> Début de la Slice 1 (ouvertures). **Phase 1a — l'objet ouverture**, AVANT le CSG
+> (découplage du risque, cf. § 5.4 « en deux temps »). Nouvel outil **Ouverture** :
+> clic sur une **face de mur** → pose une fenêtre paramétrique qui **référence le
+> mur par node name** (`plane.faceOf`, immuable). Réemploie le plan contextuel
+> (E12-02, la face survolée) et le snapping (E12-03) déjà en place. Nouveau `kind`
+> `opening.window` dans [editRegistry.js](home3d/src/lib/editRegistry.js)
+> (`generateOpening` = cadre translucide teinté « ouvertures » posé sur le mur —
+> **marqueur, pas encore le vide** ; `referencePoints` = 4 coins + 4 milieux +
+> centre, seuil à v=0 ; `kindNaming` → `ouvertures`/`fenetre`). Repère : `u`
+> horizontal (largeur), `v` vertical (hauteur depuis le **seuil** = `plane.origin`),
+> `normal` = extérieur ; l'**allège** = hauteur du seuil au-dessus du sol
+> (`origin.y`). Module pur [opening.js](home3d/src/lib/opening.js) (`openingPayload`
+> centre l'ouverture sur le clic : seuil = clic − ½ hauteur le long de `v`). Store
+> ([useStore.js](home3d/src/store/useStore.js)) : action **`setOpeningAllege`**
+> (déplace `plane.origin` verticalement, historisée) ; la pose passe par
+> `createObject` existant. Pose au clic dans
+> [EditObjects.jsx](home3d/src/components/EditObjects.jsx) `SketchSurface`
+> (`tool==='opening'`, uniquement si `frame.type==='face'`) ; Push/Pull exclu pour
+> une ouverture. UI : **icône fenêtre + tooltip** (directive IHM), inspector dédié
+> Largeur / Hauteur / **Allège** + node name du **mur référencé**
+> ([EditBar.jsx](home3d/src/components/EditBar.jsx)). Round-trip GLB **générique**
+> (le registre gère `opening.window` ; `plane.faceOf` persisté dans `extras.edit`).
+> Tests : [opening.test.mjs](home3d/script/opening.test.mjs) (payload, seuil, allège
+> plancher, références, nommage conforme) → **135 verts** ; `lint`/`build` OK.
+> Vérifié au navigateur sur le modèle démo : fenêtre posée sur un mur pignon
+> (référence `structure__mur_porteur__sejour__rdc__005`), largeur/allège éditées
+> (l'ouverture se repositionne), undo/redo, aucune erreur console. **Reste Slice 1
+> (incrément 2)** : **E14-02 le vrai trou CSG** (`three-bvh-csg`, `mur − volume`,
+> recalculé au chargement, non-destructif) + **E14-03 fallback** mur non-manifold ;
+> puis **E14-04** gabarits. Le [spike CSG](home3d/script/spike-csg.mjs) a validé
+> l'approche (🟢 fiable même sur le bloc non-manifold, garder weld + fallback).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

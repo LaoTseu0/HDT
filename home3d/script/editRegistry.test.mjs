@@ -13,7 +13,7 @@ const has = (pts, type, point, eps = 1e-9) =>
 describe('referencePoints', () => {
   it('kind inconnu → aucun point', () => {
     assert.deepEqual(
-      referencePoints({ kind: 'opening.window', params: {}, plane: {} }),
+      referencePoints({ kind: 'does.not.exist', params: {}, plane: {} }),
       []
     )
   })

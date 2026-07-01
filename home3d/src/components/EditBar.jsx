@@ -64,6 +64,24 @@ function ToolIcon({ id }) {
       </svg>
     )
   }
+  if (id === 'opening') {
+    // Fenêtre : cadre + croisillons.
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect
+          x="4"
+          y="4"
+          width="16"
+          height="16"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <path d="M12 4v16M4 12h16" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      </svg>
+    )
+  }
   // pushpull
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -167,6 +185,11 @@ const TOOLS = [
     label: 'Arc',
     hint: 'Dessiner un arc (centre, début, fin)',
   },
+  {
+    id: 'opening',
+    label: 'Ouverture',
+    hint: 'Poser une fenêtre sur une face de mur',
+  },
   { id: 'pushpull', label: 'Push/Pull', hint: 'Donner du volume à une face (extrusion)' },
 ]
 
@@ -174,6 +197,8 @@ const TOOL_HINTS = {
   rect: 'Tracez un rectangle : sur le sol, ou directement sur une face survolée du modèle.',
   circle: 'Cliquez le centre puis glissez pour le rayon. Tapez une valeur pour le fixer.',
   arc: 'Cliquez le centre, puis le début (rayon), puis la fin (balayage). Tapez une valeur pour la fixer.',
+  opening:
+    'Cliquez sur une face de mur pour y poser une fenêtre. Ajustez largeur / hauteur / allège dans l’inspecteur.',
   pushpull: 'Cliquez une forme et tirez pour l’extruder le long de sa normale.',
 }
 
@@ -184,6 +209,7 @@ export default function EditBar() {
   const objects = useStore((state) => state.objects)
   const selectedNode = useStore((state) => state.selectedNode)
   const updateObjectParams = useStore((state) => state.updateObjectParams)
+  const setOpeningAllege = useStore((state) => state.setOpeningAllege)
   const setObjectNaming = useStore((state) => state.setObjectNaming)
   const deleteObject = useStore((state) => state.deleteObject)
   const glb = useStore((state) => state.glb)
@@ -281,28 +307,7 @@ export default function EditBar() {
             options={LEVELS.map((id) => ({ value: id, label: LEVEL_LABELS[id] ?? id }))}
             onChange={(level) => setObjectNaming(selectedObj.id, { level })}
           />
-          {selectedObj.kind === 'sketch.circle' ? (
-            <NumberField
-              label="Rayon (m)"
-              value={selectedObj.params.rayon_m}
-              onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
-            />
-          ) : selectedObj.kind === 'sketch.arc' ? (
-            <>
-              <NumberField
-                label="Rayon (m)"
-                value={selectedObj.params.rayon_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
-              />
-              <NumberField
-                label="Balayage (°)"
-                value={selectedObj.params.angle_balayage_deg}
-                signed
-                step="5"
-                onChange={(v) => updateObjectParams(selectedObj.id, { angle_balayage_deg: v })}
-              />
-            </>
-          ) : (
+          {selectedObj.kind === 'opening.window' ? (
             <>
               <NumberField
                 label="Largeur (m)"
@@ -310,18 +315,67 @@ export default function EditBar() {
                 onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
               />
               <NumberField
-                label="Profondeur (m)"
-                value={selectedObj.params.profondeur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
+                label="Hauteur (m)"
+                value={selectedObj.params.hauteur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
+              />
+              <NumberField
+                label="Allège (m)"
+                value={selectedObj.params.allege_m}
+                allowZero
+                onChange={(v) => setOpeningAllege(selectedObj.id, v)}
+              />
+              <p className="edit-hint">
+                Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
+              </p>
+            </>
+          ) : (
+            <>
+              {selectedObj.kind === 'sketch.circle' ? (
+                <NumberField
+                  label="Rayon (m)"
+                  value={selectedObj.params.rayon_m}
+                  onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
+                />
+              ) : selectedObj.kind === 'sketch.arc' ? (
+                <>
+                  <NumberField
+                    label="Rayon (m)"
+                    value={selectedObj.params.rayon_m}
+                    onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
+                  />
+                  <NumberField
+                    label="Balayage (°)"
+                    value={selectedObj.params.angle_balayage_deg}
+                    signed
+                    step="5"
+                    onChange={(v) =>
+                      updateObjectParams(selectedObj.id, { angle_balayage_deg: v })
+                    }
+                  />
+                </>
+              ) : (
+                <>
+                  <NumberField
+                    label="Largeur (m)"
+                    value={selectedObj.params.largeur_m}
+                    onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
+                  />
+                  <NumberField
+                    label="Profondeur (m)"
+                    value={selectedObj.params.profondeur_m}
+                    onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
+                  />
+                </>
+              )}
+              <NumberField
+                label="Hauteur (m)"
+                value={selectedObj.params.hauteur_m}
+                allowZero
+                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
               />
             </>
           )}
-          <NumberField
-            label="Hauteur (m)"
-            value={selectedObj.params.hauteur_m}
-            allowZero
-            onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
-          />
           <button className="edit-delete" onClick={() => deleteObject(selectedObj.id)}>
             Supprimer
           </button>

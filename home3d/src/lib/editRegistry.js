@@ -228,10 +228,53 @@ function generateArc(params, plane) {
   return group
 }
 
+// opening.window — ouverture (fenêtre) posée sur une face de mur (E14-01).
+// params : { largeur_m (axe u), hauteur_m (axe v, depuis le seuil), allege_m }.
+// plane.origin = CENTRE DU SEUIL ; la géométrie monte de v=0 à v=hauteur (cf.
+// lib/opening). Rendu = cadre translucide teinté « ouvertures » posé sur le mur
+// (marqueur) ; le VRAI vide (CSG) viendra en E14-02.
+const OPENING_FILL = 0x2ec4b6
+const OPENING_EDGE = 0x9be7df
+
+function generateOpening(params, plane) {
+  const w = Math.max(Number(params.largeur_m) || 0, 0.001)
+  const h = Math.max(Number(params.hauteur_m) || 0, 0.001)
+
+  // Géométrie locale : u→X, v→Y, normal→Z. Rectangle centré puis remonté d'½ h
+  // pour que sa BASE (le seuil) soit à v=0 (= origin).
+  const geo = new THREE.PlaneGeometry(w, h)
+  geo.translate(0, h / 2, 0)
+
+  const fill = new THREE.Mesh(
+    geo,
+    new THREE.MeshStandardMaterial({
+      color: OPENING_FILL,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+  )
+  fill.name = '__fill'
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({ color: OPENING_EDGE })
+  )
+  edges.name = '__edges'
+  edges.raycast = () => {}
+
+  const group = new THREE.Group()
+  group.add(fill, edges)
+  placeOnPlane(group, plane)
+  return group
+}
+
 const REGISTRY = {
   'sketch.rect': generateRect,
   'sketch.circle': generateCircle,
   'sketch.arc': generateArc,
+  'opening.window': generateOpening,
 }
 
 export function isKnownKind(kind) {
@@ -248,6 +291,7 @@ const KIND_NAMING = {
   'sketch.rect': { system: 'structure', type: 'forme' },
   'sketch.circle': { system: 'structure', type: 'disque' },
   'sketch.arc': { system: 'structure', type: 'arc' },
+  'opening.window': { system: 'ouvertures', type: 'fenetre' },
 }
 
 /** Système/type de nommage d'un `kind` (repli `structure`/`forme`). */
@@ -352,6 +396,23 @@ export function referencePoints(obj) {
     const pts = face(0)
     if (solid) pts.push(...face(h))
     return pts
+  }
+
+  if (obj.kind === 'opening.window') {
+    const hw = Math.max(Number(obj.params.largeur_m) || 0, 0.001) / 2
+    const hh = Math.max(Number(obj.params.hauteur_m) || 0, 0.001)
+    // Rectangle u∈[-hw,hw], v∈[0,hh] (origin = seuil) : coins, milieux, centre.
+    return [
+      { type: 'endpoint', point: at(-hw, 0, 0) },
+      { type: 'endpoint', point: at(hw, 0, 0) },
+      { type: 'endpoint', point: at(hw, hh, 0) },
+      { type: 'endpoint', point: at(-hw, hh, 0) },
+      { type: 'midpoint', point: at(0, 0, 0) }, // milieu du seuil
+      { type: 'midpoint', point: at(hw, hh / 2, 0) },
+      { type: 'midpoint', point: at(0, hh, 0) },
+      { type: 'midpoint', point: at(-hw, hh / 2, 0) },
+      { type: 'midpoint', point: at(0, hh / 2, 0) }, // centre
+    ]
   }
 
   return []

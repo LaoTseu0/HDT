@@ -12,6 +12,7 @@ import {
   extrudeHeightFromRay,
 } from '../lib/workPlanes.js'
 import { angleOf, nextSweep } from '../lib/sketchArc.js'
+import { openingPayload } from '../lib/opening.js'
 import {
   midpoint,
   closestPointOnSegment,
@@ -769,6 +770,15 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
     const world = snap?.point ?? contextWorld
     const [s, t] = worldToPlane(world, frame)
 
+    // Ouverture (E14-01) : pose au CLIC sur une FACE de mur (pas sur le sol). Le
+    // point cliqué devient le centre ; l'objet référence le mur par `frame.faceOf`.
+    if (tool === 'opening') {
+      if (frame.type !== 'face') return // ignore un clic sur le sol
+      useStore.getState().createObject(openingPayload(world, frame))
+      setHover(null)
+      return
+    }
+
     // Arc : tracé en 3 CLICS (pas de glissé). 1er clic = centre ; clics suivants
     // = verrouille rayon (étape 'radius'→'sweep') puis fixe le balayage (commit).
     if (tool === 'arc') {
@@ -844,9 +854,14 @@ export default function EditObjects() {
   const raycaster = useThree((state) => state.raycaster)
 
   const selectable = editMode && activeTool === 'select'
+  // Outils qui rendent la surface d'esquisse : tracés (rect/circle/arc) + pose
+  // d'ouverture (E14-01, clic sur une face de mur).
   const drawing =
     editMode &&
-    (activeTool === 'rect' || activeTool === 'circle' || activeTool === 'arc')
+    (activeTool === 'rect' ||
+      activeTool === 'circle' ||
+      activeTool === 'arc' ||
+      activeTool === 'opening')
   const pushable = editMode && activeTool === 'pushpull'
 
   // E12-03 : indexer le modèle importé (BVH three-mesh-bvh) à l'entrée d'Edit mode
@@ -881,6 +896,7 @@ export default function EditObjects() {
     (objId, event) => {
       const obj = useStore.getState().objects[objId]
       if (!obj) return
+      if (obj.kind === 'opening.window') return // une ouverture ne s'extrude pas
       const axis = pickPushAxis(obj, event)
       const center = obj.plane?.origin ?? [0, 0, 0]
       const baseParam = Number(obj.params[axis.key]) || 0
