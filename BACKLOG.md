@@ -284,8 +284,8 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E14-01 ✅ | En tant qu'utilisateur, je veux déposer une ouverture paramétrique sur une face de mur afin de définir l'emplacement et la taille du vide. | Params **largeur / hauteur / allège** ; posée sur une face de mur ; référence le mur par node name (dégradation propre si mur absent). | M | 5 |
-| E14-02 | En tant que dev, je veux un booléen CSG sur le mur importé afin d'y faire un **vrai trou**. | `three-bvh-csg` : mur percé = mur importé − volume de l'ouverture ; **non-destructif** (mur d'origine conservé) ; découpe **recalculée au chargement** depuis les `edit` des ouvertures référençant le mur. | M | 13 |
-| E14-03 | En tant qu'utilisateur, je veux que l'app gère proprement un mur « sale » (non-manifold). | Détection d'un résultat CSG dégénéré (volume nul / explosion de triangles) → **fallback** « pose en surface sans trou » + message ; validé sur un **vrai export SketchUp**. | M | 5 |
+| E14-02 ✅ | En tant que dev, je veux un booléen CSG sur le mur importé afin d'y faire un **vrai trou**. | `three-bvh-csg` : mur percé = mur importé − volume de l'ouverture ; **non-destructif** (mur d'origine conservé) ; découpe **recalculée au chargement** depuis les `edit` des ouvertures référençant le mur. | M | 13 |
+| E14-03 ✅ | En tant qu'utilisateur, je veux que l'app gère proprement un mur « sale » (non-manifold). | Détection d'un résultat CSG dégénéré (volume nul / explosion de triangles) → **fallback** « pose en surface sans trou » + message ; validé sur un **vrai export SketchUp**. | M | 5 |
 | E14-04 | En tant qu'utilisateur, je veux des gabarits d'ouverture (classique / large / étroite) afin d'aller vite. | Presets de dims sélectionnables ; modifiables ensuite par instance. | S | 2 |
 
 **Phase 2 — la menuiserie (cadre + vitrage)** — **après** Slice 2 (réutilise la pose de composants ①, **pas de booléen**).
@@ -681,6 +681,35 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > recalculé au chargement, non-destructif) + **E14-03 fallback** mur non-manifold ;
 > puis **E14-04** gabarits. Le [spike CSG](home3d/script/spike-csg.mjs) a validé
 > l'approche (🟢 fiable même sur le bloc non-manifold, garder weld + fallback).
+
+> **Slice 1 — avancement (2026-07-01, incrément 2 : E14-02/03 vrai trou CSG).**
+> **Le morceau risqué de la V2.** Les ouvertures (E14-01) percent désormais un
+> **vrai vide** dans le mur importé par booléen CSG. Module three
+> [csg.js](home3d/src/lib/csg.js) (reprend l'approche validée du
+> [spike](home3d/script/spike-csg.mjs) 🟢) : `openingCutBox` (boîte largeur×hauteur
+> profonde sur la face), `cutWallGeometry` (weld `mergeVertices` + `Brush`/
+> `Evaluator SUBTRACTION` de `three-bvh-csg` ; conserve `uv` pour les murs texturés ;
+> travaille en monde, rend en local), `isCutDegenerate` (vide / NaN / explosion de
+> triangles → E14-03). **Non-destructif & ré-éditable** : la géométrie d'origine est
+> gardée dans une **WeakMap** (`pristineGeom`) et la découpe **recalculée DEPUIS
+> elle** à chaque changement (agrandir / rétrécir / **déplacer** repartent du mur
+> plein → pas de trou fantôme). Composant [WallCutter.jsx](home3d/src/components/WallCutter.jsx)
+> (monté dans [Viewer.jsx](home3d/src/components/Viewer.jsx), actif en **vue comme en
+> édition**) : groupe les ouvertures par mur (`plane.faceOf`), restaure tout puis
+> recoupe ; pose la géométrie percée **en place** sur le mesh (même calque / matériau /
+> raycast) ; mur absent → dégradation propre. **Recalcul au chargement** : gratuit
+> (WallCutter réagit aux `objects` reconstruits). **E14-03 fallback** : résultat
+> dégénéré → mur d'origine conservé + id dans `csgFallbackIds` (store) → **message**
+> dans l'inspector ([EditBar.jsx](home3d/src/components/EditBar.jsx)). **Export**
+> ([exportGLB.js](home3d/src/lib/exportGLB.js)) : `withPristineGeometry` écrit le mur
+> **plein** + les ouvertures paramétriques (fichier ré-éditable, découpe recalculée au
+> rechargement, pas figée). Tests [csg.test.mjs](home3d/script/csg.test.mjs) (boîte de
+> découpe, **vrai trou vérifié par raycast** headless comme le spike, dégénérescence)
+> → **138 verts** ; `lint`/`build` OK. Vérifié au navigateur sur le modèle démo :
+> ouverture posée sur un mur → géométrie du mur **modifiée** (perçage, 0 fallback),
+> **suppression restaure exactement** l'origine (non-destructif), **export sans
+> erreur** (mur plein pendant le clone puis découpe rétablie), aucune erreur console.
+> **Slice 1 quasi close** ; reste **E14-04** (gabarits classique/large/étroite).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

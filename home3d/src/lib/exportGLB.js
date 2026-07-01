@@ -20,6 +20,7 @@ import * as THREE from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { generateObject, deriveDims } from './editRegistry.js'
 import { nodeName } from './naming.js'
+import { withPristineGeometry } from './csg.js'
 
 // Extras d'un node créé in-app. `layer/type/zone/level/index` = métadonnées de
 // convention (cohérentes avec un node pipeline) ; `edit` = bloc qui rend l'objet
@@ -57,9 +58,15 @@ export async function buildEditedGLB({ scene, objects, metadata }) {
 
   // Coquille importée : on clone (userData copié par valeur) puis on re-parente
   // ses enfants, pour ne pas dupliquer les extras de scène sur un node et pour
-  // ne pas muter la scène vivante (montée dans le Canvas).
+  // ne pas muter la scène vivante (montée dans le Canvas). `withPristineGeometry`
+  // rétablit le temps du clone les murs PLEINS (E14-02) : le GLB écrit le mur non
+  // percé + les ouvertures paramétriques → la découpe est recalculée au
+  // chargement (fichier ré-éditable), pas figée dans la géométrie exportée.
   if (scene) {
-    const clone = scene.clone()
+    let clone
+    withPristineGeometry(scene, () => {
+      clone = scene.clone()
+    })
     for (const child of [...clone.children]) exportScene.add(child)
   }
 

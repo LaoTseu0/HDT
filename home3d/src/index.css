@@ -146,6 +146,16 @@ button.secondary {
   color: #9aa0b0;
 }
 
+.edit-warning {
+  margin: 0;
+  font-size: 12px;
+  color: #ffcf8f;
+  background: #3a2f1d;
+  border: 1px solid #6b5326;
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+
 .edit-inspector {
   display: flex;
   flex-direction: column;

@@ -4,6 +4,7 @@ import { OrbitControls, Grid } from '@react-three/drei'
 import Model from './Model.jsx'
 import VisitControls from './VisitControls.jsx'
 import EditObjects from './EditObjects.jsx'
+import WallCutter from './WallCutter.jsx'
 import useStore from '../store/useStore.js'
 
 // E8-01 : overlay perf (draw calls, fps, mémoire GPU), dev uniquement,
@@ -54,6 +55,7 @@ export default function Viewer() {
       <directionalLight position={[-6, 4, -5]} intensity={0.4} />
 
       <Model />
+      <WallCutter />
       <EditObjects />
 
       <Grid

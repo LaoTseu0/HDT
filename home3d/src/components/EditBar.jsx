@@ -216,6 +216,7 @@ export default function EditBar() {
   const metadata = useStore((state) => state.metadata)
   const gridSnap = useStore((state) => state.gridSnap)
   const toggleGridSnap = useStore((state) => state.toggleGridSnap)
+  const csgFallbackIds = useStore((state) => state.csgFallbackIds)
 
   // pastStates/futureStates du store temporel zundo (réactif).
   const canUndo = useTemporal((state) => state.pastStates.length > 0)
@@ -328,6 +329,12 @@ export default function EditBar() {
               <p className="edit-hint">
                 Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
               </p>
+              {csgFallbackIds.includes(selectedObj.id) && (
+                <p className="edit-warning">
+                  ⚠ Mur non perçable (géométrie dégénérée) : ouverture posée en
+                  surface, sans trou.
+                </p>
+              )}
             </>
           ) : (
             <>

@@ -250,6 +250,17 @@ const useStore = create(
           }
         }),
 
+      // E14-03 : ids des ouvertures dont le perçage CSG a échoué (mur non-manifold
+      // → posées en surface sans trou). Alimenté par WallCutter à chaque recalcul ;
+      // garde d'égalité pour ne pas boucler (mis à jour dans un effet). Non historisé.
+      csgFallbackIds: [],
+      setCsgFallbackIds: (ids) =>
+        set((state) => {
+          const a = state.csgFallbackIds
+          if (a.length === ids.length && a.every((x, i) => x === ids[i])) return state
+          return { csgFallbackIds: ids }
+        }),
+
       // E12-03 : accroche à la grille du plan d'esquisse (préférence d'outil, pas
       // historisée). Candidat de plus basse priorité : la géométrie l'emporte
       // toujours, la grille ne « tire » qu'en l'absence de référence proche.
