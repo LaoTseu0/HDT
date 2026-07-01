@@ -1,8 +1,10 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { frameOfObjectPlane } from './workPlanes.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from './elec.js'
 import { runRings } from './routing.js'
 import { CABLE_KIND } from './cable.js'
+import { JOINERY_KIND } from './joinery.js'
 
 // Registre paramétrique d'Edit mode (E12-05, cf. docs/edit-mode-design.md § 5.1).
 //
@@ -273,6 +275,80 @@ function generateOpening(params, plane) {
   return group
 }
 
+// joinery.frame — menuiserie (cadre + vitrage) posée DANS une ouverture (E14-05,
+// cf. lib/joinery). params : { largeur_m (u), hauteur_m (v) — copiés de l'hôte à
+// la pose —, epaisseur_m (section des montants), profondeur_m (dormant, le long
+// de la normale) }. plane = celui de l'ouverture hôte (origin = CENTRE DU SEUIL,
+// géométrie de v=0 à v=hauteur comme generateOpening) + `hostOf`. Composant posé
+// (catégorie ①), AUCUN booléen : le cadre est ENCASTRÉ dans le vide creusé par
+// l'ouverture (z ∈ [-profondeur, 0], face avant affleurant la face du mur).
+const JOINERY_FILL = 0x1d9e75 // couleur du calque `ouvertures` (script/naming.mjs)
+const JOINERY_EDGE = 0x9be7df
+const GLASS_FILL = 0xbfe3f2
+const GLASS_T = 0.008 // épaisseur du vitrage (m)
+
+function generateJoinery(params, plane) {
+  const w = Math.max(Number(params.largeur_m) || 0, 0.05)
+  const h = Math.max(Number(params.hauteur_m) || 0, 0.05)
+  // Section des montants bornée : au moins 1 cm, et jamais au point de fermer le
+  // jour (il reste une baie vitrée d'au moins ~1 cm).
+  const t = Math.min(
+    Math.max(Number(params.epaisseur_m) || 0, 0.01),
+    (Math.min(w, h) - 0.01) / 2
+  )
+  const d = Math.max(Number(params.profondeur_m) || 0, 0.01)
+  const zc = -d / 2 // encastré : face avant à z=0 (plan du mur), corps vers le vide
+
+  // Cadre = 2 traverses + 2 montants (boîtes locales u→X, v→Y, normal→Z),
+  // fusionnés en UNE géométrie → un seul mesh `__fill` (sélection/émissif
+  // d'EditObject uniformes sur tout le cadre).
+  const bar = (bw, bh, cx, cy) => {
+    const g = new THREE.BoxGeometry(bw, bh, d)
+    g.translate(cx, cy, zc)
+    return g
+  }
+  const frameGeo = mergeGeometries([
+    bar(w, t, 0, t / 2), // traverse basse (seuil)
+    bar(w, t, 0, h - t / 2), // traverse haute
+    bar(t, h - 2 * t, -(w - t) / 2, h / 2), // montant gauche
+    bar(t, h - 2 * t, (w - t) / 2, h / 2), // montant droit
+  ])
+
+  const fill = new THREE.Mesh(
+    frameGeo,
+    new THREE.MeshStandardMaterial({ color: JOINERY_FILL, metalness: 0.1, roughness: 0.6 })
+  )
+  fill.name = '__fill'
+
+  // Vitrage : fine plaque translucide dans le jour du cadre.
+  const glassGeo = new THREE.BoxGeometry(w - 2 * t, h - 2 * t, GLASS_T)
+  glassGeo.translate(0, h / 2, zc)
+  const glass = new THREE.Mesh(
+    glassGeo,
+    new THREE.MeshStandardMaterial({
+      color: GLASS_FILL,
+      transparent: true,
+      opacity: 0.3,
+      metalness: 0.3,
+      roughness: 0.1,
+      depthWrite: false,
+    })
+  )
+  glass.name = '__glass'
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(frameGeo),
+    new THREE.LineBasicMaterial({ color: JOINERY_EDGE })
+  )
+  edges.name = '__edges'
+  edges.raycast = () => {}
+
+  const group = new THREE.Group()
+  group.add(fill, glass, edges)
+  placeOnPlane(group, plane)
+  return group
+}
+
 // elec.* — composants électriques ponctuels posés sur une face de mur (E15-01/02,
 // cf. lib/elec). params : { largeur_m (u), hauteur_m (v), profondeur_m (normal) }.
 // plane.origin = CENTRE du composant sur la face ; la boîte ressort le long de
@@ -371,6 +447,7 @@ const REGISTRY = {
   'sketch.circle': generateCircle,
   'sketch.arc': generateArc,
   'opening.window': generateOpening,
+  [JOINERY_KIND]: generateJoinery,
   [CABLE_KIND]: generateRun,
   // Tout le catalogue élec partage `generateElec` (seules les dims diffèrent).
   ...Object.fromEntries(ELEC_KINDS.map((k) => [k, generateElec])),
@@ -391,6 +468,7 @@ const KIND_NAMING = {
   'sketch.circle': { system: 'structure', type: 'disque' },
   'sketch.arc': { system: 'structure', type: 'arc' },
   'opening.window': { system: 'ouvertures', type: 'fenetre' },
+  [JOINERY_KIND]: { system: 'ouvertures', type: 'menuiserie' }, // cadre+vitrage (E14-05)
   [CABLE_KIND]: { system: 'elec', type: 'cable' }, // câble routé (E15-03)
   // elec.* → système `elec`, type = celui du catalogue (prise, interrupteur…).
   ...Object.fromEntries(
@@ -527,10 +605,11 @@ export function referencePoints(obj) {
     ]
   }
 
-  if (obj.kind === 'opening.window') {
+  if (obj.kind === 'opening.window' || obj.kind === JOINERY_KIND) {
     const hw = Math.max(Number(obj.params.largeur_m) || 0, 0.001) / 2
     const hh = Math.max(Number(obj.params.hauteur_m) || 0, 0.001)
     // Rectangle u∈[-hw,hw], v∈[0,hh] (origin = seuil) : coins, milieux, centre.
+    // La menuiserie (E14-05) partage ce repère avec l'ouverture qui l'héberge.
     return [
       { type: 'endpoint', point: at(-hw, 0, 0) },
       { type: 'endpoint', point: at(hw, 0, 0) },
@@ -604,7 +683,7 @@ export function deriveDims(obj) {
       hauteur_m: Math.abs(Number(obj.params.hauteur_m) || 0),
     }
   }
-  if (isElecKind(obj.kind)) {
+  if (isElecKind(obj.kind) || obj.kind === JOINERY_KIND) {
     // u→largeur, v→hauteur, normal→profondeur (emprise du composant sur le mur).
     return {
       largeur_m: Number(obj.params.largeur_m) || 0,

@@ -14,6 +14,8 @@ import {
 import { angleOf, nextSweep } from '../lib/sketchArc.js'
 import { openingPayload, OPENING_PRESETS, DEFAULT_OPENING_PRESET } from '../lib/opening.js'
 import { elecPayload } from '../lib/elec.js'
+import { joineryPayloadFromOpening, findJoinery } from '../lib/joinery.js'
+import { nodeName } from '../lib/naming.js'
 import {
   midpoint,
   closestPointOnSegment,
@@ -343,8 +345,10 @@ function EditObject({
   selected,
   selectable,
   pushable,
+  hostable,
   onSelect,
   onStartPush,
+  onHost,
 }) {
   const effective = useMemo(
     () =>
@@ -374,15 +378,17 @@ function EditObject({
   }, [object3d, selected, baseOpacity])
 
   if (!object3d) return null
-  const interactive = selectable || pushable
+  const interactive = selectable || pushable || hostable
   return (
     <primitive
       object={object3d}
       onClick={
-        selectable
+        selectable || hostable
           ? (event) => {
               event.stopPropagation()
-              onSelect(obj.id)
+              // Outil Menuiserie (E14-05) : cliquer une ouverture y pose le cadre.
+              if (hostable) onHost(obj.id)
+              else onSelect(obj.id)
             }
           : undefined
       }
@@ -951,6 +957,9 @@ export default function EditObjects() {
   const raycaster = useThree((state) => state.raycaster)
 
   const selectable = editMode && activeTool === 'select'
+  // Menuiserie (E14-05) : pas de surface d'esquisse — l'hôte du clic est une
+  // OUVERTURE déjà posée (son marqueur devient cliquable), pas une face de mur.
+  const hosting = editMode && activeTool === 'joinery'
   // Outils qui rendent la surface d'esquisse : tracés (rect/circle/arc) + pose
   // d'ouverture (E14-01, clic sur une face de mur).
   const drawing =
@@ -962,6 +971,23 @@ export default function EditObjects() {
       activeTool === 'elec' ||
       activeTool === 'cable')
   const pushable = editMode && activeTool === 'pushpull'
+
+  // Pose de la menuiserie (E14-05) : clic sur une ouverture → cadre + vitrage
+  // ajustés à ses dims, liés par node name (`plane.hostOf`). Une ouverture déjà
+  // équipée sélectionne son cadre existant (garde « un cadre par ouverture »).
+  const onHostJoinery = useCallback((objId) => {
+    const state = useStore.getState()
+    const opening = state.objects[objId]
+    if (opening?.kind !== 'opening.window') return
+    const host = nodeName(opening)
+    const existing = findJoinery(state.objects, host)
+    if (existing) {
+      state.selectNode(existing.id)
+      return
+    }
+    const payload = joineryPayloadFromOpening(opening, host)
+    if (payload) state.createObject(payload)
+  }, [])
 
   // E12-03 : indexer le modèle importé (BVH three-mesh-bvh) à l'entrée d'Edit mode
   // — accélère le raycast du tracé ET les requêtes de proximité du snapping. Coût
@@ -1068,8 +1094,10 @@ export default function EditObjects() {
           selected={obj.id === selectedNode}
           selectable={selectable}
           pushable={pushable}
+          hostable={hosting && obj.kind === 'opening.window'}
           onSelect={selectNode}
           onStartPush={onStartPush}
+          onHost={onHostJoinery}
         />
       ))}
       {drawing && (
