@@ -292,7 +292,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E14-05 | En tant qu'utilisateur, je veux poser un cadre de fenêtre (+ vitrage) dans une ouverture. | **Composant posé** (catégorie ①) hébergé dans l'ouverture, ajusté à ses dims ; **pas de booléen** ; réutilise la machinerie de pose d'E15. | M | 5 |
+| E14-05 ✅ | En tant qu'utilisateur, je veux poser un cadre de fenêtre (+ vitrage) dans une ouverture. | **Composant posé** (catégorie ①) hébergé dans l'ouverture, ajusté à ses dims ; **pas de booléen** ; réutilise la machinerie de pose d'E15. | M | 5 |
 | E14-06 | En tant qu'utilisateur, je veux choisir une variante de menuiserie. | Variantes catalogue (classique / large / étroite, battant/coulissant…) par instance. | S | 3 |
 | E14-07 | En tant qu'utilisateur, je veux poser une porte (ouverture + vantail) via le même mécanisme. | Réemploi E14-01→05 : ouverture + composant vantail. | C | 5 |
 
@@ -807,6 +807,41 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > régénère la géométrie (câble plus épais), undo/redo, aucune erreur console. **Reste
 > Slice 2** : **E15-04** (circuits, optionnel). La menuiserie des fenêtres (E14 ph.2)
 > réutilisera la pose de composants d'E15-01.
+
+> **E14 phase 2 — avancement (2026-07-01, incrément 1 : E14-05 menuiserie cadre +
+> vitrage).** Comme prévu au séquençage (§ 6), la menuiserie arrive **après** la
+> Slice 2 : c'est un **composant posé** (catégorie ①) qui réutilise la machinerie
+> de pose d'E15-01, **aucun booléen**. Nouvel outil **Menuiserie** : cliquer une
+> **ouverture déjà posée** (son marqueur devient cliquable, pas de surface
+> d'esquisse) → un cadre + vitrage s'y loge, **ajusté à ses dims** (largeur/hauteur
+> copiées à la pose). Module **pur** [joinery.js](home3d/src/lib/joinery.js) :
+> `joineryPayloadFromOpening` (dims + plan de l'hôte copiés PAR VALEUR, profil par
+> défaut épaisseur 0,06 m / profondeur 0,08 m) et `findJoinery` (garde **« un cadre
+> par ouverture »** : re-cliquer une ouverture équipée sélectionne son cadre).
+> **Liaison** : `plane.hostOf` = node name de l'ouverture — stable au round-trip
+> GLB (au rechargement l'id d'un objet app = son node name exporté). Registre
+> ([editRegistry.js](home3d/src/lib/editRegistry.js)) : `generateJoinery` — 2
+> traverses + 2 montants **fusionnés en une géométrie** (`mergeGeometries`, un seul
+> `__fill` → sélection/émissif uniformes) + vitrage translucide `__glass`,
+> **encastré dans le vide** (face avant affleurant le mur), teinté couleur du calque
+> `ouvertures` `#1D9E75` ; section des montants bornée (jamais au point de fermer le
+> jour) ; `referencePoints` partagés avec l'ouverture (même repère seuil),
+> `deriveDims`, `kindNaming` → `ouvertures`/`menuiserie`. Pose dans
+> [EditObjects.jsx](home3d/src/components/EditObjects.jsx) : prop `hostable` sur les
+> ouvertures quand l'outil Menuiserie est actif (clic → `onHostJoinery`), WallCutter
+> et Push/Pull inchangés (ignorent les non-`opening.window` / non-`sketch.*`). UI
+> ([EditBar.jsx](home3d/src/components/EditBar.jsx)) : **icône cadre + tooltip**
+> (directive IHM) + inspector (Largeur / Hauteur / Épaisseur cadre / Profondeur +
+> node name de l'ouverture hôte). Round-trip GLB **générique** (`extras.edit` porte
+> params + plane avec `hostOf`). Tests :
+> [joinery.test.mjs](home3d/script/joinery.test.mjs) + générateur/références dans
+> [editRegistry.test.mjs](home3d/script/editRegistry.test.mjs) → **176 verts** ;
+> `lint`/`build` OK. Vérifié au navigateur sur le modèle démo : ouverture posée
+> (`ouvertures__fenetre__combles__combles__001`) → outil Menuiserie → cadre posé
+> (`ouvertures__menuiserie__combles__combles__002`, 1 × 1,2 m copiés du gabarit
+> classique), re-clic sans doublon, inspector complet, undo/redo, aucune erreur
+> console. **Reste E14 phase 2** : E14-06 (variantes de menuiserie) et E14-07
+> (portes) — puis **Slice 3 (plomberie, E16)** ou **E15-04** (circuits, optionnel).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

@@ -4,6 +4,7 @@ import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
 import { nodeName, LEVELS } from '../lib/naming.js'
 import { OPENING_PRESETS } from '../lib/opening.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from '../lib/elec.js'
+import { JOINERY_KIND } from '../lib/joinery.js'
 import {
   CABLE_SECTIONS,
   CABLE_SECTION_KEYS,
@@ -87,6 +88,32 @@ function ToolIcon({ id }) {
           strokeWidth="2"
         />
         <path d="M12 4v16M4 12h16" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      </svg>
+    )
+  }
+  if (id === 'joinery') {
+    // Menuiserie : dormant (cadre externe) + jour vitré (cadre interne).
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect
+          x="4"
+          y="3"
+          width="16"
+          height="18"
+          rx="1"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <rect
+          x="8"
+          y="7"
+          width="8"
+          height="10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.4"
+        />
       </svg>
     )
   }
@@ -317,6 +344,11 @@ const TOOLS = [
     hint: 'Poser une fenêtre sur une face de mur',
   },
   {
+    id: 'joinery',
+    label: 'Menuiserie',
+    hint: 'Poser un cadre + vitrage dans une ouverture existante',
+  },
+  {
     id: 'elec',
     label: 'Électricité',
     hint: 'Poser un composant électrique sur une face de mur',
@@ -341,6 +373,8 @@ const TOOL_HINTS = {
   arc: 'Cliquez le centre, puis le début (rayon), puis la fin (balayage). Tapez une valeur pour la fixer.',
   opening:
     'Choisissez un gabarit puis cliquez sur une face de mur pour y poser une fenêtre. Ajustez largeur / hauteur / allège dans l’inspecteur.',
+  joinery:
+    'Cliquez une ouverture déjà posée : le cadre + vitrage s’y loge, ajusté à ses dimensions. Une ouverture déjà équipée sélectionne son cadre.',
   elec:
     'Choisissez un composant puis cliquez sur une face de mur pour le poser. Ajustez la hauteur / sol dans l’inspecteur.',
   cable:
@@ -568,6 +602,34 @@ export default function EditBar() {
               />
               <p className="edit-hint">
                 Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
+              </p>
+            </>
+          ) : selectedObj.kind === JOINERY_KIND ? (
+            <>
+              <NumberField
+                label="Largeur (m)"
+                value={selectedObj.params.largeur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
+              />
+              <NumberField
+                label="Hauteur (m)"
+                value={selectedObj.params.hauteur_m}
+                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
+              />
+              <NumberField
+                label="Épaisseur cadre (m)"
+                value={selectedObj.params.epaisseur_m}
+                step="0.01"
+                onChange={(v) => updateObjectParams(selectedObj.id, { epaisseur_m: v })}
+              />
+              <NumberField
+                label="Profondeur (m)"
+                value={selectedObj.params.profondeur_m}
+                step="0.01"
+                onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
+              />
+              <p className="edit-hint">
+                Ouverture : <code>{selectedObj.plane?.hostOf ?? '—'}</code>
               </p>
             </>
           ) : selectedObj.kind === 'opening.window' ? (
