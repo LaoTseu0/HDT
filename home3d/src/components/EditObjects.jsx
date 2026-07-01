@@ -13,6 +13,7 @@ import {
 } from '../lib/workPlanes.js'
 import { angleOf, nextSweep } from '../lib/sketchArc.js'
 import { openingPayload, OPENING_PRESETS, DEFAULT_OPENING_PRESET } from '../lib/opening.js'
+import { elecPayload } from '../lib/elec.js'
 import {
   midpoint,
   closestPointOnSegment,
@@ -653,6 +654,7 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   const setDraft = useStore((state) => state.setDraft)
   const gridSnap = useStore((state) => state.gridSnap)
   const openingPreset = useStore((state) => state.openingPreset)
+  const elecComponent = useStore((state) => state.elecComponent)
   const [hover, setHover] = useState(null)
   const drawing = useRef(false)
   const rc = useMemo(() => new THREE.Raycaster(), [])
@@ -781,6 +783,15 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
       return
     }
 
+    // Composant élec (E15-01/02) : pose au CLIC sur une FACE de mur, même
+    // mécanique que l'ouverture. Le composant sélectionné vient du store.
+    if (tool === 'elec') {
+      if (frame.type !== 'face') return // ignore un clic sur le sol
+      useStore.getState().createObject(elecPayload(world, frame, elecComponent))
+      setHover(null)
+      return
+    }
+
     // Arc : tracé en 3 CLICS (pas de glissé). 1er clic = centre ; clics suivants
     // = verrouille rayon (étape 'radius'→'sweep') puis fixe le balayage (commit).
     if (tool === 'arc') {
@@ -863,7 +874,8 @@ export default function EditObjects() {
     (activeTool === 'rect' ||
       activeTool === 'circle' ||
       activeTool === 'arc' ||
-      activeTool === 'opening')
+      activeTool === 'opening' ||
+      activeTool === 'elec')
   const pushable = editMode && activeTool === 'pushpull'
 
   // E12-03 : indexer le modèle importé (BVH three-mesh-bvh) à l'entrée d'Edit mode
@@ -898,7 +910,9 @@ export default function EditObjects() {
     (objId, event) => {
       const obj = useStore.getState().objects[objId]
       if (!obj) return
-      if (obj.kind === 'opening.window') return // une ouverture ne s'extrude pas
+      // Seules les primitives d'esquisse s'extrudent : une ouverture ou un
+      // composant élec posé n'est pas un volume à tirer.
+      if (!obj.kind.startsWith('sketch.')) return
       const axis = pickPushAxis(obj, event)
       const center = obj.plane?.origin ?? [0, 0, 0]
       const baseParam = Number(obj.params[axis.key]) || 0
