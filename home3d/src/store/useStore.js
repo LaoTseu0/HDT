@@ -15,6 +15,7 @@ import { kindNaming } from '../lib/editRegistry.js'
 import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
 import { DEFAULT_OPENING_PRESET } from '../lib/opening.js'
 import { DEFAULT_ELEC_KIND } from '../lib/elec.js'
+import { cablePayloadFromPath, DEFAULT_CABLE_SECTION } from '../lib/cable.js'
 
 // Id interne STABLE d'un objet app (clé du map `objects`, jamais affichée). Le
 // node name conforme (système__type__zone__niveau__index) en est DÉCOUPLÉ et
@@ -91,6 +92,22 @@ function commitArc(state, d) {
     }
   }
   const payload = arcPayloadFromDraft(d.center, r, d.startAngle, sweepRad, d.frame)
+  if (!payload) return { draft: null, vcbText: '' }
+  const obj = buildAppObject(state, payload)
+  return {
+    objects: { ...state.objects, [obj.id]: obj },
+    selectedNode: obj.id,
+    draft: null,
+    vcbText: '',
+  }
+}
+
+// Commit d'un tracé de CÂBLE routé (E15-03) : le chemin committé = les sommets
+// déjà cliqués (`d.points`), le `current` (segment sous le curseur) n'est qu'un
+// aperçu et n'est pas ajouté. `cablePayloadFromPath` déduplique et exige ≥ 2
+// sommets distincts (sinon le tracé est simplement abandonné).
+function commitCable(state, d) {
+  const payload = cablePayloadFromPath(d.points ?? [], state.cableSection)
   if (!payload) return { draft: null, vcbText: '' }
   const obj = buildAppObject(state, payload)
   return {
@@ -223,6 +240,7 @@ const useStore = create(
           // du constructeur de payload. L'arc est multi-étapes (cf. commitArc).
           const tool = d.tool ?? 'rect'
           if (tool === 'arc') return commitArc(state, d)
+          if (tool === 'cable') return commitCable(state, d)
           let payload
           if (tool === 'circle') {
             const parsed = state.vcbText ? parseVcbRadius(state.vcbText) : null
@@ -280,6 +298,12 @@ const useStore = create(
       // historisée ; l'instance posée reste modifiable ensuite dans l'inspector.
       elecComponent: DEFAULT_ELEC_KIND,
       setElecComponent: (kind) => set({ elecComponent: kind }),
+
+      // E15-03 : section de câble sélectionnée avant le routage (gaine Ø16/20/25/
+      // 32, cf. lib/cable `CABLE_SECTIONS`). Préférence d'outil, pas historisée ;
+      // l'instance posée reste modifiable ensuite dans l'inspector.
+      cableSection: DEFAULT_CABLE_SECTION,
+      setCableSection: (section) => set({ cableSection: section }),
 
       // E12-08 : aperçu éphémère d'un Push/Pull en cours =
       // { id, paramKey, value, origin } (la face cliquée fixe quelle cote bouge).
