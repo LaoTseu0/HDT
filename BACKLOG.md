@@ -293,7 +293,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E14-05 ✅ | En tant qu'utilisateur, je veux poser un cadre de fenêtre (+ vitrage) dans une ouverture. | **Composant posé** (catégorie ①) hébergé dans l'ouverture, ajusté à ses dims ; **pas de booléen** ; réutilise la machinerie de pose d'E15. | M | 5 |
-| E14-06 | En tant qu'utilisateur, je veux choisir une variante de menuiserie. | Variantes catalogue (classique / large / étroite, battant/coulissant…) par instance. | S | 3 |
+| E14-06 ✅ | En tant qu'utilisateur, je veux choisir une variante de menuiserie. | Variantes catalogue (classique / large / étroite, battant/coulissant…) par instance. | S | 3 |
 | E14-07 | En tant qu'utilisateur, je veux poser une porte (ouverture + vantail) via le même mécanisme. | Réemploi E14-01→05 : ouverture + composant vantail. | C | 5 |
 
 ---
@@ -842,6 +842,38 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > classique), re-clic sans doublon, inspector complet, undo/redo, aucune erreur
 > console. **Reste E14 phase 2** : E14-06 (variantes de menuiserie) et E14-07
 > (portes) — puis **Slice 3 (plomberie, E16)** ou **E15-04** (circuits, optionnel).
+
+> **E14 phase 2 — avancement (2026-07-04, incrément 2 : E14-06 variantes de
+> menuiserie).** La variante est un **param d'instance** (`params.variante`),
+> façon catalogue élec : le kind, le nommage (`ouvertures__menuiserie__…`) et
+> l'emprise (dims copiées de l'hôte) ne changent pas, seule la géométrie générée
+> diffère. Catalogue dans [joinery.js](home3d/src/lib/joinery.js) :
+> `JOINERY_VARIANTS` = **fixe** (rendu E14-05 : vitrage plein), **battant**
+> (meneau central + un vitrage par vantail) et **coulissant** (2 vantaux sur
+> **rails décalés** le long de la normale : vitrages d'une demi-baie +
+> recouvrement central, montants de recouvrement croisés sur des plans
+> différents) ; `joineryVariantOf` = repli sur `fixe` → **rétro-compat** des GLB
+> antérieurs (menuiseries sans `variante`). Générateur
+> ([editRegistry.js](home3d/src/lib/editRegistry.js)) : `bar(bw,bh,cx,cy,bd?,cz?)`
+> généralisé (profondeur/position propres aux pièces de variante), vitrages
+> **fusionnés en une géométrie** (`mergeGeometries`, un seul `__glass`), cadre
+> toujours un seul `__fill`. Sélection **avant la pose** : préférence d'outil
+> `joineryVariant` dans le store (non historisée), copiée dans les params par
+> `joineryPayloadFromOpening(opening, host, variante)` ; **sous-barre à icônes +
+> tooltips** (directive IHM) sous la palette quand l'outil Menuiserie est actif
+> ([EditBar.jsx](home3d/src/components/EditBar.jsx)) + **SelectField « Variante »
+> dans l'inspector** (modifiable par instance, régénère la géométrie). Round-trip
+> GLB **générique** (`edit.params` porte `variante`, aucun changement d'export).
+> Tests : [joinery.test.mjs](home3d/script/joinery.test.mjs) (catalogue, payload,
+> repli) + [editRegistry.test.mjs](home3d/script/editRegistry.test.mjs)
+> (géométries par variante : meneau, 2 vitrages, rails à Z distincts,
+> rétro-compat) → **183 verts** ; `lint`/`build` OK. Vérifié au navigateur sur le
+> modèle démo : ouverture posée → menuiserie **battant**
+> (`ouvertures__menuiserie__combles__combles__002`, meneau visible), bascule
+> **battant → coulissant** dans l'inspector régénère la géométrie, undo/redo sur
+> le changement de variante, aucune erreur console. **Reste E14 phase 2** :
+> E14-07 (portes) — puis **Slice 3 (plomberie, E16)** ou **E15-04** (circuits,
+> optionnel).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
