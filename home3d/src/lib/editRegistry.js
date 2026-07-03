@@ -4,7 +4,7 @@ import { frameOfObjectPlane } from './workPlanes.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from './elec.js'
 import { runRings } from './routing.js'
 import { CABLE_KIND } from './cable.js'
-import { JOINERY_KIND } from './joinery.js'
+import { JOINERY_KIND, joineryVariantOf } from './joinery.js'
 
 // Registre paramétrique d'Edit mode (E12-05, cf. docs/edit-mode-design.md § 5.1).
 //
@@ -278,10 +278,11 @@ function generateOpening(params, plane) {
 // joinery.frame — menuiserie (cadre + vitrage) posée DANS une ouverture (E14-05,
 // cf. lib/joinery). params : { largeur_m (u), hauteur_m (v) — copiés de l'hôte à
 // la pose —, epaisseur_m (section des montants), profondeur_m (dormant, le long
-// de la normale) }. plane = celui de l'ouverture hôte (origin = CENTRE DU SEUIL,
-// géométrie de v=0 à v=hauteur comme generateOpening) + `hostOf`. Composant posé
-// (catégorie ①), AUCUN booléen : le cadre est ENCASTRÉ dans le vide creusé par
-// l'ouverture (z ∈ [-profondeur, 0], face avant affleurant la face du mur).
+// de la normale), variante (E14-06 : fixe/battant/coulissant, repli fixe) }.
+// plane = celui de l'ouverture hôte (origin = CENTRE DU SEUIL, géométrie de v=0
+// à v=hauteur comme generateOpening) + `hostOf`. Composant posé (catégorie ①),
+// AUCUN booléen : le cadre est ENCASTRÉ dans le vide creusé par l'ouverture
+// (z ∈ [-profondeur, 0], face avant affleurant la face du mur).
 const JOINERY_FILL = 0x1d9e75 // couleur du calque `ouvertures` (script/naming.mjs)
 const JOINERY_EDGE = 0x9be7df
 const GLASS_FILL = 0xbfe3f2
@@ -298,21 +299,58 @@ function generateJoinery(params, plane) {
   )
   const d = Math.max(Number(params.profondeur_m) || 0, 0.01)
   const zc = -d / 2 // encastré : face avant à z=0 (plan du mur), corps vers le vide
+  const variante = joineryVariantOf(params.variante)
 
   // Cadre = 2 traverses + 2 montants (boîtes locales u→X, v→Y, normal→Z),
   // fusionnés en UNE géométrie → un seul mesh `__fill` (sélection/émissif
-  // d'EditObject uniformes sur tout le cadre).
-  const bar = (bw, bh, cx, cy) => {
-    const g = new THREE.BoxGeometry(bw, bh, d)
-    g.translate(cx, cy, zc)
+  // d'EditObject uniformes sur tout le cadre). `bd`/`cz` optionnels : les pièces
+  // des variantes (meneau, montants de recouvrement) ont leur propre profondeur/
+  // position le long de la normale.
+  const bar = (bw, bh, cx, cy, bd = d, cz = zc) => {
+    const g = new THREE.BoxGeometry(bw, bh, bd)
+    g.translate(cx, cy, cz)
     return g
   }
-  const frameGeo = mergeGeometries([
+  const frameParts = [
     bar(w, t, 0, t / 2), // traverse basse (seuil)
     bar(w, t, 0, h - t / 2), // traverse haute
     bar(t, h - 2 * t, -(w - t) / 2, h / 2), // montant gauche
     bar(t, h - 2 * t, (w - t) / 2, h / 2), // montant droit
-  ])
+  ]
+
+  // Vitrage(s) : fine(s) plaque(s) translucide(s) dans le jour du cadre, selon la
+  // variante (E14-06). Jour = u ∈ ±(w/2 − t), v ∈ [t, h − t].
+  const jourW = w - 2 * t
+  const jourH = h - 2 * t
+  const pane = (pw, cx, cz = zc) => {
+    const g = new THREE.BoxGeometry(Math.max(pw, 0.001), jourH, GLASS_T)
+    g.translate(cx, h / 2, cz)
+    return g
+  }
+  const glassParts = []
+  if (variante === 'battant') {
+    // Meneau central + un vitrage par vantail (2 panneaux côte à côte).
+    frameParts.push(bar(t, jourH, 0, h / 2))
+    const pw = (w - 3 * t) / 2
+    glassParts.push(pane(pw, -(w - t) / 4), pane(pw, (w - t) / 4))
+  } else if (variante === 'coulissant') {
+    // 2 vantaux sur rails décalés le long de la normale : chacun = vitrage d'une
+    // demi-baie (+ recouvrement central de t) porté par son montant de
+    // recouvrement — les deux montants se croisent au centre, sur des plans
+    // différents (lecture immédiate du coulissant). Décalage borné pour rester
+    // dans le dormant même à faible profondeur.
+    const dz = Math.min(GLASS_T, d / 4)
+    const dv = Math.min(d / 2, 0.04) // profondeur d'un montant de vantail
+    const pw = (w - t) / 2
+    frameParts.push(bar(t, jourH, 0, h / 2, dv, zc + dz)) // montant vantail avant
+    frameParts.push(bar(t, jourH, 0, h / 2, dv, zc - dz)) // montant vantail arrière
+    glassParts.push(pane(pw, -(w - 3 * t) / 4, zc + dz), pane(pw, (w - 3 * t) / 4, zc - dz))
+  } else {
+    // fixe (rendu E14-05) : un seul vitrage plein jour.
+    glassParts.push(pane(jourW, 0))
+  }
+
+  const frameGeo = mergeGeometries(frameParts)
 
   const fill = new THREE.Mesh(
     frameGeo,
@@ -320,9 +358,7 @@ function generateJoinery(params, plane) {
   )
   fill.name = '__fill'
 
-  // Vitrage : fine plaque translucide dans le jour du cadre.
-  const glassGeo = new THREE.BoxGeometry(w - 2 * t, h - 2 * t, GLASS_T)
-  glassGeo.translate(0, h / 2, zc)
+  const glassGeo = mergeGeometries(glassParts)
   const glass = new THREE.Mesh(
     glassGeo,
     new THREE.MeshStandardMaterial({

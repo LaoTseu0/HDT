@@ -4,7 +4,7 @@ import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
 import { nodeName, LEVELS } from '../lib/naming.js'
 import { OPENING_PRESETS } from '../lib/opening.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from '../lib/elec.js'
-import { JOINERY_KIND } from '../lib/joinery.js'
+import { JOINERY_KIND, JOINERY_VARIANTS, JOINERY_VARIANT_KEYS } from '../lib/joinery.js'
 import {
   CABLE_SECTIONS,
   CABLE_SECTION_KEYS,
@@ -231,6 +231,39 @@ function CableSectionIcon({ id }) {
   )
 }
 
+// Icônes des variantes de menuiserie (sous-barre de l'outil Menuiserie, E14-06),
+// façon PresetIcon : le dessin illustre la variante en élévation.
+function JoineryVariantIcon({ id }) {
+  if (id === 'battant') {
+    // Battant : dormant + meneau central (2 vantaux).
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect x="4" y="3" width="16" height="18" rx="1" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 3v18" stroke="currentColor" strokeWidth="1.4" />
+        <circle cx="10" cy="12" r="1.2" fill="currentColor" />
+        <circle cx="14" cy="12" r="1.2" fill="currentColor" />
+      </svg>
+    )
+  }
+  if (id === 'coulissant') {
+    // Coulissant : 2 vantaux qui se recouvrent + flèche de coulissement.
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <rect x="3" y="5" width="12" height="14" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <rect x="9" y="7" width="12" height="14" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M8 2.5h8M13.5 0.5L16 2.5l-2.5 2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  // fixe — dormant + jour vitré plein (même dessin que l'outil Menuiserie).
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect x="4" y="3" width="16" height="18" rx="1" fill="none" stroke="currentColor" strokeWidth="2" />
+      <rect x="8" y="7" width="8" height="10" fill="none" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
 // Icône du toggle d'accroche à la grille (E12-03).
 function GridIcon() {
   return (
@@ -364,6 +397,13 @@ const TOOLS = [
 // Liste ordonnée des composants élec pour la sous-barre (E15-01/02).
 const ELEC_COMPONENT_LIST = ELEC_KINDS.map((id) => ({ id, label: ELEC_COMPONENTS[id].label }))
 
+// Liste ordonnée des variantes de menuiserie pour la sous-barre (E14-06).
+const JOINERY_VARIANT_LIST = JOINERY_VARIANT_KEYS.map((id) => ({
+  id,
+  label: JOINERY_VARIANTS[id].label,
+  hint: JOINERY_VARIANTS[id].hint,
+}))
+
 // Liste ordonnée des sections de câble pour la sous-barre (E15-03).
 const CABLE_SECTION_LIST = CABLE_SECTION_KEYS.map((id) => ({ id, label: CABLE_SECTIONS[id].label }))
 
@@ -374,7 +414,7 @@ const TOOL_HINTS = {
   opening:
     'Choisissez un gabarit puis cliquez sur une face de mur pour y poser une fenêtre. Ajustez largeur / hauteur / allège dans l’inspecteur.',
   joinery:
-    'Cliquez une ouverture déjà posée : le cadre + vitrage s’y loge, ajusté à ses dimensions. Une ouverture déjà équipée sélectionne son cadre.',
+    'Choisissez une variante puis cliquez une ouverture déjà posée : le cadre + vitrage s’y loge, ajusté à ses dimensions. Une ouverture déjà équipée sélectionne son cadre.',
   elec:
     'Choisissez un composant puis cliquez sur une face de mur pour le poser. Ajustez la hauteur / sol dans l’inspecteur.',
   cable:
@@ -400,6 +440,8 @@ export default function EditBar() {
   const csgFallbackIds = useStore((state) => state.csgFallbackIds)
   const openingPreset = useStore((state) => state.openingPreset)
   const setOpeningPreset = useStore((state) => state.setOpeningPreset)
+  const joineryVariant = useStore((state) => state.joineryVariant)
+  const setJoineryVariant = useStore((state) => state.setJoineryVariant)
   const elecComponent = useStore((state) => state.elecComponent)
   const setElecComponent = useStore((state) => state.setElecComponent)
   const cableSection = useStore((state) => state.cableSection)
@@ -495,6 +537,23 @@ export default function EditBar() {
               </button>
             )
           })}
+        </div>
+      )}
+
+      {activeTool === 'joinery' && (
+        <div className="edit-tools" role="toolbar" aria-label="Variante de menuiserie">
+          {JOINERY_VARIANT_LIST.map((variant) => (
+            <button
+              key={variant.id}
+              className="edit-tool"
+              aria-pressed={joineryVariant === variant.id}
+              aria-label={variant.label}
+              title={`${variant.label} — ${variant.hint}`}
+              onClick={() => setJoineryVariant(variant.id)}
+            >
+              <JoineryVariantIcon id={variant.id} />
+            </button>
+          ))}
         </div>
       )}
 
@@ -606,6 +665,12 @@ export default function EditBar() {
             </>
           ) : selectedObj.kind === JOINERY_KIND ? (
             <>
+              <SelectField
+                label="Variante"
+                value={selectedObj.params.variante ?? 'fixe'}
+                options={JOINERY_VARIANT_LIST.map((v) => ({ value: v.id, label: v.label }))}
+                onChange={(variante) => updateObjectParams(selectedObj.id, { variante })}
+              />
               <NumberField
                 label="Largeur (m)"
                 value={selectedObj.params.largeur_m}
