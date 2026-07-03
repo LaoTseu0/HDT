@@ -4,7 +4,8 @@ import { frameOfObjectPlane } from './workPlanes.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from './elec.js'
 import { runRings } from './routing.js'
 import { CABLE_KIND } from './cable.js'
-import { JOINERY_KIND, joineryVariantOf } from './joinery.js'
+import { JOINERY_KIND, DOOR_LEAF_KIND, joineryVariantOf } from './joinery.js'
+import { WINDOW_KIND, DOOR_KIND, isOpeningKind } from './opening.js'
 
 // Registre paramétrique d'Edit mode (E12-05, cf. docs/edit-mode-design.md § 5.1).
 //
@@ -385,6 +386,71 @@ function generateJoinery(params, plane) {
   return group
 }
 
+// door.leaf — vantail de porte posé DANS une ouverture PORTE (E14-07, cf.
+// lib/joinery). Même mécanique que la menuiserie de fenêtre (composant hébergé,
+// catégorie ①, AUCUN booléen), géométrie différente : dormant à 3 côtés (2
+// montants + traverse haute, PAS de traverse basse — le seuil reste libre) +
+// panneau plein (vantail fermé) + poignée. params : { largeur_m (u), hauteur_m
+// (v, depuis le seuil au sol), epaisseur_m (section du dormant), profondeur_m
+// (dormant, le long de la normale) }. plane = celui de la porte hôte + `hostOf`.
+const LEAF_T = 0.04 // épaisseur du panneau de vantail (m)
+
+function generateDoorLeaf(params, plane) {
+  const w = Math.max(Number(params.largeur_m) || 0, 0.05)
+  const h = Math.max(Number(params.hauteur_m) || 0, 0.05)
+  // Section du dormant bornée comme la menuiserie : jamais au point de fermer le
+  // passage (il reste un jour d'au moins ~1 cm).
+  const t = Math.min(
+    Math.max(Number(params.epaisseur_m) || 0, 0.01),
+    (Math.min(w, h) - 0.01) / 2
+  )
+  const d = Math.max(Number(params.profondeur_m) || 0, 0.01)
+  const zc = -d / 2 // encastré : face avant à z=0 (plan du mur), corps vers le vide
+  const bar = (bw, bh, cx, cy, bd = d, cz = zc) => {
+    const g = new THREE.BoxGeometry(bw, bh, bd)
+    g.translate(cx, cy, cz)
+    return g
+  }
+
+  // Dormant 3 côtés : montants pleine hauteur + traverse haute entre eux.
+  const jourW = w - 2 * t
+  const jourH = h - t
+  const parts = [
+    bar(t, h, -(w - t) / 2, h / 2), // montant gauche
+    bar(t, h, (w - t) / 2, h / 2), // montant droit
+    bar(jourW, t, 0, h - t / 2), // traverse haute
+  ]
+  // Vantail plein (fermé) dans le jour, épaisseur bornée par le dormant.
+  const lt = Math.min(LEAF_T, d)
+  parts.push(bar(jourW, jourH, 0, jourH / 2, lt, zc))
+  // Poignée : petit barreau horizontal côté droit, ~1,05 m du seuil (borné au jour),
+  // ressorti devant le panneau (lecture immédiate « porte », pas « panneau mural »).
+  const hy = Math.min(1.05, jourH - 0.05)
+  parts.push(bar(0.14, 0.03, Math.max(jourW / 2 - 0.12, 0), hy, 0.03, zc + lt / 2 + 0.015))
+
+  // Tout fusionné en UNE géométrie → un seul mesh `__fill` (sélection/émissif
+  // d'EditObject uniformes), même couleur calque `ouvertures` que la menuiserie.
+  const leafGeo = mergeGeometries(parts)
+
+  const fill = new THREE.Mesh(
+    leafGeo,
+    new THREE.MeshStandardMaterial({ color: JOINERY_FILL, metalness: 0.1, roughness: 0.6 })
+  )
+  fill.name = '__fill'
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(leafGeo),
+    new THREE.LineBasicMaterial({ color: JOINERY_EDGE })
+  )
+  edges.name = '__edges'
+  edges.raycast = () => {}
+
+  const group = new THREE.Group()
+  group.add(fill, edges)
+  placeOnPlane(group, plane)
+  return group
+}
+
 // elec.* — composants électriques ponctuels posés sur une face de mur (E15-01/02,
 // cf. lib/elec). params : { largeur_m (u), hauteur_m (v), profondeur_m (normal) }.
 // plane.origin = CENTRE du composant sur la face ; la boîte ressort le long de
@@ -482,8 +548,12 @@ const REGISTRY = {
   'sketch.rect': generateRect,
   'sketch.circle': generateCircle,
   'sketch.arc': generateArc,
-  'opening.window': generateOpening,
+  [WINDOW_KIND]: generateOpening,
+  // La porte réemploie le marqueur d'ouverture (même repère seuil/largeur/hauteur) ;
+  // seule la pose diffère (seuil au sol, cf. lib/opening doorPayload).
+  [DOOR_KIND]: generateOpening,
   [JOINERY_KIND]: generateJoinery,
+  [DOOR_LEAF_KIND]: generateDoorLeaf,
   [CABLE_KIND]: generateRun,
   // Tout le catalogue élec partage `generateElec` (seules les dims diffèrent).
   ...Object.fromEntries(ELEC_KINDS.map((k) => [k, generateElec])),
@@ -503,8 +573,10 @@ const KIND_NAMING = {
   'sketch.rect': { system: 'structure', type: 'forme' },
   'sketch.circle': { system: 'structure', type: 'disque' },
   'sketch.arc': { system: 'structure', type: 'arc' },
-  'opening.window': { system: 'ouvertures', type: 'fenetre' },
+  [WINDOW_KIND]: { system: 'ouvertures', type: 'fenetre' },
+  [DOOR_KIND]: { system: 'ouvertures', type: 'porte' }, // ouverture de porte (E14-07)
   [JOINERY_KIND]: { system: 'ouvertures', type: 'menuiserie' }, // cadre+vitrage (E14-05)
+  [DOOR_LEAF_KIND]: { system: 'ouvertures', type: 'vantail' }, // vantail de porte (E14-07)
   [CABLE_KIND]: { system: 'elec', type: 'cable' }, // câble routé (E15-03)
   // elec.* → système `elec`, type = celui du catalogue (prise, interrupteur…).
   ...Object.fromEntries(
@@ -641,11 +713,12 @@ export function referencePoints(obj) {
     ]
   }
 
-  if (obj.kind === 'opening.window' || obj.kind === JOINERY_KIND) {
+  if (isOpeningKind(obj.kind) || obj.kind === JOINERY_KIND || obj.kind === DOOR_LEAF_KIND) {
     const hw = Math.max(Number(obj.params.largeur_m) || 0, 0.001) / 2
     const hh = Math.max(Number(obj.params.hauteur_m) || 0, 0.001)
     // Rectangle u∈[-hw,hw], v∈[0,hh] (origin = seuil) : coins, milieux, centre.
-    // La menuiserie (E14-05) partage ce repère avec l'ouverture qui l'héberge.
+    // La menuiserie (E14-05) et le vantail (E14-07) partagent ce repère avec
+    // l'ouverture qui les héberge.
     return [
       { type: 'endpoint', point: at(-hw, 0, 0) },
       { type: 'endpoint', point: at(hw, 0, 0) },
@@ -719,7 +792,7 @@ export function deriveDims(obj) {
       hauteur_m: Math.abs(Number(obj.params.hauteur_m) || 0),
     }
   }
-  if (isElecKind(obj.kind) || obj.kind === JOINERY_KIND) {
+  if (isElecKind(obj.kind) || obj.kind === JOINERY_KIND || obj.kind === DOOR_LEAF_KIND) {
     // u→largeur, v→hauteur, normal→profondeur (emprise du composant sur le mur).
     return {
       largeur_m: Number(obj.params.largeur_m) || 0,

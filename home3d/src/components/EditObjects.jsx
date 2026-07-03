@@ -12,7 +12,15 @@ import {
   extrudeHeightFromRay,
 } from '../lib/workPlanes.js'
 import { angleOf, nextSweep } from '../lib/sketchArc.js'
-import { openingPayload, OPENING_PRESETS, DEFAULT_OPENING_PRESET } from '../lib/opening.js'
+import {
+  openingPayload,
+  OPENING_PRESETS,
+  DEFAULT_OPENING_PRESET,
+  doorPayload,
+  DOOR_PRESETS,
+  DEFAULT_DOOR_PRESET,
+  isOpeningKind,
+} from '../lib/opening.js'
 import { elecPayload } from '../lib/elec.js'
 import { joineryPayloadFromOpening, findJoinery } from '../lib/joinery.js'
 import { nodeName } from '../lib/naming.js'
@@ -682,6 +690,7 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   const setDraft = useStore((state) => state.setDraft)
   const gridSnap = useStore((state) => state.gridSnap)
   const openingPreset = useStore((state) => state.openingPreset)
+  const doorPreset = useStore((state) => state.doorPreset)
   const elecComponent = useStore((state) => state.elecComponent)
   const [hover, setHover] = useState(null)
   const drawing = useRef(false)
@@ -848,6 +857,16 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
       return
     }
 
+    // Porte (E14-07) : même mécanique que l'ouverture fenêtre, mais le seuil
+    // est posé AU SOL par doorPayload (pas d'allège).
+    if (tool === 'door') {
+      if (frame.type !== 'face') return // ignore un clic sur le sol
+      const dims = DOOR_PRESETS[doorPreset] ?? DOOR_PRESETS[DEFAULT_DOOR_PRESET]
+      useStore.getState().createObject(doorPayload(world, frame, dims))
+      setHover(null)
+      return
+    }
+
     // Composant élec (E15-01/02) : pose au CLIC sur une FACE de mur, même
     // mécanique que l'ouverture. Le composant sélectionné vient du store.
     if (tool === 'elec') {
@@ -968,19 +987,22 @@ export default function EditObjects() {
       activeTool === 'circle' ||
       activeTool === 'arc' ||
       activeTool === 'opening' ||
+      activeTool === 'door' ||
       activeTool === 'elec' ||
       activeTool === 'cable')
   const pushable = editMode && activeTool === 'pushpull'
 
   // Pose de la menuiserie (E14-05) : clic sur une ouverture → cadre + vitrage
-  // ajustés à ses dims, liés par node name (`plane.hostOf`). Une ouverture déjà
-  // équipée sélectionne son cadre existant (garde « un cadre par ouverture »).
-  // La variante courante (E14-06, sous-barre) est copiée dans les params à la
-  // pose — modifiable ensuite par instance dans l'inspector.
+  // (fenêtre) ou vantail (porte, E14-07) ajustés à ses dims, liés par node name
+  // (`plane.hostOf`) — le choix cadre/vantail est fait par lib/joinery selon le
+  // kind de l'hôte. Une ouverture déjà équipée sélectionne son composant
+  // existant (garde « un composant par ouverture »). La variante courante
+  // (E14-06, sous-barre) est copiée dans les params à la pose (fenêtre
+  // seulement) — modifiable ensuite par instance dans l'inspector.
   const onHostJoinery = useCallback((objId) => {
     const state = useStore.getState()
     const opening = state.objects[objId]
-    if (opening?.kind !== 'opening.window') return
+    if (!isOpeningKind(opening?.kind)) return
     const host = nodeName(opening)
     const existing = findJoinery(state.objects, host)
     if (existing) {
@@ -1096,7 +1118,7 @@ export default function EditObjects() {
           selected={obj.id === selectedNode}
           selectable={selectable}
           pushable={pushable}
-          hostable={hosting && obj.kind === 'opening.window'}
+          hostable={hosting && isOpeningKind(obj.kind)}
           onSelect={selectNode}
           onStartPush={onStartPush}
           onHost={onHostJoinery}

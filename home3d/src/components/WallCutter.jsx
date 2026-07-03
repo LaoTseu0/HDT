@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import useStore from '../store/useStore.js'
+import { isOpeningKind } from '../lib/opening.js'
 import {
   openingCutBox,
   cutWallGeometry,
@@ -11,7 +12,7 @@ import {
 
 // Perçage CSG des murs par les ouvertures (E14-02, cf. docs/edit-mode-design § 5.4).
 // Vit dans le Canvas, actif en vue COMME en édition (le trou fait partie du
-// modèle). Réagit aux ouvertures (`objects` filtré `opening.window`) + au modèle :
+// modèle). Réagit aux ouvertures (`objects` filtré fenêtres + portes) + au modèle :
 // à chaque changement de leurs cotes / position, on RESTAURE tous les murs à leur
 // géométrie d'origine puis on RECALCULE la découpe depuis cette origine (agrandir /
 // rétrécir / déplacer repartent du mur plein, cf. lib/csg). Aucun rendu propre —
@@ -26,7 +27,7 @@ export default function WallCutter() {
   const openingsByWall = useMemo(() => {
     const map = new Map()
     for (const obj of Object.values(objects)) {
-      if (obj.kind !== 'opening.window') continue
+      if (!isOpeningKind(obj.kind)) continue // fenêtre OU porte (E14-07)
       const wall = obj.plane?.faceOf
       if (!wall) continue // mur non référencé → pas de découpe (E14-01)
       if (!map.has(wall)) map.set(wall, [])

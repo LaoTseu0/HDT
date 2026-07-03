@@ -3,12 +3,14 @@ import assert from 'node:assert/strict'
 
 import {
   JOINERY_KIND,
+  DOOR_LEAF_KIND,
   DEFAULT_JOINERY,
   JOINERY_VARIANTS,
   JOINERY_VARIANT_KEYS,
   DEFAULT_JOINERY_VARIANT,
   joineryVariantOf,
   isJoineryKind,
+  isHostedKind,
   joineryPayloadFromOpening,
   findJoinery,
 } from '../src/lib/joinery.js'
@@ -79,6 +81,50 @@ describe('joineryPayloadFromOpening', () => {
   })
 })
 
+// Porte hôte type (seuil au sol, E14-07).
+const door = {
+  id: 'app-3',
+  kind: 'opening.door',
+  params: { largeur_m: 0.9, hauteur_m: 2.15 },
+  plane: {
+    type: 'face',
+    origin: [4, 0, 0.15],
+    u: [1, 0, 0],
+    v: [0, 1, 0],
+    normal: [0, 0, 1],
+    faceOf: 'structure__mur_porteur__sejour__rdc__005',
+  },
+}
+
+describe('joineryPayloadFromOpening — hôte PORTE (E14-07)', () => {
+  it('hôte porte → vantail (door.leaf), dims copiées, SANS variante', () => {
+    const p = joineryPayloadFromOpening(door, 'ouvertures__porte__sejour__rdc__001')
+    assert.equal(p.kind, DOOR_LEAF_KIND)
+    assert.equal(p.params.largeur_m, 0.9)
+    assert.equal(p.params.hauteur_m, 2.15)
+    assert.equal(p.params.epaisseur_m, DEFAULT_JOINERY.epaisseur_m)
+    assert.equal(p.params.profondeur_m, DEFAULT_JOINERY.profondeur_m)
+    assert.ok(!('variante' in p.params)) // la variante est propre aux fenêtres
+  })
+
+  it('reprend le plan de la porte + hostOf + faceOf', () => {
+    const p = joineryPayloadFromOpening(door, 'ouvertures__porte__sejour__rdc__001')
+    assert.deepEqual(p.plane.origin, [4, 0, 0.15])
+    assert.equal(p.plane.hostOf, 'ouvertures__porte__sejour__rdc__001')
+    assert.equal(p.plane.faceOf, door.plane.faceOf)
+    // Une variante passée est ignorée pour une porte.
+    const p2 = joineryPayloadFromOpening(door, 'x', 'coulissant')
+    assert.ok(!('variante' in p2.params))
+  })
+
+  it('isHostedKind : cadre ET vantail, pas les ouvertures', () => {
+    assert.ok(isHostedKind(JOINERY_KIND))
+    assert.ok(isHostedKind(DOOR_LEAF_KIND))
+    assert.ok(!isHostedKind('opening.window'))
+    assert.ok(!isHostedKind('opening.door'))
+  })
+})
+
 describe('variantes (E14-06)', () => {
   it('catalogue : fixe / battant / coulissant, avec label + hint', () => {
     assert.deepEqual(JOINERY_VARIANT_KEYS, ['fixe', 'battant', 'coulissant'])
@@ -119,6 +165,17 @@ describe('findJoinery', () => {
     const impostor = { kind: 'sketch.rect', plane: { hostOf: 'ouvertures__fenetre__sejour__rdc__001' } }
     assert.equal(findJoinery({ a: impostor }, 'ouvertures__fenetre__sejour__rdc__001'), null)
   })
+
+  it('retrouve aussi un VANTAIL posé dans une porte (E14-07)', () => {
+    const leaf = {
+      id: 'app-4',
+      kind: DOOR_LEAF_KIND,
+      params: {},
+      plane: { hostOf: 'ouvertures__porte__sejour__rdc__001' },
+    }
+    const objects = { 'app-3': door, 'app-4': leaf }
+    assert.equal(findJoinery(objects, 'ouvertures__porte__sejour__rdc__001'), leaf)
+  })
 })
 
 describe('nommage (E12-06)', () => {
@@ -132,6 +189,14 @@ describe('nommage (E12-06)', () => {
     assert.equal(system, 'ouvertures')
     assert.equal(type, 'menuiserie')
     const name = nodeName({ system, type, zone: 'sejour', level: 'rdc', index: 1 })
+    assert.match(name, NODE_NAME_REGEX)
+  })
+
+  it('kindNaming vantail → ouvertures/vantail, node name conforme (E14-07)', () => {
+    const { system, type } = kindNaming(DOOR_LEAF_KIND)
+    assert.equal(system, 'ouvertures')
+    assert.equal(type, 'vantail')
+    const name = nodeName({ system, type, zone: 'sejour', level: 'rdc', index: 2 })
     assert.match(name, NODE_NAME_REGEX)
   })
 })

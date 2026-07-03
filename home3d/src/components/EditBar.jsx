@@ -2,9 +2,14 @@ import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
 import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
 import { nodeName, LEVELS } from '../lib/naming.js'
-import { OPENING_PRESETS } from '../lib/opening.js'
+import { OPENING_PRESETS, DOOR_PRESETS, WINDOW_KIND, isOpeningKind } from '../lib/opening.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from '../lib/elec.js'
-import { JOINERY_KIND, JOINERY_VARIANTS, JOINERY_VARIANT_KEYS } from '../lib/joinery.js'
+import {
+  JOINERY_KIND,
+  DOOR_LEAF_KIND,
+  JOINERY_VARIANTS,
+  JOINERY_VARIANT_KEYS,
+} from '../lib/joinery.js'
 import {
   CABLE_SECTIONS,
   CABLE_SECTION_KEYS,
@@ -88,6 +93,21 @@ function ToolIcon({ id }) {
           strokeWidth="2"
         />
         <path d="M12 4v16M4 12h16" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      </svg>
+    )
+  }
+  if (id === 'door') {
+    // Porte : cadre haut + battant entrouvert + poignée.
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <path d="M3 21h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="15.5" cy="12.5" r="1.4" fill="currentColor" />
       </svg>
     )
   }
@@ -307,6 +327,36 @@ const OPENING_PRESET_LIST = [
   { id: 'etroite', label: 'Étroite' },
 ]
 
+// Gabarits de porte (E14-07) : porte stylisée dont la largeur illustre le
+// gabarit (simple/double/étroite), façon PresetIcon.
+const DOOR_PRESET_RECTS = {
+  simple: { x: 7, w: 10 },
+  double: { x: 3, w: 18 },
+  etroite: { x: 9, w: 7 },
+}
+
+function DoorPresetIcon({ id }) {
+  const { x, w } = DOOR_PRESET_RECTS[id] ?? DOOR_PRESET_RECTS.simple
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        d={`M${x} 21V4a1 1 0 0 1 1-1h${w - 2}a1 1 0 0 1 1 1v17`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path d="M2 21h20" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      {id === 'double' && <path d="M12 3v18" stroke="currentColor" strokeWidth="1.4" />}
+    </svg>
+  )
+}
+
+const DOOR_PRESET_LIST = [
+  { id: 'simple', label: 'Simple' },
+  { id: 'double', label: 'Double' },
+  { id: 'etroite', label: 'Étroite' },
+]
+
 function SelectField({ label, value, options, onChange }) {
   // Options acceptées en `'x'` ou `{ value, label }` → forme normalisée unique.
   const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }))
@@ -377,9 +427,14 @@ const TOOLS = [
     hint: 'Poser une fenêtre sur une face de mur',
   },
   {
+    id: 'door',
+    label: 'Porte',
+    hint: 'Poser une porte sur une face de mur (seuil au sol)',
+  },
+  {
     id: 'joinery',
     label: 'Menuiserie',
-    hint: 'Poser un cadre + vitrage dans une ouverture existante',
+    hint: 'Équiper une ouverture existante (cadre + vitrage, ou vantail de porte)',
   },
   {
     id: 'elec',
@@ -413,8 +468,10 @@ const TOOL_HINTS = {
   arc: 'Cliquez le centre, puis le début (rayon), puis la fin (balayage). Tapez une valeur pour la fixer.',
   opening:
     'Choisissez un gabarit puis cliquez sur une face de mur pour y poser une fenêtre. Ajustez largeur / hauteur / allège dans l’inspecteur.',
+  door:
+    'Choisissez un gabarit puis cliquez sur une face de mur : la porte se pose avec son seuil au sol. Ajustez largeur / hauteur dans l’inspecteur.',
   joinery:
-    'Choisissez une variante puis cliquez une ouverture déjà posée : le cadre + vitrage s’y loge, ajusté à ses dimensions. Une ouverture déjà équipée sélectionne son cadre.',
+    'Choisissez une variante puis cliquez une ouverture déjà posée : une fenêtre reçoit un cadre + vitrage, une porte reçoit son vantail. Une ouverture déjà équipée sélectionne son composant.',
   elec:
     'Choisissez un composant puis cliquez sur une face de mur pour le poser. Ajustez la hauteur / sol dans l’inspecteur.',
   cable:
@@ -440,6 +497,8 @@ export default function EditBar() {
   const csgFallbackIds = useStore((state) => state.csgFallbackIds)
   const openingPreset = useStore((state) => state.openingPreset)
   const setOpeningPreset = useStore((state) => state.setOpeningPreset)
+  const doorPreset = useStore((state) => state.doorPreset)
+  const setDoorPreset = useStore((state) => state.setDoorPreset)
   const joineryVariant = useStore((state) => state.joineryVariant)
   const setJoineryVariant = useStore((state) => state.setJoineryVariant)
   const elecComponent = useStore((state) => state.elecComponent)
@@ -534,6 +593,26 @@ export default function EditBar() {
                 onClick={() => setOpeningPreset(preset.id)}
               >
                 <PresetIcon id={preset.id} />
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {activeTool === 'door' && (
+        <div className="edit-tools" role="toolbar" aria-label="Gabarit de porte">
+          {DOOR_PRESET_LIST.map((preset) => {
+            const dims = DOOR_PRESETS[preset.id]
+            return (
+              <button
+                key={preset.id}
+                className="edit-tool"
+                aria-pressed={doorPreset === preset.id}
+                aria-label={preset.label}
+                title={`${preset.label} — ${dims.largeur_m} × ${dims.hauteur_m} m`}
+                onClick={() => setDoorPreset(preset.id)}
+              >
+                <DoorPresetIcon id={preset.id} />
               </button>
             )
           })}
@@ -663,14 +742,18 @@ export default function EditBar() {
                 Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
               </p>
             </>
-          ) : selectedObj.kind === JOINERY_KIND ? (
+          ) : selectedObj.kind === JOINERY_KIND || selectedObj.kind === DOOR_LEAF_KIND ? (
             <>
-              <SelectField
-                label="Variante"
-                value={selectedObj.params.variante ?? 'fixe'}
-                options={JOINERY_VARIANT_LIST.map((v) => ({ value: v.id, label: v.label }))}
-                onChange={(variante) => updateObjectParams(selectedObj.id, { variante })}
-              />
+              {/* La variante (fixe/battant/coulissant) est propre aux fenêtres ;
+                  un vantail de porte (E14-07) n'en a pas. */}
+              {selectedObj.kind === JOINERY_KIND && (
+                <SelectField
+                  label="Variante"
+                  value={selectedObj.params.variante ?? 'fixe'}
+                  options={JOINERY_VARIANT_LIST.map((v) => ({ value: v.id, label: v.label }))}
+                  onChange={(variante) => updateObjectParams(selectedObj.id, { variante })}
+                />
+              )}
               <NumberField
                 label="Largeur (m)"
                 value={selectedObj.params.largeur_m}
@@ -697,7 +780,7 @@ export default function EditBar() {
                 Ouverture : <code>{selectedObj.plane?.hostOf ?? '—'}</code>
               </p>
             </>
-          ) : selectedObj.kind === 'opening.window' ? (
+          ) : isOpeningKind(selectedObj.kind) ? (
             <>
               <NumberField
                 label="Largeur (m)"
@@ -709,12 +792,15 @@ export default function EditBar() {
                 value={selectedObj.params.hauteur_m}
                 onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
               />
-              <NumberField
-                label="Allège (m)"
-                value={selectedObj.params.allege_m}
-                allowZero
-                onChange={(v) => setOpeningAllege(selectedObj.id, v)}
-              />
+              {/* L'allège est propre aux fenêtres : le seuil d'une porte est au sol. */}
+              {selectedObj.kind === WINDOW_KIND && (
+                <NumberField
+                  label="Allège (m)"
+                  value={selectedObj.params.allege_m}
+                  allowZero
+                  onChange={(v) => setOpeningAllege(selectedObj.id, v)}
+                />
+              )}
               <p className="edit-hint">
                 Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
               </p>

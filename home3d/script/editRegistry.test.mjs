@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { referencePoints, generateObject, deriveDims } from '../src/lib/editRegistry.js'
-import { JOINERY_KIND } from '../src/lib/joinery.js'
+import { JOINERY_KIND, DOOR_LEAF_KIND } from '../src/lib/joinery.js'
 
 // referencePoints est PUR (params + repère du plan → points monde) : testable hors
 // navigateur, sans rendu three. Il alimente l'« accroche à tes formes » (E12-03).
@@ -144,5 +144,58 @@ describe('joinery.frame (générateur)', () => {
     const fixe = counts('fixe')
     assert.deepEqual(counts('velux'), fixe)
     assert.deepEqual(counts(undefined), fixe)
+  })
+})
+
+// Générateur vantail de porte (E14-07) : dormant 3 côtés + panneau plein +
+// poignée fusionnés en un seul __fill, pas de vitrage.
+describe('door.leaf (générateur)', () => {
+  const obj = {
+    id: 'app-10',
+    kind: DOOR_LEAF_KIND,
+    params: { largeur_m: 0.9, hauteur_m: 2.15, epaisseur_m: 0.06, profondeur_m: 0.08 },
+    plane: { origin: [4, 0, 0.15], u: [1, 0, 0], v: [0, 1, 0], normal: [0, 0, 1] },
+  }
+
+  it('génère vantail (__fill) et arêtes (__edges), SANS vitrage', () => {
+    const g = generateObject(obj)
+    assert.ok(g)
+    const fill = g.getObjectByName('__fill')
+    const edges = g.getObjectByName('__edges')
+    assert.ok(fill?.isMesh)
+    assert.ok(edges?.isLineSegments)
+    assert.equal(g.getObjectByName('__glass'), undefined) // panneau plein, pas de vitrage
+    // 5 boîtes fusionnées (2 montants + traverse + panneau + poignée) × 24 sommets.
+    assert.equal(fill.geometry.attributes.position.count, 5 * 24)
+    assert.ok(!fill.material.transparent) // vantail opaque
+    assert.equal(g.userData.appObjectId, 'app-10')
+  })
+
+  it('la géométrie couvre le seuil (v=0) au linteau (v=h) en local', () => {
+    const g = generateObject(obj)
+    const geo = g.getObjectByName('__fill').geometry
+    geo.computeBoundingBox()
+    const bb = geo.boundingBox
+    // Local : X=u (centré), Y=v (depuis le seuil), Z=normal (encastré ≤ ~0).
+    assert.ok(Math.abs(bb.min.y - 0) < 1e-6)
+    assert.ok(Math.abs(bb.max.y - 2.15) < 1e-6)
+    assert.ok(Math.abs(bb.min.x + 0.45) < 1e-6)
+    assert.ok(Math.abs(bb.max.x - 0.45) < 1e-6)
+    assert.ok(bb.min.z >= -0.08 - 1e-6) // encastré dans le vide, pas au-delà du dormant
+  })
+
+  it('deriveDims : u→largeur, v→hauteur, normal→profondeur', () => {
+    assert.deepEqual(deriveDims(obj), {
+      largeur_m: 0.9,
+      profondeur_m: 0.08,
+      hauteur_m: 2.15,
+    })
+  })
+
+  it('referencePoints : même repère seuil que la porte hôte', () => {
+    const pts = referencePoints(obj)
+    assert.equal(pts.length, 9)
+    assert.ok(has(pts, 'endpoint', [4 - 0.45, 0, 0.15])) // coin seuil gauche
+    assert.ok(has(pts, 'endpoint', [4 + 0.45, 2.15, 0.15])) // coin linteau droit
   })
 })
