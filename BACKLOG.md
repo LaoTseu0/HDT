@@ -294,7 +294,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 |---|---|---|---|---|
 | E14-05 ✅ | En tant qu'utilisateur, je veux poser un cadre de fenêtre (+ vitrage) dans une ouverture. | **Composant posé** (catégorie ①) hébergé dans l'ouverture, ajusté à ses dims ; **pas de booléen** ; réutilise la machinerie de pose d'E15. | M | 5 |
 | E14-06 ✅ | En tant qu'utilisateur, je veux choisir une variante de menuiserie. | Variantes catalogue (classique / large / étroite, battant/coulissant…) par instance. | S | 3 |
-| E14-07 | En tant qu'utilisateur, je veux poser une porte (ouverture + vantail) via le même mécanisme. | Réemploi E14-01→05 : ouverture + composant vantail. | C | 5 |
+| E14-07 ✅ | En tant qu'utilisateur, je veux poser une porte (ouverture + vantail) via le même mécanisme. | Réemploi E14-01→05 : ouverture + composant vantail. | C | 5 |
 
 ---
 
@@ -874,6 +874,41 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > le changement de variante, aucune erreur console. **Reste E14 phase 2** :
 > E14-07 (portes) — puis **Slice 3 (plomberie, E16)** ou **E15-04** (circuits,
 > optionnel).
+
+> **E14 phase 2 — avancement (2026-07-04, incrément 3 : E14-07 portes). E14 est
+> COMPLET.** La porte réemploie les deux mécanismes existants, comme prévu au
+> backlog : une **ouverture** + un **composant hébergé**. **(1) L'ouverture
+> porte** (`opening.door`, [opening.js](home3d/src/lib/opening.js)) : nouvel
+> outil **Porte** (icône + sous-barre de gabarits **simple 0,90×2,15 /
+> double 1,40×2,15 / étroite 0,73×2,04 m**, directive IHM) ; même pose au clic
+> sur une face de mur que la fenêtre (`doorPayload`), mais le **seuil descend
+> au sol** le long de v (y=0, convention allège/hauteur-sol du projet ; repli
+> « centré sur le clic » si la face n'est pas verticale) et il n'y a **pas de
+> param allège**. `isOpeningKind` (fenêtre OU porte) : le **CSG WallCutter
+> perce les deux** (openingCutBox inchangée — base au seuil), l'inspector
+> partage la branche fenêtre (champ Allège réservé à la fenêtre), le marqueur
+> réutilise `generateOpening`. **(2) Le vantail** (`door.leaf`,
+> [joinery.js](home3d/src/lib/joinery.js)) : l'outil **Menuiserie** clique une
+> ouverture et le module choisit le composant selon l'hôte — fenêtre → cadre +
+> vitrage (E14-05), **porte → vantail** ; `joineryPayloadFromOpening` rend un
+> `door.leaf` **sans variante** (les variantes E14-06 restent propres aux
+> fenêtres), `findJoinery`/`isHostedKind` étendent la garde « un composant par
+> ouverture ». `generateDoorLeaf` ([editRegistry.js](home3d/src/lib/editRegistry.js)) :
+> dormant **3 côtés** (2 montants + traverse haute, seuil libre) + **panneau
+> plein** + **poignée**, fusionnés en un seul `__fill` (pas de `__glass`),
+> couleur calque `ouvertures`. Nommage `ouvertures__porte__…` /
+> `ouvertures__vantail__…` conforme ; round-trip GLB générique (kinds au
+> registre). Tests : [opening.test.mjs](home3d/script/opening.test.mjs) +
+> [joinery.test.mjs](home3d/script/joinery.test.mjs) +
+> [editRegistry.test.mjs](home3d/script/editRegistry.test.mjs) → **199 verts** ;
+> `lint`/`build` OK. Vérifié au navigateur sur le modèle démo : porte posée sur
+> un mur rdc (`ouvertures__porte__combles__combles__001`, mur
+> `structure__mur_porteur__sejour__rdc__005`, **vrai trou CSG, 0 fallback**,
+> seuil au sol), vantail posé via l'outil Menuiserie
+> (`ouvertures__vantail__combles__combles__002`, dims copiées 0,9×2,15,
+> inspector sans champ Variante), re-clic sans doublon, undo×2/redo×2, aucune
+> erreur console. **Reste** : **Slice 3 (plomberie, E16)** — dernière slice
+> d'édition — ou **E15-04** (circuits, optionnel).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
