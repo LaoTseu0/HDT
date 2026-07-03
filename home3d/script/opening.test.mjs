@@ -2,7 +2,17 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
 import { faceFrame } from '../src/lib/workPlanes.js'
-import { openingPayload, DEFAULT_OPENING, OPENING_PRESETS } from '../src/lib/opening.js'
+import {
+  openingPayload,
+  DEFAULT_OPENING,
+  OPENING_PRESETS,
+  doorPayload,
+  DOOR_PRESETS,
+  DEFAULT_DOOR_PRESET,
+  WINDOW_KIND,
+  DOOR_KIND,
+  isOpeningKind,
+} from '../src/lib/opening.js'
 import { referencePoints, kindNaming } from '../src/lib/editRegistry.js'
 import { nodeName, NODE_NAME_REGEX } from '../src/lib/naming.js'
 
@@ -54,6 +64,59 @@ describe('OPENING_PRESETS (gabarits, E14-04)', () => {
   })
 })
 
+describe('doorPayload (porte, E14-07)', () => {
+  it('seuil posé AU SOL (y=0) le long de v, sur le plan de la face', () => {
+    // Mur vertical face +Z : clic à 1,2 m de haut → seuil descendu à y=0.
+    const frame = faceFrame([3, 1.2, 0.15], [0, 0, 1], 'structure__mur_porteur__sejour__rdc__005')
+    const p = doorPayload([3, 1.2, 0.15], frame)
+    assert.equal(p.kind, DOOR_KIND)
+    assert.ok(close(p.plane.origin[0], 3))
+    assert.ok(close(p.plane.origin[1], 0)) // seuil au sol
+    assert.ok(close(p.plane.origin[2], 0.15)) // reste sur le plan du mur
+    assert.equal(p.plane.faceOf, 'structure__mur_porteur__sejour__rdc__005')
+  })
+
+  it('pas d’allège : une porte n’en a pas', () => {
+    const frame = faceFrame([0, 1, 0], [0, 0, 1])
+    const p = doorPayload([0, 1, 0], frame)
+    assert.ok(!('allege_m' in p.params))
+    assert.equal(p.params.largeur_m, DOOR_PRESETS[DEFAULT_DOOR_PRESET].largeur_m)
+    assert.equal(p.params.hauteur_m, DOOR_PRESETS[DEFAULT_DOOR_PRESET].hauteur_m)
+  })
+
+  it('applique le gabarit passé (double)', () => {
+    const frame = faceFrame([0, 1, 0], [0, 0, 1])
+    const p = doorPayload([0, 1, 0], frame, DOOR_PRESETS.double)
+    assert.equal(p.params.largeur_m, DOOR_PRESETS.double.largeur_m)
+    assert.equal(p.params.hauteur_m, DOOR_PRESETS.double.hauteur_m)
+  })
+
+  it('face non verticale (v non vertical) → repli centré comme la fenêtre', () => {
+    // Face horizontale (plafond/sol) : v n'est pas vertical → pas de « descente
+    // au sol » possible, on centre sur le clic (t = H/2).
+    const frame = faceFrame([1, 2.5, 1], [0, 1, 0])
+    const H = DOOR_PRESETS[DEFAULT_DOOR_PRESET].hauteur_m
+    const p = doorPayload([1, 2.5, 1], frame)
+    const o = p.plane.origin
+    const d = Math.hypot(1 - o[0], 2.5 - o[1], 1 - o[2])
+    assert.ok(close(d, H / 2, 1e-6))
+  })
+
+  it('3 gabarits distincts, simple = défaut', () => {
+    assert.deepEqual(Object.keys(DOOR_PRESETS).sort(), ['double', 'etroite', 'simple'])
+    assert.equal(DEFAULT_DOOR_PRESET, 'simple')
+    assert.ok(DOOR_PRESETS.double.largeur_m > DOOR_PRESETS.simple.largeur_m)
+    assert.ok(DOOR_PRESETS.etroite.largeur_m < DOOR_PRESETS.simple.largeur_m)
+  })
+
+  it('isOpeningKind : fenêtre ET porte, rien d’autre', () => {
+    assert.ok(isOpeningKind(WINDOW_KIND))
+    assert.ok(isOpeningKind(DOOR_KIND))
+    assert.ok(!isOpeningKind('joinery.frame'))
+    assert.ok(!isOpeningKind('door.leaf'))
+  })
+})
+
 describe('referencePoints (ouverture)', () => {
   it('4 coins + 4 milieux + centre = 9 points, seuil à v=0', () => {
     const obj = {
@@ -81,6 +144,19 @@ describe('nommage (ouverture)', () => {
       index: 3,
     })
     assert.equal(name, 'ouvertures__fenetre__maison__rdc__003')
+    assert.match(name, NODE_NAME_REGEX)
+  })
+
+  it('kindNaming porte → ouvertures/porte, node name conforme (E14-07)', () => {
+    assert.deepEqual(kindNaming(DOOR_KIND), { system: 'ouvertures', type: 'porte' })
+    const name = nodeName({
+      system: 'ouvertures',
+      type: 'porte',
+      zone: 'maison',
+      level: 'rdc',
+      index: 1,
+    })
+    assert.equal(name, 'ouvertures__porte__maison__rdc__001')
     assert.match(name, NODE_NAME_REGEX)
   })
 })

@@ -13,7 +13,7 @@ import {
 } from '../lib/vcb.js'
 import { kindNaming } from '../lib/editRegistry.js'
 import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
-import { DEFAULT_OPENING_PRESET } from '../lib/opening.js'
+import { DEFAULT_OPENING_PRESET, DEFAULT_DOOR_PRESET } from '../lib/opening.js'
 import { DEFAULT_ELEC_KIND } from '../lib/elec.js'
 import { DEFAULT_JOINERY_VARIANT } from '../lib/joinery.js'
 import { cablePayloadFromPath, DEFAULT_CABLE_SECTION } from '../lib/cable.js'
@@ -293,6 +293,12 @@ const useStore = create(
       // historisée ; l'instance posée reste modifiable ensuite dans l'inspector.
       openingPreset: DEFAULT_OPENING_PRESET,
       setOpeningPreset: (preset) => set({ openingPreset: preset }),
+
+      // E14-07 : gabarit de porte sélectionné avant la pose (simple/double/
+      // étroite, cf. lib/opening `DOOR_PRESETS`). Préférence d'outil, pas
+      // historisée ; l'instance posée reste modifiable ensuite dans l'inspector.
+      doorPreset: DEFAULT_DOOR_PRESET,
+      setDoorPreset: (preset) => set({ doorPreset: preset }),
 
       // E14-06 : variante de menuiserie sélectionnée avant la pose (fixe/battant/
       // coulissant, cf. lib/joinery `JOINERY_VARIANTS`). Préférence d'outil, pas

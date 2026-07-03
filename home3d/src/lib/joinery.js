@@ -14,7 +14,20 @@
 // Informationnelle en E14-05 (affichage inspector + garde « un cadre par
 // ouverture ») ; les variantes (E14-06) pourront s'y appuyer.
 
+import { DOOR_KIND, isOpeningKind } from './opening.js'
+
 export const JOINERY_KIND = 'joinery.frame'
+
+// Vantail de porte (E14-07) : le composant hébergé dans une ouverture PORTE,
+// même mécanique que le cadre de fenêtre (catégorie ①, aucun booléen) — le kind
+// diffère car la géométrie (dormant 3 côtés + panneau plein + poignée) et le
+// nommage (`ouvertures__vantail__…`) diffèrent.
+export const DOOR_LEAF_KIND = 'door.leaf'
+
+/** Vrai si `kind` est un composant hébergé dans une ouverture (cadre ou vantail). */
+export function isHostedKind(kind) {
+  return kind === JOINERY_KIND || kind === DOOR_LEAF_KIND
+}
 
 // Profil de cadre par défaut (m) : section des montants/traverses (epaisseur_m)
 // et profondeur du dormant le long de la normale (profondeur_m). Modifiables
@@ -48,22 +61,26 @@ export function isJoineryKind(kind) {
 }
 
 /**
- * Payload `{ kind, params, plane }` d'une menuiserie ajustée à une ouverture.
- * @param {object} opening objet app hôte (kind `opening.window`)
+ * Payload `{ kind, params, plane }` du composant qui équipe une ouverture :
+ * cadre + vitrage (`joinery.frame`) dans une FENÊTRE, vantail (`door.leaf`)
+ * dans une PORTE (E14-07) — le module choisit selon le kind de l'hôte.
+ * @param {object} opening objet app hôte (kind `opening.window` ou `opening.door`)
  * @param {string} hostName node name de l'ouverture (dérivé via lib/naming)
- * @param {string} [variante] variante du catalogue (E14-06, défaut `fixe`)
+ * @param {string} [variante] variante du catalogue (E14-06, fenêtre seulement)
  * @returns payload prêt pour `createObject`, ou null si l'hôte n'est pas une ouverture.
  */
 export function joineryPayloadFromOpening(opening, hostName, variante = DEFAULT_JOINERY_VARIANT) {
-  if (opening?.kind !== 'opening.window') return null
+  if (!isOpeningKind(opening?.kind)) return null
   const p = opening.plane ?? {}
+  const door = opening.kind === DOOR_KIND
   return {
-    kind: JOINERY_KIND,
+    kind: door ? DOOR_LEAF_KIND : JOINERY_KIND,
     params: {
       largeur_m: Number(opening.params.largeur_m) || 0,
       hauteur_m: Number(opening.params.hauteur_m) || 0,
       ...DEFAULT_JOINERY,
-      variante: joineryVariantOf(variante),
+      // La variante (fixe/battant/coulissant) est propre aux fenêtres.
+      ...(door ? {} : { variante: joineryVariantOf(variante) }),
     },
     // Plan copié PAR VALEUR (pas de partage de tableaux avec l'hôte).
     plane: {
@@ -79,12 +96,13 @@ export function joineryPayloadFromOpening(opening, hostName, variante = DEFAULT_
 }
 
 /**
- * Menuiserie déjà posée dans l'ouverture `hostName`, ou null. Garde « un cadre
- * par ouverture » : re-cliquer une ouverture équipée sélectionne l'existant.
+ * Composant (cadre OU vantail) déjà posé dans l'ouverture `hostName`, ou null.
+ * Garde « un composant par ouverture » : re-cliquer une ouverture équipée
+ * sélectionne l'existant.
  */
 export function findJoinery(objects, hostName) {
   for (const o of Object.values(objects ?? {})) {
-    if (o.kind === JOINERY_KIND && o.plane?.hostOf === hostName) return o
+    if (isHostedKind(o.kind) && o.plane?.hostOf === hostName) return o
   }
   return null
 }
