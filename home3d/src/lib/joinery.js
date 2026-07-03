@@ -21,6 +21,27 @@ export const JOINERY_KIND = 'joinery.frame'
 // ensuite par instance dans l'inspector.
 export const DEFAULT_JOINERY = { epaisseur_m: 0.06, profondeur_m: 0.08 }
 
+// Variantes de menuiserie (E14-06), façon catalogue élec (lib/elec) : la variante
+// est un PARAM d'instance (`params.variante`) — le kind, le nommage
+// (`ouvertures__menuiserie__…`) et l'emprise (largeur/hauteur copiées de l'hôte)
+// ne changent pas, seule la géométrie générée diffère (meneau, vantaux sur
+// rails…). Sélectionnable avant la pose (sous-barre) ET modifiable ensuite par
+// instance dans l'inspector. `fixe` = le rendu d'E14-05 (rétro-compat : les
+// menuiseries sans `variante` — GLB antérieurs — sont rendues en fixe).
+export const JOINERY_VARIANTS = {
+  fixe: { label: 'Fixe', hint: 'vitrage plein, sans vantail' },
+  battant: { label: 'Battant', hint: '2 vantaux, meneau central' },
+  coulissant: { label: 'Coulissant', hint: '2 vantaux sur rails décalés' },
+}
+
+export const JOINERY_VARIANT_KEYS = Object.keys(JOINERY_VARIANTS)
+export const DEFAULT_JOINERY_VARIANT = 'fixe'
+
+/** Variante valide du catalogue, avec repli sur la variante par défaut. */
+export function joineryVariantOf(variante) {
+  return variante in JOINERY_VARIANTS ? variante : DEFAULT_JOINERY_VARIANT
+}
+
 /** Vrai si `kind` est une menuiserie. */
 export function isJoineryKind(kind) {
   return kind === JOINERY_KIND
@@ -30,9 +51,10 @@ export function isJoineryKind(kind) {
  * Payload `{ kind, params, plane }` d'une menuiserie ajustée à une ouverture.
  * @param {object} opening objet app hôte (kind `opening.window`)
  * @param {string} hostName node name de l'ouverture (dérivé via lib/naming)
+ * @param {string} [variante] variante du catalogue (E14-06, défaut `fixe`)
  * @returns payload prêt pour `createObject`, ou null si l'hôte n'est pas une ouverture.
  */
-export function joineryPayloadFromOpening(opening, hostName) {
+export function joineryPayloadFromOpening(opening, hostName, variante = DEFAULT_JOINERY_VARIANT) {
   if (opening?.kind !== 'opening.window') return null
   const p = opening.plane ?? {}
   return {
@@ -41,6 +63,7 @@ export function joineryPayloadFromOpening(opening, hostName) {
       largeur_m: Number(opening.params.largeur_m) || 0,
       hauteur_m: Number(opening.params.hauteur_m) || 0,
       ...DEFAULT_JOINERY,
+      variante: joineryVariantOf(variante),
     },
     // Plan copié PAR VALEUR (pas de partage de tableaux avec l'hôte).
     plane: {

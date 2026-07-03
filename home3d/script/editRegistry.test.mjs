@@ -109,4 +109,40 @@ describe('joinery.frame (générateur)', () => {
       hauteur_m: 1.4,
     })
   })
+
+  // Variantes (E14-06) : même kind/emprise, seule la géométrie générée diffère.
+  const withVariant = (variante) => ({ ...obj, params: { ...obj.params, variante } })
+  const counts = (variante) => {
+    const g = generateObject(withVariant(variante))
+    return {
+      frame: g.getObjectByName('__fill').geometry.attributes.position.count,
+      glass: g.getObjectByName('__glass').geometry.attributes.position.count,
+    }
+  }
+
+  it('battant : meneau central (cadre enrichi) + un vitrage par vantail', () => {
+    const fixe = counts('fixe')
+    const battant = counts('battant')
+    assert.ok(battant.frame > fixe.frame) // + 1 boîte (meneau)
+    assert.equal(battant.glass, 2 * fixe.glass) // 2 panneaux
+  })
+
+  it('coulissant : 2 montants de recouvrement + 2 vitrages sur des plans décalés', () => {
+    const fixe = counts('fixe')
+    const coulissant = counts('coulissant')
+    assert.ok(coulissant.frame > fixe.frame) // + 2 boîtes (montants de vantail)
+    assert.equal(coulissant.glass, 2 * fixe.glass)
+    // Les 2 vitrages sont décalés le long de Z local (rails avant/arrière).
+    const g = generateObject(withVariant('coulissant'))
+    const pos = g.getObjectByName('__glass').geometry.attributes.position
+    const zs = new Set()
+    for (let i = 0; i < pos.count; i++) zs.add(Math.round(pos.getZ(i) * 1e6))
+    assert.ok(zs.size >= 4) // ≥ 2 plaques × 2 faces à des Z distincts
+  })
+
+  it('variante inconnue ou absente → rendu fixe (rétro-compat E14-05)', () => {
+    const fixe = counts('fixe')
+    assert.deepEqual(counts('velux'), fixe)
+    assert.deepEqual(counts(undefined), fixe)
+  })
 })

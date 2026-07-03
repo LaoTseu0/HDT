@@ -15,6 +15,7 @@ import { kindNaming } from '../lib/editRegistry.js'
 import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
 import { DEFAULT_OPENING_PRESET } from '../lib/opening.js'
 import { DEFAULT_ELEC_KIND } from '../lib/elec.js'
+import { DEFAULT_JOINERY_VARIANT } from '../lib/joinery.js'
 import { cablePayloadFromPath, DEFAULT_CABLE_SECTION } from '../lib/cable.js'
 
 // Id interne STABLE d'un objet app (clé du map `objects`, jamais affichée). Le
@@ -292,6 +293,12 @@ const useStore = create(
       // historisée ; l'instance posée reste modifiable ensuite dans l'inspector.
       openingPreset: DEFAULT_OPENING_PRESET,
       setOpeningPreset: (preset) => set({ openingPreset: preset }),
+
+      // E14-06 : variante de menuiserie sélectionnée avant la pose (fixe/battant/
+      // coulissant, cf. lib/joinery `JOINERY_VARIANTS`). Préférence d'outil, pas
+      // historisée ; l'instance posée reste modifiable ensuite dans l'inspector.
+      joineryVariant: DEFAULT_JOINERY_VARIANT,
+      setJoineryVariant: (variant) => set({ joineryVariant: variant }),
 
       // E15-01/02 : composant élec sélectionné avant la pose (prise/interrupteur/
       // boîte/compteur, cf. lib/elec `ELEC_COMPONENTS`). Préférence d'outil, pas

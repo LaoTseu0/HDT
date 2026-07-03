@@ -975,6 +975,8 @@ export default function EditObjects() {
   // Pose de la menuiserie (E14-05) : clic sur une ouverture → cadre + vitrage
   // ajustés à ses dims, liés par node name (`plane.hostOf`). Une ouverture déjà
   // équipée sélectionne son cadre existant (garde « un cadre par ouverture »).
+  // La variante courante (E14-06, sous-barre) est copiée dans les params à la
+  // pose — modifiable ensuite par instance dans l'inspector.
   const onHostJoinery = useCallback((objId) => {
     const state = useStore.getState()
     const opening = state.objects[objId]
@@ -985,7 +987,7 @@ export default function EditObjects() {
       state.selectNode(existing.id)
       return
     }
-    const payload = joineryPayloadFromOpening(opening, host)
+    const payload = joineryPayloadFromOpening(opening, host, state.joineryVariant)
     if (payload) state.createObject(payload)
   }, [])
 

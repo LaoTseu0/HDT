@@ -4,6 +4,10 @@ import assert from 'node:assert/strict'
 import {
   JOINERY_KIND,
   DEFAULT_JOINERY,
+  JOINERY_VARIANTS,
+  JOINERY_VARIANT_KEYS,
+  DEFAULT_JOINERY_VARIANT,
+  joineryVariantOf,
   isJoineryKind,
   joineryPayloadFromOpening,
   findJoinery,
@@ -57,6 +61,38 @@ describe('joineryPayloadFromOpening', () => {
   it('hôte non-ouverture → null', () => {
     assert.equal(joineryPayloadFromOpening({ kind: 'sketch.rect', params: {} }, 'x'), null)
     assert.equal(joineryPayloadFromOpening(null, 'x'), null)
+  })
+
+  it('porte la variante demandée (E14-06), défaut fixe', () => {
+    assert.equal(joineryPayloadFromOpening(opening, 'x').params.variante, DEFAULT_JOINERY_VARIANT)
+    assert.equal(
+      joineryPayloadFromOpening(opening, 'x', 'coulissant').params.variante,
+      'coulissant'
+    )
+  })
+
+  it('variante inconnue → repli sur la variante par défaut', () => {
+    assert.equal(
+      joineryPayloadFromOpening(opening, 'x', 'oscillo_battant').params.variante,
+      DEFAULT_JOINERY_VARIANT
+    )
+  })
+})
+
+describe('variantes (E14-06)', () => {
+  it('catalogue : fixe / battant / coulissant, avec label + hint', () => {
+    assert.deepEqual(JOINERY_VARIANT_KEYS, ['fixe', 'battant', 'coulissant'])
+    for (const key of JOINERY_VARIANT_KEYS) {
+      assert.ok(JOINERY_VARIANTS[key].label)
+      assert.ok(JOINERY_VARIANTS[key].hint)
+    }
+    assert.ok(DEFAULT_JOINERY_VARIANT in JOINERY_VARIANTS)
+  })
+
+  it('joineryVariantOf : valide → identité, inconnu/absent → défaut', () => {
+    assert.equal(joineryVariantOf('battant'), 'battant')
+    assert.equal(joineryVariantOf('velux'), DEFAULT_JOINERY_VARIANT)
+    assert.equal(joineryVariantOf(undefined), DEFAULT_JOINERY_VARIANT)
   })
 })
 
