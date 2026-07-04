@@ -463,13 +463,14 @@ function DraftPreview({ draft }) {
   const tool = draft.tool ?? 'rect'
   if (tool === 'circle') return <CircleDraftPreview draft={draft} />
   if (tool === 'arc') return <ArcDraftPreview draft={draft} />
-  if (tool === 'cable') return <CableDraftPreview draft={draft} />
+  if (tool === 'cable' || tool === 'pipe') return <RunDraftPreview draft={draft} />
   return <RectDraftPreview draft={draft} />
 }
 
-// Aperçu du câble en cours (E15-03) : polyligne des sommets déjà posés + tronçon
-// vers le curseur. Sommets déjà en coordonnées MONDE → géométrie à l'identité.
-function CableDraftPreview({ draft }) {
+// Aperçu d'un run routé en cours (câble E15-03, tuyau E16-01) : polyligne des
+// sommets déjà posés + tronçon vers le curseur. Sommets déjà en coordonnées
+// MONDE → géométrie à l'identité.
+function RunDraftPreview({ draft }) {
   const { points, current } = draft
   const geo = useMemo(() => {
     const pts = [...(points ?? []), current]
@@ -744,10 +745,11 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
     return patch
   }
 
-  // Câble routé (E15-03) : chaque sommet est résolu sur le plan CONTEXTUEL frais
-  // (le run peut passer d'une face à l'autre, contrairement au plan verrouillé d'un
-  // rectangle) avec accroche ; le dernier sommet posé sert de référence d'inférence.
-  const resolveCablePoint = (event) => {
+  // Run routé (câble E15-03, tuyau E16-01) : chaque sommet est résolu sur le plan
+  // CONTEXTUEL frais (le run peut passer d'une face à l'autre, contrairement au plan
+  // verrouillé d'un rectangle) avec accroche ; le dernier sommet posé sert de
+  // référence d'inférence.
+  const resolveRunPoint = (event) => {
     const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
     const { rect, cursor } = cursorOf(event)
     const contextWorld = projectOnFrame(event, frame) ?? [
@@ -773,10 +775,10 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   }
 
   const onPointerMove = (event) => {
-    // Câble : polyligne multi-clics ; suit le curseur sur le plan contextuel, avec
-    // aperçu du tronçon en cours dès qu'un premier sommet est posé.
-    if (tool === 'cable') {
-      const { world, frame, snap } = resolveCablePoint(event)
+    // Run routé (câble/tuyau) : polyligne multi-clics ; suit le curseur sur le plan
+    // contextuel, avec aperçu du tronçon en cours dès qu'un premier sommet est posé.
+    if (tool === 'cable' || tool === 'pipe') {
+      const { world, frame, snap } = resolveRunPoint(event)
       const d = useStore.getState().draft
       if (d) setDraft({ ...d, current: world, frame, snap })
       else setHover({ point: world, u: frame.u, v: frame.v, normal: frame.normal, snap })
@@ -876,16 +878,16 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
       return
     }
 
-    // Câble routé (E15-03) : polyligne multi-clics. 1er clic = 1er sommet ; chaque
-    // clic ajoute un sommet ; double-clic ou Entrée termine (cf. onDoubleClick /
-    // commitDraft). Les sommets sont en coordonnées MONDE (plan contextuel frais).
-    if (tool === 'cable') {
-      const { world, frame, snap } = resolveCablePoint(event)
+    // Run routé (câble E15-03, tuyau E16-01) : polyligne multi-clics. 1er clic =
+    // 1er sommet ; chaque clic ajoute un sommet ; double-clic ou Entrée termine
+    // (cf. onDoubleClick / commitDraft). Sommets en MONDE (plan contextuel frais).
+    if (tool === 'cable' || tool === 'pipe') {
+      const { world, frame, snap } = resolveRunPoint(event)
       const d = useStore.getState().draft
       if (!d) {
         setHover(null)
         useStore.getState().setVcbText('')
-        setDraft({ tool: 'cable', frame, points: [world], current: world, snap })
+        setDraft({ tool, frame, points: [world], current: world, snap })
       } else {
         setDraft({ ...d, points: [...d.points, world], current: world, frame, snap })
       }
@@ -919,15 +921,15 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   // Relâché : committe le tracé via le store (gère cote VCB éventuelle + garde
   // clic accidentel). L'arc commit au clic (pas au relâché) → ignoré ici.
   const onPointerUp = () => {
-    if (tool === 'arc' || tool === 'cable' || !drawing.current) return
+    if (tool === 'arc' || tool === 'cable' || tool === 'pipe' || !drawing.current) return
     drawing.current = false
     if (useStore.getState().draft) useStore.getState().commitDraft()
   }
 
-  // Câble : double-clic = fin du routage (les deux clics ajoutent un sommet chacun,
-  // le doublon final est fusionné par la déduplication de commitCable).
+  // Run routé : double-clic = fin du routage (les deux clics ajoutent un sommet
+  // chacun, le doublon final est fusionné par la déduplication de commitRun).
   const onDoubleClick = (event) => {
-    if (tool !== 'cable') return
+    if (tool !== 'cable' && tool !== 'pipe') return
     event.stopPropagation()
     if (useStore.getState().draft) useStore.getState().commitDraft()
   }
@@ -989,7 +991,8 @@ export default function EditObjects() {
       activeTool === 'opening' ||
       activeTool === 'door' ||
       activeTool === 'elec' ||
-      activeTool === 'cable')
+      activeTool === 'cable' ||
+      activeTool === 'pipe')
   const pushable = editMode && activeTool === 'pushpull'
 
   // Pose de la menuiserie (E14-05) : clic sur une ouverture → cadre + vitrage
