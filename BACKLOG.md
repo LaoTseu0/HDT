@@ -910,6 +910,41 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > erreur console. **Reste** : **Slice 3 (plomberie, E16)** — dernière slice
 > d'édition — ou **E15-04** (circuits, optionnel).
 
+> **Slice 3 — avancement (2026-07-04, incrément 1 : E16-01 tuyaux routés).**
+> Calque exact du câble E15-03 : le tuyau est un **run routé** (catégorie ②) —
+> polyligne multi-clics balayée avec une **section rectangulaire** d'emprise
+> équivalente au Ø nominal, coudes d'onglet aux sommets, **`routing.js`
+> réutilisé tel quel** (zéro changement). Nouveau module pur
+> [plumbing.js](home3d/src/lib/plumbing.js) : catalogue `PIPE_SECTIONS`
+> (**cuivre Ø12/14/16/18/22** alimentation + **évac PVC Ø32/40/100**, défaut
+> cuivre Ø16), chaque section porte `famille` ('cuivre'|'evac') **conservée
+> dans les params** (support direct d'E16-02 : la pente ne concernera que les
+> runs `evac`) ; `pipePayloadFromPath` (déduplication, ≥ 2 sommets).
+> [editRegistry.js](home3d/src/lib/editRegistry.js) : le générateur de run est
+> devenu une **fabrique `makeGenerateRun(fill, edge)`** partagée câble/tuyau
+> (seule la couleur de calque diffère — plomberie `#7F77DD`) ; kind
+> **`plomberie.pipe`**, `referencePoints`/`deriveDims` généralisés (`isRunKind`),
+> `kindNaming` → **`plomberie`/`tuyau`**. Store : préférence `pipeSection`
+> (non historisée) + `commitCable` généralisé en **`commitRun`** (câble/tuyau
+> selon `draft.tool`). Tracé : mêmes gestes que le câble (plan contextuel frais
+> à chaque clic, snapping, double-clic/Entrée pour finir, Échap annule) —
+> branches `cable` de [EditObjects.jsx](home3d/src/components/EditObjects.jsx)
+> généralisées aux deux outils (`RunDraftPreview`). UI
+> ([EditBar.jsx](home3d/src/components/EditBar.jsx)) : outil **Tuyau** (icône
+> conduite coudée + goutte, tooltip) + **sous-barre des 8 sections** (cercles-
+> jauges, vs carrés du câble — directive IHM) + **inspector commun aux runs**
+> (`runCatalog` : SelectField Section par catalogue du kind + « N sommets ·
+> longueur »). Round-trip GLB générique (kind au registre). Tests :
+> [plumbing.test.mjs](home3d/script/plumbing.test.mjs) (catalogue, payload,
+> famille, registre, **générateur** : balayage monde, couleur calque, groupe à
+> l'identité) → **211 verts** ; `lint`/`build` OK. Vérifié au navigateur sur le
+> modèle démo : tuyau **évac Ø40** routé en 3 clics sur le toit
+> (`plomberie__tuyau__combles__combles__001`, 3 sommets · 3,93 m), Entrée
+> committe, bascule de section **evac40 → cuivre16** dans l'inspector régénère
+> (famille suit), undo×2/redo×2, aucune erreur console. **Reste Slice 3** :
+> E16-03 (tés aux jonctions — les coudes d'onglet sont déjà dans `runRings`),
+> E16-02 (pente évac), E16-04 (valve inline).
+
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
 et le **mode visite** opérationnel (vol libre, puis collisions).
