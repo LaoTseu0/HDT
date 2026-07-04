@@ -4,6 +4,7 @@ import { frameOfObjectPlane } from './workPlanes.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from './elec.js'
 import { runRings } from './routing.js'
 import { CABLE_KIND } from './cable.js'
+import { PIPE_KIND } from './plumbing.js'
 import { JOINERY_KIND, DOOR_LEAF_KIND, joineryVariantOf } from './joinery.js'
 import { WINDOW_KIND, DOOR_KIND, isOpeningKind } from './opening.js'
 
@@ -488,60 +489,69 @@ function generateElec(params, plane) {
   return group
 }
 
-// elec.cable — câble ROUTÉ (E15-03, cf. lib/routing + lib/cable). params :
-// { points:[[x,y,z]…] (monde), largeur_m, hauteur_m (section rect.), diametre_mm,
-// section }. Contrairement aux autres générateurs, la géométrie est construite en
-// coordonnées MONDE depuis `params.points` → on N'appelle PAS placeOnPlane (le
-// groupe reste à l'origine, identité) ; le `plane` stocké est purement nominal.
-// Balayage d'une section rectangulaire le long du chemin, coudes d'onglet (mitre)
-// aux sommets — géométrie basse résolution (4 faces/tronçon).
-function generateRun(params) {
-  const rings = runRings(params.points ?? [], params)
-  const position = []
-  const index = []
-  // 4 sommets par anneau. Faces latérales : 4 quads (8 tris) entre anneaux voisins.
-  for (const ring of rings) {
-    for (const c of ring.corners) position.push(c[0], c[1], c[2])
-  }
-  for (let i = 0; i < rings.length - 1; i++) {
-    const a = i * 4
-    const b = a + 4
-    for (let k = 0; k < 4; k++) {
-      const k2 = (k + 1) % 4
-      // quad (a+k, a+k2, b+k2, b+k) → 2 triangles.
-      index.push(a + k, a + k2, b + k2, a + k, b + k2, b + k)
+// Runs ROUTÉS — elec.cable (E15-03) et plomberie.pipe (E16-01), cf. lib/routing
+// + lib/cable + lib/plumbing. params : { points:[[x,y,z]…] (monde), largeur_m,
+// hauteur_m (section rect.), diametre_mm, section }. Contrairement aux autres
+// générateurs, la géométrie est construite en coordonnées MONDE depuis
+// `params.points` → on N'appelle PAS placeOnPlane (le groupe reste à l'origine,
+// identité) ; le `plane` stocké est purement nominal. Balayage d'une section
+// rectangulaire le long du chemin, coudes d'onglet (mitre) aux sommets —
+// géométrie basse résolution (4 faces/tronçon). Seule la couleur de calque
+// distingue les deux kinds → fabrique paramétrée.
+const PLUMB_FILL = 0x7f77dd // couleur du calque `plomberie` (script/naming.mjs)
+const PLUMB_EDGE = 0xcbc7f2
+
+const isRunKind = (kind) => kind === CABLE_KIND || kind === PIPE_KIND
+
+function makeGenerateRun(fillColor, edgeColor) {
+  return function generateRun(params) {
+    const rings = runRings(params.points ?? [], params)
+    const position = []
+    const index = []
+    // 4 sommets par anneau. Faces latérales : 4 quads (8 tris) entre anneaux voisins.
+    for (const ring of rings) {
+      for (const c of ring.corners) position.push(c[0], c[1], c[2])
     }
+    for (let i = 0; i < rings.length - 1; i++) {
+      const a = i * 4
+      const b = a + 4
+      for (let k = 0; k < 4; k++) {
+        const k2 = (k + 1) % 4
+        // quad (a+k, a+k2, b+k2, b+k) → 2 triangles.
+        index.push(a + k, a + k2, b + k2, a + k, b + k2, b + k)
+      }
+    }
+    // Bouchons d'extrémité (2 tris chacun) si le run a au moins un tronçon.
+    if (rings.length >= 2) {
+      const last = (rings.length - 1) * 4
+      index.push(0, 2, 1, 0, 3, 2) // départ
+      index.push(last, last + 1, last + 2, last, last + 2, last + 3) // arrivée
+    }
+
+    const fillGeo = new THREE.BufferGeometry()
+    fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(position, 3))
+    fillGeo.setIndex(index)
+    fillGeo.computeVertexNormals()
+
+    // Matériau OPAQUE (comme les composants élec) : l'effet d'opacité générique
+    // d'EditObject ne teinte que les matériaux `transparent` → le run reste plein.
+    const fill = new THREE.Mesh(
+      fillGeo,
+      new THREE.MeshStandardMaterial({ color: fillColor, metalness: 0.1, roughness: 0.7 })
+    )
+    fill.name = '__fill'
+
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(fillGeo, 20),
+      new THREE.LineBasicMaterial({ color: edgeColor })
+    )
+    edges.name = '__edges'
+    edges.raycast = () => {}
+
+    const group = new THREE.Group()
+    group.add(fill, edges)
+    return group // déjà en coordonnées monde — pas de placeOnPlane
   }
-  // Bouchons d'extrémité (2 tris chacun) si le run a au moins un tronçon.
-  if (rings.length >= 2) {
-    const last = (rings.length - 1) * 4
-    index.push(0, 2, 1, 0, 3, 2) // départ
-    index.push(last, last + 1, last + 2, last, last + 2, last + 3) // arrivée
-  }
-
-  const fillGeo = new THREE.BufferGeometry()
-  fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(position, 3))
-  fillGeo.setIndex(index)
-  fillGeo.computeVertexNormals()
-
-  // Matériau OPAQUE (comme les composants élec) : l'effet d'opacité générique
-  // d'EditObject ne teinte que les matériaux `transparent` → le câble reste plein.
-  const fill = new THREE.Mesh(
-    fillGeo,
-    new THREE.MeshStandardMaterial({ color: ELEC_FILL, metalness: 0.1, roughness: 0.7 })
-  )
-  fill.name = '__fill'
-
-  const edges = new THREE.LineSegments(
-    new THREE.EdgesGeometry(fillGeo, 20),
-    new THREE.LineBasicMaterial({ color: ELEC_EDGE })
-  )
-  edges.name = '__edges'
-  edges.raycast = () => {}
-
-  const group = new THREE.Group()
-  group.add(fill, edges)
-  return group // déjà en coordonnées monde — pas de placeOnPlane
 }
 
 const REGISTRY = {
@@ -554,7 +564,8 @@ const REGISTRY = {
   [DOOR_KIND]: generateOpening,
   [JOINERY_KIND]: generateJoinery,
   [DOOR_LEAF_KIND]: generateDoorLeaf,
-  [CABLE_KIND]: generateRun,
+  [CABLE_KIND]: makeGenerateRun(ELEC_FILL, ELEC_EDGE),
+  [PIPE_KIND]: makeGenerateRun(PLUMB_FILL, PLUMB_EDGE),
   // Tout le catalogue élec partage `generateElec` (seules les dims diffèrent).
   ...Object.fromEntries(ELEC_KINDS.map((k) => [k, generateElec])),
 }
@@ -578,6 +589,7 @@ const KIND_NAMING = {
   [JOINERY_KIND]: { system: 'ouvertures', type: 'menuiserie' }, // cadre+vitrage (E14-05)
   [DOOR_LEAF_KIND]: { system: 'ouvertures', type: 'vantail' }, // vantail de porte (E14-07)
   [CABLE_KIND]: { system: 'elec', type: 'cable' }, // câble routé (E15-03)
+  [PIPE_KIND]: { system: 'plomberie', type: 'tuyau' }, // tuyau routé (E16-01)
   // elec.* → système `elec`, type = celui du catalogue (prise, interrupteur…).
   ...Object.fromEntries(
     Object.entries(ELEC_COMPONENTS).map(([kind, c]) => [kind, { system: 'elec', type: c.type }])
@@ -614,10 +626,10 @@ export function generateObject(obj) {
 export function referencePoints(obj) {
   if (!isKnownKind(obj.kind)) return []
 
-  // Câble routé (E15-03) : chaque sommet du chemin est un point d'accroche (monde)
-  // — permet de raccorder un nouveau câble à un sommet existant. Pas de repère de
-  // plan (le run vit en coordonnées monde dans params.points).
-  if (obj.kind === CABLE_KIND) {
+  // Run routé (câble E15-03, tuyau E16-01) : chaque sommet du chemin est un point
+  // d'accroche (monde) — permet de raccorder un nouveau run à un sommet existant.
+  // Pas de repère de plan (le run vit en coordonnées monde dans params.points).
+  if (isRunKind(obj.kind)) {
     return (obj.params.points ?? []).map((p) => ({
       type: 'endpoint',
       point: [p[0], p[1], p[2]],
@@ -737,7 +749,7 @@ export function referencePoints(obj) {
 
 // Dimensions dérivées des params (cohérent avec les `dims` V1, E2-10).
 export function deriveDims(obj) {
-  if (obj.kind === CABLE_KIND) {
+  if (isRunKind(obj.kind)) {
     // Emprise = bounding box monde du chemin (le run n'a pas de repère u/v/normal).
     const pts = obj.params.points ?? []
     if (!pts.length) return { largeur_m: 0, profondeur_m: 0, hauteur_m: 0 }

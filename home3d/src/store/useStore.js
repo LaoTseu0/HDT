@@ -17,6 +17,7 @@ import { DEFAULT_OPENING_PRESET, DEFAULT_DOOR_PRESET } from '../lib/opening.js'
 import { DEFAULT_ELEC_KIND } from '../lib/elec.js'
 import { DEFAULT_JOINERY_VARIANT } from '../lib/joinery.js'
 import { cablePayloadFromPath, DEFAULT_CABLE_SECTION } from '../lib/cable.js'
+import { pipePayloadFromPath, DEFAULT_PIPE_SECTION } from '../lib/plumbing.js'
 
 // Id interne STABLE d'un objet app (clé du map `objects`, jamais affichée). Le
 // node name conforme (système__type__zone__niveau__index) en est DÉCOUPLÉ et
@@ -103,12 +104,15 @@ function commitArc(state, d) {
   }
 }
 
-// Commit d'un tracé de CÂBLE routé (E15-03) : le chemin committé = les sommets
-// déjà cliqués (`d.points`), le `current` (segment sous le curseur) n'est qu'un
-// aperçu et n'est pas ajouté. `cablePayloadFromPath` déduplique et exige ≥ 2
-// sommets distincts (sinon le tracé est simplement abandonné).
-function commitCable(state, d) {
-  const payload = cablePayloadFromPath(d.points ?? [], state.cableSection)
+// Commit d'un tracé de RUN routé (câble E15-03 / tuyau E16-01) : le chemin
+// committé = les sommets déjà cliqués (`d.points`), le `current` (segment sous
+// le curseur) n'est qu'un aperçu et n'est pas ajouté. Le payload déduplique et
+// exige ≥ 2 sommets distincts (sinon le tracé est simplement abandonné).
+function commitRun(state, d) {
+  const payload =
+    d.tool === 'pipe'
+      ? pipePayloadFromPath(d.points ?? [], state.pipeSection)
+      : cablePayloadFromPath(d.points ?? [], state.cableSection)
   if (!payload) return { draft: null, vcbText: '' }
   const obj = buildAppObject(state, payload)
   return {
@@ -241,7 +245,7 @@ const useStore = create(
           // du constructeur de payload. L'arc est multi-étapes (cf. commitArc).
           const tool = d.tool ?? 'rect'
           if (tool === 'arc') return commitArc(state, d)
-          if (tool === 'cable') return commitCable(state, d)
+          if (tool === 'cable' || tool === 'pipe') return commitRun(state, d)
           let payload
           if (tool === 'circle') {
             const parsed = state.vcbText ? parseVcbRadius(state.vcbText) : null
@@ -317,6 +321,12 @@ const useStore = create(
       // l'instance posée reste modifiable ensuite dans l'inspector.
       cableSection: DEFAULT_CABLE_SECTION,
       setCableSection: (section) => set({ cableSection: section }),
+
+      // E16-01 : section de tuyau sélectionnée avant le routage (cuivre Ø12→22,
+      // évac PVC Ø32/40/100, cf. lib/plumbing `PIPE_SECTIONS`). Préférence
+      // d'outil, pas historisée ; l'instance posée reste modifiable ensuite.
+      pipeSection: DEFAULT_PIPE_SECTION,
+      setPipeSection: (section) => set({ pipeSection: section }),
 
       // E12-08 : aperçu éphémère d'un Push/Pull en cours =
       // { id, paramKey, value, origin } (la face cliquée fixe quelle cote bouge).
