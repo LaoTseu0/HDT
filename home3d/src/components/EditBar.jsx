@@ -10,12 +10,9 @@ import {
   JOINERY_VARIANTS,
   JOINERY_VARIANT_KEYS,
 } from '../lib/joinery.js'
-import {
-  CABLE_SECTIONS,
-  CABLE_SECTION_KEYS,
-  CABLE_KIND,
-  cableLength,
-} from '../lib/cable.js'
+import { CABLE_SECTIONS, CABLE_SECTION_KEYS, CABLE_KIND } from '../lib/cable.js'
+import { PIPE_SECTIONS, PIPE_SECTION_KEYS, PIPE_KIND } from '../lib/plumbing.js'
+import { pathLength } from '../lib/routing.js'
 
 // Libellés FR des niveaux (segment `level` de la convention de nommage).
 const LEVEL_LABELS = {
@@ -162,6 +159,24 @@ function ToolIcon({ id }) {
       </svg>
     )
   }
+  if (id === 'pipe') {
+    // Tuyau routé : conduite coudée (trait épais, coude arrondi) + goutte.
+    return (
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          d="M5 21V10a4 4 0 0 1 4-4h6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+        />
+        <path
+          d="M19 12c1.5 2.2 2.4 3.5 2.4 4.8a2.4 2.4 0 0 1-4.8 0c0-1.3.9-2.6 2.4-4.8z"
+          fill="currentColor"
+        />
+      </svg>
+    )
+  }
   // pushpull
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -247,6 +262,29 @@ function CableSectionIcon({ id }) {
         stroke="currentColor"
         strokeWidth="2"
       />
+    </svg>
+  )
+}
+
+// Icônes des sections de tuyau (sous-barre de l'outil Tuyau, E16-01) : cercle
+// (section nominale ronde, vs carré du câble) dont le Ø grossit avec la section,
+// façon jauge — cuivre Ø12→22, puis évacuation PVC Ø32/40/100.
+const PIPE_ICON_R = {
+  cuivre12: 3,
+  cuivre14: 3.5,
+  cuivre16: 4,
+  cuivre18: 4.5,
+  cuivre22: 5.5,
+  evac32: 6.5,
+  evac40: 7.5,
+  evac100: 9.5,
+}
+
+function PipeSectionIcon({ id }) {
+  const r = PIPE_ICON_R[id] ?? 4
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <circle cx="12" cy="12" r={r} fill="none" stroke="currentColor" strokeWidth="2" />
     </svg>
   )
 }
@@ -446,6 +484,11 @@ const TOOLS = [
     label: 'Câble',
     hint: 'Router un câble électrique (clics successifs, double-clic pour finir)',
   },
+  {
+    id: 'pipe',
+    label: 'Tuyau',
+    hint: 'Router un tuyau de plomberie (clics successifs, double-clic pour finir)',
+  },
   { id: 'pushpull', label: 'Push/Pull', hint: 'Donner du volume à une face (extrusion)' },
 ]
 
@@ -462,6 +505,9 @@ const JOINERY_VARIANT_LIST = JOINERY_VARIANT_KEYS.map((id) => ({
 // Liste ordonnée des sections de câble pour la sous-barre (E15-03).
 const CABLE_SECTION_LIST = CABLE_SECTION_KEYS.map((id) => ({ id, label: CABLE_SECTIONS[id].label }))
 
+// Liste ordonnée des sections de tuyau pour la sous-barre (E16-01).
+const PIPE_SECTION_LIST = PIPE_SECTION_KEYS.map((id) => ({ id, label: PIPE_SECTIONS[id].label }))
+
 const TOOL_HINTS = {
   rect: 'Tracez un rectangle : sur le sol, ou directement sur une face survolée du modèle.',
   circle: 'Cliquez le centre puis glissez pour le rayon. Tapez une valeur pour le fixer.',
@@ -476,6 +522,8 @@ const TOOL_HINTS = {
     'Choisissez un composant puis cliquez sur une face de mur pour le poser. Ajustez la hauteur / sol dans l’inspecteur.',
   cable:
     'Choisissez une section, puis cliquez chaque point du trajet (sol ou faces de mur). Double-cliquez ou Entrée pour terminer, Échap pour annuler.',
+  pipe:
+    'Choisissez une section (cuivre ou évac PVC), puis cliquez chaque point du trajet (sol ou faces de mur). Double-cliquez ou Entrée pour terminer, Échap pour annuler.',
   pushpull: 'Cliquez une forme et tirez pour l’extruder le long de sa normale.',
 }
 
@@ -505,6 +553,8 @@ export default function EditBar() {
   const setElecComponent = useStore((state) => state.setElecComponent)
   const cableSection = useStore((state) => state.cableSection)
   const setCableSection = useStore((state) => state.setCableSection)
+  const pipeSection = useStore((state) => state.pipeSection)
+  const setPipeSection = useStore((state) => state.setPipeSection)
 
   // pastStates/futureStates du store temporel zundo (réactif).
   const canUndo = useTemporal((state) => state.pastStates.length > 0)
@@ -529,6 +579,14 @@ export default function EditBar() {
   if (!editMode) return null
   const selectedObj = selectedNode ? objects[selectedNode] : null
   const objectCount = Object.keys(objects).length
+  // Catalogue de sections d'un run routé sélectionné (câble E15-03 / tuyau
+  // E16-01) — l'inspector est commun, seul le catalogue change.
+  const runCatalog =
+    selectedObj?.kind === CABLE_KIND
+      ? { sections: CABLE_SECTIONS, list: CABLE_SECTION_LIST }
+      : selectedObj?.kind === PIPE_KIND
+        ? { sections: PIPE_SECTIONS, list: PIPE_SECTION_LIST }
+        : null
 
   return (
     <aside className="edit-bar" aria-label="Édition">
@@ -676,6 +734,26 @@ export default function EditBar() {
         </div>
       )}
 
+      {activeTool === 'pipe' && (
+        <div className="edit-tools" role="toolbar" aria-label="Section de tuyau">
+          {PIPE_SECTION_LIST.map((sec) => {
+            const dims = PIPE_SECTIONS[sec.id].dims
+            return (
+              <button
+                key={sec.id}
+                className="edit-tool"
+                aria-pressed={pipeSection === sec.id}
+                aria-label={sec.label}
+                title={`${sec.label} — section ${dims.largeur_m * 1000} × ${dims.hauteur_m * 1000} mm`}
+                onClick={() => setPipeSection(sec.id)}
+              >
+                <PipeSectionIcon id={sec.id} />
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {TOOL_HINTS[activeTool] && <p className="edit-hint">{TOOL_HINTS[activeTool]}</p>}
 
       {selectedObj ? (
@@ -693,18 +771,20 @@ export default function EditBar() {
             options={LEVELS.map((id) => ({ value: id, label: LEVEL_LABELS[id] ?? id }))}
             onChange={(level) => setObjectNaming(selectedObj.id, { level })}
           />
-          {selectedObj.kind === CABLE_KIND ? (
+          {runCatalog ? (
             <>
               <SelectField
                 label="Section"
                 value={selectedObj.params.section}
-                options={CABLE_SECTION_LIST.map((s) => ({ value: s.id, label: s.label }))}
+                options={runCatalog.list.map((s) => ({ value: s.id, label: s.label }))}
                 onChange={(section) => {
-                  const s = CABLE_SECTIONS[section]
+                  const s = runCatalog.sections[section]
                   if (!s) return
                   updateObjectParams(selectedObj.id, {
                     section,
                     diametre_mm: s.diametre_mm,
+                    // La famille (cuivre/évac) n'existe que côté plomberie.
+                    ...(s.famille ? { famille: s.famille } : {}),
                     largeur_m: s.dims.largeur_m,
                     hauteur_m: s.dims.hauteur_m,
                   })
@@ -712,7 +792,7 @@ export default function EditBar() {
               />
               <p className="edit-hint">
                 {selectedObj.params.points?.length ?? 0} sommets ·{' '}
-                {cableLength(selectedObj.params).toFixed(2)} m
+                {pathLength(selectedObj.params.points ?? []).toFixed(2)} m
               </p>
             </>
           ) : isElecKind(selectedObj.kind) ? (
