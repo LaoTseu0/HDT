@@ -32,9 +32,41 @@ export const DEFAULT_PIPE_SECTION = 'cuivre16'
 
 const round = (x) => Number(Number(x).toFixed(4))
 
-/** Longueur totale (m) d'un tuyau depuis ses params (points). */
+/** Pente maximale d'un run d'évacuation (%) — au-delà, on route autrement. */
+export const MAX_PENTE_PCT = 10
+
+/** Pente effective d'un run (%) : bornée [0, MAX_PENTE_PCT], évac seulement. */
+export function pentePct(params) {
+  if (params?.famille !== 'evac') return 0
+  return Math.min(Math.max(Number(params?.pente_pct) || 0, 0), MAX_PENTE_PCT)
+}
+
+/**
+ * Points de RENDU d'un tuyau (E16-02) : sur un run d'évacuation portant une
+ * pente, chaque sommet descend de `pente% × longueur HORIZONTALE cumulée`
+ * depuis le départ (1er point cliqué = l'AMONT — on route de l'amont vers
+ * l'aval). Les tronçons verticaux n'ajoutent pas de descente. NON-DESTRUCTIF :
+ * `params.points` (les clics) n'est jamais modifié — la pente est appliquée à
+ * la volée par le générateur, l'accroche et les raccords (E16-03).
+ * @param {{points?:number[][], famille?:string, pente_pct?:number}} params
+ * @returns {number[][]} points pentus (ou `points` tel quel si pente nulle)
+ */
+export function slopedPoints(params) {
+  const pts = params?.points ?? []
+  const pente = pentePct(params)
+  if (!pente || pts.length < 2) return pts
+  const out = [[...pts[0]]]
+  let cumul = 0
+  for (let i = 1; i < pts.length; i++) {
+    cumul += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][2] - pts[i - 1][2])
+    out.push([pts[i][0], round(pts[i][1] - (pente / 100) * cumul), pts[i][2]])
+  }
+  return out
+}
+
+/** Longueur totale (m) d'un tuyau depuis ses params (pente comprise). */
 export function pipeLength(params) {
-  return pathLength(params?.points ?? [])
+  return pathLength(slopedPoints(params))
 }
 
 /**
@@ -62,6 +94,9 @@ export function pipePayloadFromPath(points, sectionKey = DEFAULT_PIPE_SECTION) {
       diametre_mm: sec.diametre_mm,
       famille: sec.famille,
       section: key,
+      // Pente (E16-02) : paramétrable sur les runs d'évacuation seulement,
+      // nulle à la pose (le tracé cliqué est rendu tel quel).
+      ...(sec.famille === 'evac' ? { pente_pct: 0 } : {}),
     },
     plane: { type: 'run', origin: pts[0], u: [1, 0, 0], v: [0, 1, 0], normal: [0, 0, 1] },
   }

@@ -11,7 +11,13 @@ import {
   JOINERY_VARIANT_KEYS,
 } from '../lib/joinery.js'
 import { CABLE_SECTIONS, CABLE_SECTION_KEYS, CABLE_KIND } from '../lib/cable.js'
-import { PIPE_SECTIONS, PIPE_SECTION_KEYS, PIPE_KIND } from '../lib/plumbing.js'
+import {
+  PIPE_SECTIONS,
+  PIPE_SECTION_KEYS,
+  PIPE_KIND,
+  pipeLength,
+  MAX_PENTE_PCT,
+} from '../lib/plumbing.js'
 import { pathLength } from '../lib/routing.js'
 
 // Libellés FR des niveaux (segment `level` de la convention de nommage).
@@ -790,9 +796,29 @@ export default function EditBar() {
                   })
                 }}
               />
+              {/* Pente d'évacuation (E16-02) : % de descente par longueur
+                  horizontale, appliqué depuis l'AMONT (1er point tracé). Les
+                  runs d'alimentation (cuivre) n'ont pas de pente. */}
+              {selectedObj.kind === PIPE_KIND && selectedObj.params.famille === 'evac' && (
+                <NumberField
+                  label="Pente (%)"
+                  value={selectedObj.params.pente_pct ?? 0}
+                  allowZero
+                  step="0.5"
+                  onChange={(v) =>
+                    updateObjectParams(selectedObj.id, {
+                      pente_pct: Math.min(v, MAX_PENTE_PCT),
+                    })
+                  }
+                />
+              )}
               <p className="edit-hint">
                 {selectedObj.params.points?.length ?? 0} sommets ·{' '}
-                {pathLength(selectedObj.params.points ?? []).toFixed(2)} m
+                {(selectedObj.kind === PIPE_KIND
+                  ? pipeLength(selectedObj.params)
+                  : pathLength(selectedObj.params.points ?? [])
+                ).toFixed(2)}{' '}
+                m
               </p>
             </>
           ) : isElecKind(selectedObj.kind) ? (

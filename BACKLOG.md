@@ -318,7 +318,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E16-01 ✅ | En tant qu'utilisateur, je veux router des tuyaux avec des diamètres prédéfinis. | Réemploi du routage rectangulaire ; presets **cuivre** Ø12/14/16/18/22, **PVC**, **évacuation** Ø32/40/100 (rendus en section rectangulaire d'emprise équivalente, identité nominale conservée). | M | 5 |
-| E16-02 | En tant qu'utilisateur, je veux régler une pente sur un réseau d'évacuation. | Pente paramétrable sur un run d'évacuation. | S | 3 |
+| E16-02 ✅ | En tant qu'utilisateur, je veux régler une pente sur un réseau d'évacuation. | Pente paramétrable sur un run d'évacuation. | S | 3 |
 | E16-03 ✅ | En tant qu'utilisateur, je veux des coudes/raccords/tés automatiques aux jonctions. | Générés automatiquement (onglet entre sections rectangulaires) aux sommets et jonctions. | M | 5 |
 | E16-04 | En tant qu'utilisateur, je veux insérer une valve sur un tuyau. | Objet inline inséré sur un segment, coupe le run en deux. | S | 3 |
 
@@ -970,6 +970,31 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > 40 sommets/60 tris), undo×2 fait retomber le mesh à 24 puis 0 sommets, redo le
 > restaure, aucune erreur console. **Reste Slice 3** : E16-02 (pente évac,
 > s'appuyer sur `params.famille`), E16-04 (valve inline).
+
+> **Slice 3 — avancement (2026-07-05, incrément 3 : E16-02 pente d'évacuation).**
+> La pente est un **param d'instance** (`params.pente_pct`, % — présent et nul à
+> la pose pour les sections `famille === 'evac'`, absent côté cuivre), **NON
+> destructif** : les clics (`params.points`) ne bougent jamais, la géométrie
+> RENDUE fait descendre chaque sommet de `pente % × longueur horizontale
+> cumulée` depuis l'AMONT (1er point tracé — on route de l'amont vers l'aval ;
+> les tronçons verticaux n'ajoutent rien).
+> [plumbing.js](home3d\src\lib\plumbing.js) : `slopedPoints(params)` + `pentePct`
+> (bornée [0, `MAX_PENTE_PCT` = 10]), `pipeLength` devient pente comprise.
+> [editRegistry.js](home3d\src\lib\editRegistry.js) : `makeGenerateRun` prend un
+> `resolvePoints` (le tuyau passe `slopedPoints`, le câble reste tel quel) ;
+> `referencePoints`/`deriveDims` suivent la géométrie pentue (on s'accroche à ce
+> qu'on voit). Les raccords E16-03
+> ([RunFittings.jsx](home3d\src\components\RunFittings.jsx)) détectent sur les
+> points PENTUS → le té suit la descente. Inspector : champ **Pente (%)** (pas
+> 0,5) visible seulement sur un run d'évacuation. Tests : `plumbing.test.mjs`
+> (+10 → **235 verts**), `lint`/`build` OK. Vérifié au navigateur (modèle démo) :
+> évac Ø100 6 m + branche Ø40 en té, pente 2 % → chute 12 cm (bbox 1,55→1,33),
+> té recalé sur l'axe pentu (y=1,44), clics intacts (y=1,5), champ Pente visible
+> en évac / masqué en cuivre / restauré à l'undo, aucune erreur console.
+> **Comportement assumé** : une forte pente (8 % testé) éloigne le corps du
+> tuyau d'une branche restée en place au-delà de la tolérance → son té disparaît
+> (les raccords suivent la géométrie réelle) ; re-router la branche sur le
+> sommet pentu le rétablit. **Reste Slice 3** : E16-04 (valve inline).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),

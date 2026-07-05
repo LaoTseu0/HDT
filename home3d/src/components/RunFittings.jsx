@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import useStore from '../store/useStore.js'
-import { PIPE_KIND } from '../lib/plumbing.js'
+import { PIPE_KIND, slopedPoints } from '../lib/plumbing.js'
 import { detectFittings, fittingMesh } from '../lib/fittings.js'
 
 // Raccords automatiques aux jonctions de tuyaux (E16-03, cf. lib/fittings).
@@ -19,7 +19,11 @@ export default function RunFittings() {
 
   // Un seul maillage pour tous les raccords du réseau (1 draw call).
   const geometry = useMemo(() => {
-    const pipes = Object.values(objects).filter((o) => o.kind === PIPE_KIND)
+    // Détection sur la géométrie RENDUE : un tuyau d'évacuation applique sa
+    // pente (E16-02) — le raccord suit le sommet pentu, pas le clic d'origine.
+    const pipes = Object.values(objects)
+      .filter((o) => o.kind === PIPE_KIND)
+      .map((o) => ({ id: o.id, params: { ...o.params, points: slopedPoints(o.params) } }))
     const fittings = detectFittings(pipes)
     if (!fittings.length) return null
     const position = []
