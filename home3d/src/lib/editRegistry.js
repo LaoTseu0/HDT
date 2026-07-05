@@ -4,7 +4,7 @@ import { frameOfObjectPlane } from './workPlanes.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from './elec.js'
 import { runMesh } from './routing.js'
 import { CABLE_KIND } from './cable.js'
-import { PIPE_KIND } from './plumbing.js'
+import { PIPE_KIND, slopedPoints } from './plumbing.js'
 import { JOINERY_KIND, DOOR_LEAF_KIND, joineryVariantOf } from './joinery.js'
 import { WINDOW_KIND, DOOR_KIND, isOpeningKind } from './opening.js'
 
@@ -503,11 +503,18 @@ const PLUMB_EDGE = 0xcbc7f2
 
 const isRunKind = (kind) => kind === CABLE_KIND || kind === PIPE_KIND
 
-function makeGenerateRun(fillColor, edgeColor) {
+// Points de RENDU d'un run : le tuyau applique sa pente d'évacuation (E16-02,
+// cf. lib/plumbing slopedPoints) ; le câble rend ses clics tels quels. Utilisé
+// partout où la géométrie compte (générateur, accroche, dims) pour rester
+// cohérent avec ce que l'utilisateur voit.
+const runPointsOf = (kind, params) =>
+  kind === PIPE_KIND ? slopedPoints(params) : (params.points ?? [])
+
+function makeGenerateRun(fillColor, edgeColor, resolvePoints = (params) => params.points ?? []) {
   return function generateRun(params) {
     // Balayage de la section le long du chemin : maillage pur (lib/routing),
     // partagé avec les raccords automatiques (E16-03, lib/fittings).
-    const { position, index } = runMesh(params.points ?? [], params)
+    const { position, index } = runMesh(resolvePoints(params), params)
 
     const fillGeo = new THREE.BufferGeometry()
     fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(position, 3))
@@ -546,7 +553,8 @@ const REGISTRY = {
   [JOINERY_KIND]: generateJoinery,
   [DOOR_LEAF_KIND]: generateDoorLeaf,
   [CABLE_KIND]: makeGenerateRun(ELEC_FILL, ELEC_EDGE),
-  [PIPE_KIND]: makeGenerateRun(PLUMB_FILL, PLUMB_EDGE),
+  // Le tuyau rend ses points PENTUS (E16-02) — les clics restent dans params.
+  [PIPE_KIND]: makeGenerateRun(PLUMB_FILL, PLUMB_EDGE, slopedPoints),
   // Tout le catalogue élec partage `generateElec` (seules les dims diffèrent).
   ...Object.fromEntries(ELEC_KINDS.map((k) => [k, generateElec])),
 }
@@ -610,8 +618,9 @@ export function referencePoints(obj) {
   // Run routé (câble E15-03, tuyau E16-01) : chaque sommet du chemin est un point
   // d'accroche (monde) — permet de raccorder un nouveau run à un sommet existant.
   // Pas de repère de plan (le run vit en coordonnées monde dans params.points).
+  // Le tuyau expose ses sommets PENTUS (E16-02) : on s'accroche à ce qu'on voit.
   if (isRunKind(obj.kind)) {
-    return (obj.params.points ?? []).map((p) => ({
+    return runPointsOf(obj.kind, obj.params).map((p) => ({
       type: 'endpoint',
       point: [p[0], p[1], p[2]],
     }))
@@ -731,8 +740,8 @@ export function referencePoints(obj) {
 // Dimensions dérivées des params (cohérent avec les `dims` V1, E2-10).
 export function deriveDims(obj) {
   if (isRunKind(obj.kind)) {
-    // Emprise = bounding box monde du chemin (le run n'a pas de repère u/v/normal).
-    const pts = obj.params.points ?? []
+    // Emprise = bounding box monde du chemin RENDU (pente comprise pour un tuyau).
+    const pts = runPointsOf(obj.kind, obj.params)
     if (!pts.length) return { largeur_m: 0, profondeur_m: 0, hauteur_m: 0 }
     let minX = Infinity, maxX = -Infinity
     let minY = Infinity, maxY = -Infinity
