@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { dedupePath, pathLength, runRings, dist } from '../src/lib/routing.js'
+import { dedupePath, pathLength, runRings, runMesh, dist } from '../src/lib/routing.js'
 
 // Routage des objets linéaires (E15-03) : dédup du chemin, longueur, et anneaux de
 // section balayés (coude d'onglet aux sommets). Module PUR.
@@ -115,5 +115,32 @@ describe('runRings', () => {
     // Anneau central identique quel que soit le tronçon → pas de duplication.
     assert.equal(rings.length, 3)
     assert.ok(vclose(rings[1].center, [1, 0, 0]))
+  })
+})
+
+describe('runMesh', () => {
+  const section = { largeur_m: 0.02, hauteur_m: 0.02 }
+
+  it('équerre 3 sommets : 12 positions (4/anneau), 4 quads/tronçon + 2 bouchons', () => {
+    const { position, index } = runMesh(
+      [
+        [0, 0, 0],
+        [1, 0, 0],
+        [1, 0, 1],
+      ],
+      section
+    )
+    assert.equal(position.length, 3 * 4 * 3) // 3 anneaux × 4 coins × xyz
+    // 2 tronçons × 4 quads × 6 indices + 2 bouchons × 6 indices.
+    assert.equal(index.length, 2 * 4 * 6 + 2 * 6)
+    // Tous les indices pointent dans le tableau de positions.
+    const count = position.length / 3
+    assert.ok(index.every((i) => i >= 0 && i < count))
+  })
+
+  it('< 2 sommets distincts → maillage vide (pas de bouchons)', () => {
+    const { position, index } = runMesh([[0, 0, 0]], section)
+    assert.equal(position.length, 4 * 3) // l'anneau seul existe…
+    assert.equal(index.length, 0) // …mais aucune face
   })
 })
