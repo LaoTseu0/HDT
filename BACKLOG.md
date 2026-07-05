@@ -249,11 +249,11 @@ snapping, modèle paramétrique. Voir [docs/edit-mode-design.md](docs/edit-mode-
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E12-01 | En tant qu'utilisateur, je veux basculer View ↔ Edit avec une palette d'outils et un inspector afin de créer/éditer des objets. | Bascule de mode ; **palette d'outils à icônes + tooltips** (directive IHM) ; panneau propriétés (lecture **et** édition des params de l'objet sélectionné). | M | 5 |
-| E12-02 | En tant qu'utilisateur, je veux que le plan d'esquisse soit **déduit du contexte** (façon SketchUp) afin de créer sans choisir de plan manuellement. | Dessin sur le **sol / niveau 0** par défaut ; sur la **face survolée** quand le curseur est sur un mesh (le plan = cette face) ; **aucun sélecteur de plan manuel** ; feedback visuel discret du plan actif. **Révisé 2026-06-24** : abandon du menu XZ/YZ/niveau au profit du paradigme SketchUp contextuel ; les « points de référence » (arêtes/intersections) relèvent de E12-03. | M | 5 |
+| E12-01 ✅ | En tant qu'utilisateur, je veux basculer View ↔ Edit avec une palette d'outils et un inspector afin de créer/éditer des objets. | Bascule de mode ; **palette d'outils à icônes + tooltips** (directive IHM) ; panneau propriétés (lecture **et** édition des params de l'objet sélectionné). | M | 5 |
+| E12-02 ✅ | En tant qu'utilisateur, je veux que le plan d'esquisse soit **déduit du contexte** (façon SketchUp) afin de créer sans choisir de plan manuellement. | Dessin sur le **sol / niveau 0** par défaut ; sur la **face survolée** quand le curseur est sur un mesh (le plan = cette face) ; **aucun sélecteur de plan manuel** ; feedback visuel discret du plan actif. **Révisé 2026-06-24** : abandon du menu XZ/YZ/niveau au profit du paradigme SketchUp contextuel ; les « points de référence » (arêtes/intersections) relèvent de E12-03. | M | 5 |
 | E12-03 | En tant qu'utilisateur, je veux du snapping/inférence afin de placer précisément et confortablement. | Snap sur grille, extrémités/milieux, sommets/arêtes des meshes (accéléré par `three-mesh-bvh`), axes X/Y/Z, parallèle/perpendiculaire ; marqueurs + lignes d'inférence ; pas de chute de framerate. | M | 13 |
 | E12-04 ✅ | En tant qu'utilisateur, je veux saisir une cote au clavier pendant un tracé afin d'être exact. | Taper une longueur/rayon fixe la cote ; unités en mètres (façon VCB SketchUp). | S | 3 |
-| E12-05 | En tant que dev, je veux un modèle paramétrique afin que les objets créés soient ré-éditables après rechargement. | `extras.edit { kind, plane, params, variant }` ; registre `kind→générateur` ; géométrie **régénérée au chargement** depuis les params ; `dims` recalculés (cohérent E2-10). | M | 8 |
+| E12-05 ✅ | En tant que dev, je veux un modèle paramétrique afin que les objets créés soient ré-éditables après rechargement. | `extras.edit { kind, plane, params, variant }` ; registre `kind→générateur` ; géométrie **régénérée au chargement** depuis les params ; `dims` recalculés (cohérent E2-10). | M | 8 |
 | E12-06 ✅ | En tant que dev, je veux des node names auto-générés conformes afin de garder le contrat de nommage sans plugin SketchUp. | Nom `système__type__zone__niveau__index` ; index auto-incrémenté par (système, zone, niveau) ; zone choisie dans l'inspector (zone courante par défaut) ; passe la regex de validation. | M | 5 |
 | E12-07 | En tant qu'utilisateur, je veux déplacer/tourner/redimensionner un objet par manipulation directe. | `TransformControls` (déplacer/tourner) + poignées de redimensionnement paramétrique ; respecte le snapping et l'undo/redo. Absorbe **E10-01**. | M | 5 |
 | E12-08 | En tant qu'utilisateur, je veux donner du volume à une forme 2D avec **Push/Pull** afin de créer un solide sans repasser par SketchUp. | Cliquer une face plane → tirer le long de sa **normale** → extrusion en volume (prisme) ; profondeur calable par **inférence** (E12-03) ou **saisie clavier** (E12-04) ; résultat **paramétrique** (hauteur d'extrusion dans `params`, régénérée au chargement, E12-05) ; undo/redo. _(Ajouté 2026-06-24, directive « façon SketchUp ».)_ | M | 5 |
@@ -267,7 +267,7 @@ Premier livrable d'Edit mode, **sans booléen**.
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E13-01 | En tant qu'utilisateur, je veux dessiner un rectangle paramétrique afin de poser une forme de base. | Tracé 2 coins (ou centre + coin) sur le plan actif ; paramétrique ; snapping actif. | M | 3 |
+| E13-01 ✅ | En tant qu'utilisateur, je veux dessiner un rectangle paramétrique afin de poser une forme de base. | Tracé 2 coins (ou centre + coin) sur le plan actif ; paramétrique ; snapping actif. | M | 3 |
 | E13-02 ✅ | En tant qu'utilisateur, je veux dessiner un cercle paramétrique. | Centre + rayon ; saisie numérique du rayon possible (E12-04). | M | 2 |
 | E13-03 ✅ | En tant qu'utilisateur, je veux dessiner un arc de cercle paramétrique. | 3 points (ou centre + début + fin) ; paramétrique. | M | 3 |
 | E13-04 | En tant qu'utilisateur, je veux éditer les paramètres d'une primitive afin de l'ajuster après coup. | Sélection → inspector affiche/édite les cotes ; poignées de redimensionnement ; undo/redo ; **survit au rechargement** (E12-05). | M | 3 |
@@ -317,9 +317,9 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E16-01 | En tant qu'utilisateur, je veux router des tuyaux avec des diamètres prédéfinis. | Réemploi du routage rectangulaire ; presets **cuivre** Ø12/14/16/18/22, **PVC**, **évacuation** Ø32/40/100 (rendus en section rectangulaire d'emprise équivalente, identité nominale conservée). | M | 5 |
+| E16-01 ✅ | En tant qu'utilisateur, je veux router des tuyaux avec des diamètres prédéfinis. | Réemploi du routage rectangulaire ; presets **cuivre** Ø12/14/16/18/22, **PVC**, **évacuation** Ø32/40/100 (rendus en section rectangulaire d'emprise équivalente, identité nominale conservée). | M | 5 |
 | E16-02 | En tant qu'utilisateur, je veux régler une pente sur un réseau d'évacuation. | Pente paramétrable sur un run d'évacuation. | S | 3 |
-| E16-03 | En tant qu'utilisateur, je veux des coudes/raccords/tés automatiques aux jonctions. | Générés automatiquement (onglet entre sections rectangulaires) aux sommets et jonctions. | M | 5 |
+| E16-03 ✅ | En tant qu'utilisateur, je veux des coudes/raccords/tés automatiques aux jonctions. | Générés automatiquement (onglet entre sections rectangulaires) aux sommets et jonctions. | M | 5 |
 | E16-04 | En tant qu'utilisateur, je veux insérer une valve sur un tuyau. | Objet inline inséré sur un segment, coupe le run en deux. | S | 3 |
 
 ---
@@ -944,6 +944,32 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > (famille suit), undo×2/redo×2, aucune erreur console. **Reste Slice 3** :
 > E16-03 (tés aux jonctions — les coudes d'onglet sont déjà dans `runRings`),
 > E16-02 (pente évac), E16-04 (valve inline).
+
+> **Slice 3 — avancement (2026-07-05, incrément 2 : E16-03 raccords automatiques
+> aux jonctions).** Les coudes d'onglet AU SEIN d'un run existaient déjà (le
+> balayage `runRings`, E15-03/E16-01) ; l'incrément traite les jonctions ENTRE
+> tuyaux : une EXTRÉMITÉ de run qui arrive sur un autre run reçoit un raccord
+> généré automatiquement — **té** (arrivée sur le corps : milieu de segment ou
+> sommet intérieur), **coude** (extrémité contre extrémité en angle), **manchon**
+> (extrémités colinéaires). Nouveau module pur
+> [fittings.js](home3d\src\lib\fittings.js) : `detectFittings(runs)` (tolérance =
+> demi-sections cumulées, dédup extrémité-contre-extrémité par paire + point
+> médian) et `fittingMesh` (bras = mini-runs de 2 points, section ×1,4 effet
+> « collier », longueur 1,6 × le plus gros côté, plancher 3 cm). La triangulation
+> du balayage sort d'`editRegistry` vers [routing.js](home3d\src\lib\routing.js)
+> (`runMesh`, RÉUTILISÉE par les runs et les raccords). Rendu **DÉRIVÉ** (même
+> philosophie que le perçage CSG de WallCutter) :
+> [RunFittings.jsx](home3d\src\components\RunFittings.jsx) monté dans le Viewer
+> (vue ET édition), UN maillage fusionné pour tout le réseau (1 draw call), non
+> raycastable, rien dans le store ni les params → re-router, re-sectionner,
+> supprimer ou undo/redo un tuyau régénère les raccords, et le rechargement d'un
+> GLB les recalcule gratuitement depuis les runs. Tests : `fittings.test.mjs`
+> (détection, tolérance, bras) + `runMesh` dans `routing.test.mjs` → **225
+> verts** ; `lint`/`build` OK. Vérifié au navigateur sur le modèle démo (réseau
+> évac Ø100 + 2 branches Ø40) : té 3 bras + coude détectés et rendus (un mesh de
+> 40 sommets/60 tris), undo×2 fait retomber le mesh à 24 puis 0 sommets, redo le
+> restaure, aucune erreur console. **Reste Slice 3** : E16-02 (pente évac,
+> s'appuyer sur `params.famille`), E16-04 (valve inline).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
