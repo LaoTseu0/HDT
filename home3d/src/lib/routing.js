@@ -97,3 +97,36 @@ export function runRings(points, section) {
   }
   return rings
 }
+
+/**
+ * Maillage du balayage d'un chemin par une section rectangulaire : 4 sommets par
+ * anneau (cf. runRings), 4 quads latéraux par tronçon + 2 bouchons d'extrémité.
+ * Données brutes (tableaux plats) prêtes pour un BufferGeometry — partagées par
+ * les runs (elec.cable, plomberie.pipe) et les raccords (E16-03, lib/fittings).
+ * @param {number[][]} points chemin (monde)
+ * @param {{largeur_m:number, hauteur_m:number}} section
+ * @returns {{position:number[], index:number[]}}
+ */
+export function runMesh(points, section) {
+  const rings = runRings(points, section)
+  const position = []
+  const index = []
+  for (const ring of rings) {
+    for (const c of ring.corners) position.push(c[0], c[1], c[2])
+  }
+  for (let i = 0; i < rings.length - 1; i++) {
+    const a = i * 4
+    const b = a + 4
+    for (let k = 0; k < 4; k++) {
+      const k2 = (k + 1) % 4
+      // quad (a+k, a+k2, b+k2, b+k) → 2 triangles.
+      index.push(a + k, a + k2, b + k2, a + k, b + k2, b + k)
+    }
+  }
+  if (rings.length >= 2) {
+    const last = (rings.length - 1) * 4
+    index.push(0, 2, 1, 0, 3, 2) // départ
+    index.push(last, last + 1, last + 2, last, last + 2, last + 3) // arrivée
+  }
+  return { position, index }
+}

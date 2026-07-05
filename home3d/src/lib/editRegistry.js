@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { frameOfObjectPlane } from './workPlanes.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from './elec.js'
-import { runRings } from './routing.js'
+import { runMesh } from './routing.js'
 import { CABLE_KIND } from './cable.js'
 import { PIPE_KIND } from './plumbing.js'
 import { JOINERY_KIND, DOOR_LEAF_KIND, joineryVariantOf } from './joinery.js'
@@ -505,28 +505,9 @@ const isRunKind = (kind) => kind === CABLE_KIND || kind === PIPE_KIND
 
 function makeGenerateRun(fillColor, edgeColor) {
   return function generateRun(params) {
-    const rings = runRings(params.points ?? [], params)
-    const position = []
-    const index = []
-    // 4 sommets par anneau. Faces latérales : 4 quads (8 tris) entre anneaux voisins.
-    for (const ring of rings) {
-      for (const c of ring.corners) position.push(c[0], c[1], c[2])
-    }
-    for (let i = 0; i < rings.length - 1; i++) {
-      const a = i * 4
-      const b = a + 4
-      for (let k = 0; k < 4; k++) {
-        const k2 = (k + 1) % 4
-        // quad (a+k, a+k2, b+k2, b+k) → 2 triangles.
-        index.push(a + k, a + k2, b + k2, a + k, b + k2, b + k)
-      }
-    }
-    // Bouchons d'extrémité (2 tris chacun) si le run a au moins un tronçon.
-    if (rings.length >= 2) {
-      const last = (rings.length - 1) * 4
-      index.push(0, 2, 1, 0, 3, 2) // départ
-      index.push(last, last + 1, last + 2, last, last + 2, last + 3) // arrivée
-    }
+    // Balayage de la section le long du chemin : maillage pur (lib/routing),
+    // partagé avec les raccords automatiques (E16-03, lib/fittings).
+    const { position, index } = runMesh(params.points ?? [], params)
 
     const fillGeo = new THREE.BufferGeometry()
     fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(position, 3))

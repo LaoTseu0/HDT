@@ -5,6 +5,7 @@ import Model from './Model.jsx'
 import VisitControls from './VisitControls.jsx'
 import EditObjects from './EditObjects.jsx'
 import WallCutter from './WallCutter.jsx'
+import RunFittings from './RunFittings.jsx'
 import useStore from '../store/useStore.js'
 
 // E8-01 : overlay perf (draw calls, fps, mémoire GPU), dev uniquement,
@@ -56,6 +57,7 @@ export default function Viewer() {
 
       <Model />
       <WallCutter />
+      <RunFittings />
       <EditObjects />
 
       <Grid
