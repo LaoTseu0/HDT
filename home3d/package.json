@@ -15,7 +15,8 @@
     "process": "node script/process.mjs",
     "spike:topo": "node script/spike-solidity.mjs",
     "spike:csg": "node script/spike-csg.mjs",
-    "postinstall": "node script/copy-decoders.mjs"
+    "fetch:model": "node script/fetch-model.mjs",
+    "postinstall": "node script/copy-decoders.mjs && node script/fetch-model.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

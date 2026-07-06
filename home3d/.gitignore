@@ -12,8 +12,11 @@ dist
 dist-ssr
 *.local
 
-# GLB de dev (non commités en prod)
-#public/models/*
+# Modèles 3D volumineux — hébergés sur GitHub Releases (tag models-v1), récupérés
+# dans public/models/ par `npm run fetch:model` (postinstall). Hors historique git
+# pour ne pas gonfler le dépôt (cf. public/models/README.md). Le dossier old/
+# (petites versions d'archive) reste versionné.
+public/models/*.glb
 !public/models/.gitkeep
 
 # Décodeurs Draco/Basis copiés depuis three en postinstall (script/copy-decoders.mjs)
