@@ -95,6 +95,48 @@ button.secondary {
   color: #9aa0b0;
 }
 
+/* E17-10 : joysticks virtuels du mode visite (appareils tactiles).
+   Gauche = se déplacer, droit = regarder. `touch-action: none` : le doigt
+   pilote le stick, jamais le scroll/zoom de la page. */
+.visit-sticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none; /* seules les bases des sticks sont interactives */
+  z-index: 20;
+}
+
+.visit-stick {
+  position: absolute;
+  bottom: 32px;
+  width: 128px;
+  height: 128px;
+  border: 1px solid #3a3d4a;
+  border-radius: 50%;
+  background: rgba(22, 23, 29, 0.45);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.visit-stick.left {
+  left: 32px;
+}
+
+.visit-stick.right {
+  right: 32px;
+}
+
+.visit-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border: 1px solid #9aa0b0;
+  border-radius: 50%;
+  background: rgba(154, 160, 176, 0.45);
+}
+
 /* Panneau d'édition (Edit mode, Slice 0) — à gauche, comme le panneau Calques */
 .edit-bar {
   position: absolute;

@@ -343,7 +343,14 @@ de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séq
 |---|---|---|---|---|
 | E17-08 ⏸ | En tant qu'utilisateur, je veux placer le point de départ de la visite. | « Placer la caméra » : cliquer un point → départ de la visite. | C | 3 |
 | E17-09 ⏸ | En tant qu'utilisateur, je veux régler le confort (vitesse, accroupi, FOV). | Réglages exposés ; pas de *head-bob* par défaut. | C | 2 |
-| E17-10 | En tant qu'utilisateur (mobile), je veux des contrôles tactiles / manette. | Joysticks virtuels / gamepad. | C | 5 |
+| E17-10 ✅ | En tant qu'utilisateur (mobile), je veux des contrôles tactiles / manette. | Joysticks virtuels / gamepad. | C | 5 |
+
+> **E17-10 livré le 2026-07-06** — joysticks virtuels sur appareil tactile
+> ([VisitSticks.jsx](home3d/src/components/VisitSticks.jsx) : stick gauche = se déplacer,
+> stick droit = regarder, multi-touch) et manette Gamepad API (sticks gauche/droit,
+> sondée chaque frame). Maths des axes (zone morte, clamp) dans
+> [visitInput.js](home3d/src/lib/visitInput.js) (testé). Vol libre N1 inchangé ; sans API
+> Pointer Lock (mobile), le verrou souris et son invite sont simplement absents.
 
 ---
 

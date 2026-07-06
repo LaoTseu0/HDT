@@ -4,6 +4,7 @@ import GLBLoader from './components/GLBLoader.jsx'
 import LayerPanel from './components/LayerPanel.jsx'
 import InfoPanel from './components/InfoPanel.jsx'
 import VisitOverlay from './components/VisitOverlay.jsx'
+import VisitSticks from './components/VisitSticks.jsx'
 import EditBar from './components/EditBar.jsx'
 import VCBOverlay from './components/VCBOverlay.jsx'
 import useStore from './store/useStore.js'
@@ -107,6 +108,7 @@ export default function App() {
       <InfoPanel />
       <VCBOverlay />
       <VisitOverlay />
+      <VisitSticks />
     </div>
   )
 }

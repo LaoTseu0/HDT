@@ -3,16 +3,26 @@ import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
 import useStore from '../store/useStore.js'
+import { touchInput, gamepadInput, clampStick } from '../lib/visitInput.js'
 
 // E17 — Mode visite, Niveau 1 (« vol libre »).
 // On regarde à la souris (PointerLockControls) à hauteur d'œil et on se
 // déplace au clavier (WASD / flèches), SANS gravité ni collision : on
 // traverse les murs, c'est le banc d'essai de navigation avant l'édition.
 // Les collisions (Niveau 2, E17-05→07) viendront après les slices d'édition.
+// E17-10 : mêmes déplacements en analogique — joysticks virtuels (tactile,
+// cf. VisitSticks) et manette (Gamepad API) ; le stick droit pilote le regard.
 
 const EYE_HEIGHT = 1.6 // m — hauteur d'œil (E17-02/04)
 const VISIT_FOV = 70 // ° — champ de vision plus large en vue subjective (E17-02)
 const MOVE_SPEED = 3.2 // m/s — allure de marche réaliste (E17-03)
+const LOOK_SPEED = 2.4 // rad/s à pleine course du stick droit (E17-10)
+const MAX_PITCH = Math.PI / 2 - 0.05 // même butée verticale que le verrou souris
+
+// Pas de verrou souris sur un appareil sans l'API Pointer Lock (mobiles/
+// tablettes) : le regard y passe par le stick droit tactile.
+const HAS_POINTER_LOCK =
+  typeof document !== 'undefined' && 'requestPointerLock' in document.documentElement
 
 export default function VisitControls() {
   const camera = useThree((state) => state.camera)
@@ -25,6 +35,9 @@ export default function VisitControls() {
   const forwardV = useRef(new THREE.Vector3())
   const rightV = useRef(new THREE.Vector3())
   const moveV = useRef(new THREE.Vector3())
+  // Euler YXZ (yaw puis pitch, roll nul) : même décomposition que le verrou
+  // souris → le regard stick et le regard souris se cumulent sans gîte.
+  const eulerV = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
 
   // E17-04 : entrée à hauteur d'œil au centre du modèle, regard à
   // l'horizontale. + FOV de visite, restauré en quittant le mode.
@@ -92,25 +105,42 @@ export default function VisitControls() {
 
   // Boucle de déplacement. Vol libre : on suit la direction complète du
   // regard (regarder vers le haut + avancer = monter), sans gravité.
+  // Clavier (tout-ou-rien) + sticks tactiles/manette (analogiques) cumulés,
+  // bornés au cercle unité → la diagonale clavier ne va pas plus vite, les
+  // demi-courses de stick marchent plus lentement.
   useFrame((_, delta) => {
+    // delta borné : pas de bond géant après un freeze d'onglet.
+    const dt = Math.min(delta, 0.1)
+    // Manette : à sonder CHAQUE frame (Chrome fige les axes entre deux appels).
+    const pad = navigator.getGamepads ? gamepadInput(navigator.getGamepads()) : null
+
+    // E17-10 : regard au stick droit (yaw autour de Y monde, pitch borné).
+    const lookX = touchInput.look.x + (pad ? pad.look.x : 0)
+    const lookY = touchInput.look.y + (pad ? pad.look.y : 0)
+    if (lookX || lookY) {
+      const e = eulerV.current.setFromQuaternion(camera.quaternion)
+      e.y -= lookX * LOOK_SPEED * dt // stick à droite = tourner à droite
+      e.x = THREE.MathUtils.clamp(e.x + lookY * LOOK_SPEED * dt, -MAX_PITCH, MAX_PITCH)
+      camera.quaternion.setFromEuler(e)
+    }
+
     const k = keys.current
-    if (!(k.forward || k.back || k.left || k.right)) return
+    const input = clampStick(
+      (k.right ? 1 : 0) - (k.left ? 1 : 0) + touchInput.move.x + (pad ? pad.move.x : 0),
+      (k.forward ? 1 : 0) - (k.back ? 1 : 0) + touchInput.move.y + (pad ? pad.move.y : 0)
+    )
+    if (!input.x && !input.y) return
 
     camera.getWorldDirection(forwardV.current).normalize()
     rightV.current.crossVectors(forwardV.current, camera.up).normalize()
-
-    const move = moveV.current.set(0, 0, 0)
-    if (k.forward) move.add(forwardV.current)
-    if (k.back) move.addScaledVector(forwardV.current, -1)
-    if (k.right) move.add(rightV.current)
-    if (k.left) move.addScaledVector(rightV.current, -1)
-    if (move.lengthSq() === 0) return
-
-    // delta borné : pas de bond géant après un freeze d'onglet.
-    move.normalize().multiplyScalar(MOVE_SPEED * Math.min(delta, 0.1))
-    camera.position.add(move)
+    const move = moveV.current
+      .set(0, 0, 0)
+      .addScaledVector(forwardV.current, input.y)
+      .addScaledVector(rightV.current, input.x)
+    camera.position.add(move.multiplyScalar(MOVE_SPEED * dt))
   })
 
+  if (!HAS_POINTER_LOCK) return null
   return (
     <PointerLockControls
       onLock={() => setPointerLocked(true)}
