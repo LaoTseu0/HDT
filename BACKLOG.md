@@ -320,7 +320,7 @@ Livré en **deux temps**. Voir [docs/edit-mode-design.md](docs/edit-mode-design.
 | E16-01 ✅ | En tant qu'utilisateur, je veux router des tuyaux avec des diamètres prédéfinis. | Réemploi du routage rectangulaire ; presets **cuivre** Ø12/14/16/18/22, **PVC**, **évacuation** Ø32/40/100 (rendus en section rectangulaire d'emprise équivalente, identité nominale conservée). | M | 5 |
 | E16-02 ✅ | En tant qu'utilisateur, je veux régler une pente sur un réseau d'évacuation. | Pente paramétrable sur un run d'évacuation. | S | 3 |
 | E16-03 ✅ | En tant qu'utilisateur, je veux des coudes/raccords/tés automatiques aux jonctions. | Générés automatiquement (onglet entre sections rectangulaires) aux sommets et jonctions. | M | 5 |
-| E16-04 | En tant qu'utilisateur, je veux insérer une valve sur un tuyau. | Objet inline inséré sur un segment, coupe le run en deux. | S | 3 |
+| E16-04 ✅ | En tant qu'utilisateur, je veux insérer une valve sur un tuyau. | Objet inline inséré sur un segment, coupe le run en deux. | S | 3 |
 
 ---
 
@@ -995,6 +995,37 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > tuyau d'une branche restée en place au-delà de la tolérance → son té disparaît
 > (les raccords suivent la géométrie réelle) ; re-router la branche sur le
 > sommet pentu le rétablit. **Reste Slice 3** : E16-04 (valve inline).
+
+> **Slice 3 — avancement (2026-07-06, incrément 4 : E16-04 vanne inline —
+> Slice 3 COMPLÈTE).** Nouvel outil **Vanne** (icône symbole schéma ▷◁ + tige,
+> tooltip — directive IHM) : un clic sur un tuyau déjà routé projette le point
+> cliqué sur l'axe RENDU du run (pente E16-02 comprise), **coupe le run en deux
+> tronçons** et insère un objet `plomberie.valve` paramétrique au point de
+> coupe. Nouveau module pur [valve.js](home3d\src\lib\valve.js) :
+> `splitPipeAt(pipe, point)` (coupe interpolée sur les CLICS au même paramètre
+> `t`, tronçon aval abaissé de la chute accumulée → le rendu pentu des deux
+> moitiés **prolonge exactement** l'original, pentes ré-éditables), `valveMesh`
+> (corps-collier ×1,8 le long de l'axe + tige + poignée en T, mini-runs via
+> `runMesh` partagé), `dropFittingsAtValves` (le « manchon » E16-03 détecté à
+> la jonction des deux tronçons est supprimé sous la vanne — la vanne EST le
+> raccord ; supprimer la vanne le fait réapparaître : les tronçons restent
+> raccordés). `closestOnPath` mutualisé dans
+> [routing.js](home3d\src\lib\routing.js) (raccords + vanne). Store :
+> `insertValve` ATOMIQUE (2 tronçons + vanne dans un set() → une entrée
+> d'historique, undo restaure le tuyau entier) ; créer-avant-de-supprimer pour
+> ne réutiliser ni l'id ni l'index du run coupé. Coupe sur une extrémité
+> refusée (tronçon dégénéré). Kind au registre (génération monde, accroche au
+> centre, dims bbox) → round-trip GLB générique. Inspector : hint dédié
+> (section héritée du tuyau hôte) + zone/niveau/suppression. Tests :
+> [valve.test.mjs](home3d/script/valve.test.mjs) (coupe, garde-fous, continuité
+> de pente, maillage, filtre raccords) → **250 verts** ; `lint`/`build` OK.
+> Vérifié au navigateur (modèle démo) : évac Ø100 6 m sur le faîtage, outil
+> Vanne + clic réel sur le canvas → 2 tronçons `plomberie__tuyau__002/003` +
+> `plomberie__vanne__004` sélectionnée au point cliqué, undo×1 restaure le run
+> entier, redo le recoupe ; coupe d'un run pentu 2 % → rendus A/B prolongent
+> l'original ([8, 10.24] au point de coupe), vanne sur l'axe pentu ; aucune
+> erreur console. **Slice 3 (E16) terminée — prochaine étape : Visite N2/3
+> (collisions/gravité).**
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
