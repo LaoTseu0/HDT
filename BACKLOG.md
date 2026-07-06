@@ -27,7 +27,7 @@
 | E15 | Edit mode — électricité (création) | V2 | M |
 | E16 | Edit mode — plomberie (création) | V2 | S |
 | E17 | Mode visite (vue 1re personne, type « Visite » SketchUp) | V2 | M |
-| E18 | PWA : installation mobile, offline, plein écran | V2 | S |
+| E18 | PWA : installation mobile & offline | V2 | S |
 
 > Conception détaillée d'Edit mode (E10, E12→E16) et articulation du mode visite (E17) :
 > [docs/edit-mode-design.md](docs/edit-mode-design.md).
@@ -67,6 +67,7 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-04 | **E14 phase 2 complète** : menuiseries, variantes, portes. |
 | 2026-07-04 → 06 | **Slice 3 livrée** (plomberie E16 complet : tuyaux, raccords auto, pente, vannes). |
 | 2026-07-06 | Retrait du journal de réalisation détaillé ; ajout des **Directives produit** ; **gel E17-05→09** (directive PO) ; **E17-10 livré** (joysticks tactiles + manette) ; ajout de l'**Epic E18 — PWA**. |
+| 2026-07-06 | Le plein écran navigateur ([#23](https://github.com/LaoTseu0/HDT/issues/23)) sort d'E18 → nouvelle story **E17-11** (mode visite). |
 
 ---
 
@@ -360,13 +361,14 @@ de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séq
 | E17-06 ⏸ | En tant qu'utilisateur, je veux marcher au sol et monter les escaliers. | Gravité + snap au sol + franchissement de marches. | M | 5 |
 | E17-07 ⏸ | En tant que dev, je veux (re)construire le collider au chargement du modèle. | Collider rebâti à chaque modèle chargé (drag & drop). | M | 2 |
 
-**Niveau 3 — finitions** — ⏸ E17-08 et E17-09 **mis de côté** (même directive) ; E17-10 non concerné.
+**Niveau 3 — finitions** — ⏸ E17-08 et E17-09 **mis de côté** (même directive) ; E17-10 et E17-11 non concernés.
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E17-08 ⏸ | En tant qu'utilisateur, je veux placer le point de départ de la visite. | « Placer la caméra » : cliquer un point → départ de la visite. | C | 3 |
 | E17-09 ⏸ | En tant qu'utilisateur, je veux régler le confort (vitesse, accroupi, FOV). | Réglages exposés ; pas de *head-bob* par défaut. | C | 2 |
 | E17-10 ✅ | En tant qu'utilisateur (mobile), je veux des contrôles tactiles / manette. | Joysticks virtuels / gamepad. | C | 5 |
+| E17-11 | En tant qu'utilisateur (mobile), je veux passer en plein écran pendant la visite afin de masquer la barre du navigateur ([#23](https://github.com/LaoTseu0/HDT/issues/23)). | Bouton ⛶ dans l'UI de visite (l'API exige un geste utilisateur, pas de plein écran forcé au chargement) : `requestFullscreen()` / `exitFullscreen()` ; état du bouton synchronisé via `fullscreenchange` (sortie possible par geste système) ; bouton masqué si l'API est absente (Safari iPhone). | C | 2 |
 
 > **E17-10 livré le 2026-07-06** — joysticks virtuels sur appareil tactile
 > ([VisitSticks.jsx](home3d/src/components/VisitSticks.jsx) : stick gauche = se déplacer,
@@ -377,13 +379,14 @@ de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séq
 
 ---
 
-## Epic E18 — PWA : installation mobile, offline, plein écran (V2 — Viewer)
+## Epic E18 — PWA : installation mobile & offline (V2 — Viewer)
 
 **Objectif** : transformer l'app en PWA installable — ouverture depuis l'écran
-d'accueil **sans barre d'URL** (répond à [#23](https://github.com/LaoTseu0/HDT/issues/23)
-pour l'app installée), chargement instantané après la première visite grâce au
-cache du GLB (~29 Mo), app shell disponible hors ligne. Outillage standard :
-`vite-plugin-pwa` (Workbox) + `@vite-pwa/assets-generator`.
+d'accueil **sans barre d'URL**, chargement instantané après la première visite
+grâce au cache du GLB (~29 Mo), app shell disponible hors ligne. Outillage
+standard : `vite-plugin-pwa` (Workbox) + `@vite-pwa/assets-generator`.
+Le plein écran **in-navigateur** (usage sans installation) est traité à part :
+**E17-11** (mode visite).
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
@@ -396,8 +399,8 @@ cache du GLB (~29 Mo), app shell disponible hors ligne. Outillage standard :
 > **Estimation : 14 pts ≈ 2,5 à 3 jours-homme** (dev solo) — E18-01 ~0,5 j ;
 > E18-02 ~0,25 j ; E18-03 ~1 j (le gros morceau : stratégie de cache du GLB) ;
 > E18-04 ~0,5 j ; E18-05 ~0,5 j (vérifications sur appareil réel comprises).
-> NB : ne remplace pas le bouton `requestFullscreen()` de
-> [#23](https://github.com/LaoTseu0/HDT/issues/23), utile pour l'usage **sans**
+> NB : ne remplace pas le bouton plein écran in-navigateur **E17-11**
+> ([#23](https://github.com/LaoTseu0/HDT/issues/23)), utile pour l'usage **sans**
 > installation ; dépend du correctif verrou souris mobile
 > [#22](https://github.com/LaoTseu0/HDT/issues/22) pour une visite mobile utilisable.
 
