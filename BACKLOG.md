@@ -51,6 +51,7 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-07 | **E18 (PWA) mise en pause** : toutes ses stories (E18-01→05) sont gelées. Priorité donnée à **E19** (refonte UX des menus) et **E20** (taxonomie à deux niveaux). |
 | 2026-07-07 | **Taxonomie à deux niveaux (E20)** : la catégorie **et** le sous-type d'un objet sont portés par la **nomenclature du nom** (`système__type__…`), **pas** par le Tag SketchUp du groupe. Le sous-type est le segment `type`, désormais issu d'un **vocabulaire contrôlé par système**. |
 | 2026-07-07 | **Segment `type` OUVERT (E20)** : le vocabulaire par système est **canonique/suggéré**, pas fermé. Un `type` hors liste est **accepté** (avertissement, jamais rejet) et rangé en « Autres » — pour ne pas perdre les types déjà prévus ni brider la modélisation. |
+| 2026-07-07 | **Panneau Info (rectification E19)** : il reste **détaché à droite**, hors barre latérale, et devient **commun** aux objets importés de SketchUp et aux objets créés in-app — l'inspector des objets app s'y affiche, plus sous les icônes du menu d'édition. |
 
 ---
 
@@ -420,23 +421,30 @@ Le plein écran **in-navigateur** (usage sans installation) est traité à part 
 
 ## Epic E19 — Refonte UX des menus (burger + barre latérale) (V2 — UI)
 
-**Objectif** : remplacer les panneaux flottants dispersés (calques, infos, barre
+**Objectif** : remplacer les panneaux flottants dispersés (calques, barre
 d'édition, VCB…) par **une seule barre latérale** ouverte depuis un **bouton
 burger**, organisée en sections **Calques · Edit · Vue · More**. Objectifs :
 lisibilité, place à l'écran (surtout mobile, cf. E17-10), et un point d'entrée
 unique pour toutes les commandes. Reprend la directive IHM du 2026-06-24
 (icônes + tooltips) pour la palette d'outils.
 
+> **Rectification PO (2026-07-07)** : le panneau **Info** ne migre PAS dans la
+> barre latérale — il reste **détaché à droite**, tel quel. Il devient en
+> revanche **commun** : les objets créés in-app y affichent leur inspector
+> (aujourd'hui logé sous les icônes de l'`EditBar`), au même endroit que les
+> infos des objets importés de SketchUp.
+
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E19-01 | En tant qu'utilisateur, je veux un bouton burger qui ouvre/ferme une barre latérale afin d'accéder à tous les menus depuis un point unique. | Bouton burger ancré (coin) ; barre latérale coulissante (ouverture/fermeture animée) ; état d'ouverture dans le store ; ne masque pas le canvas sur desktop (push ou overlay tranché) ; ÉCHAP / clic hors panneau ferme. | S | 3 |
 | E19-02 | En tant qu'utilisateur, je veux la section **Calques** dans la barre afin de piloter la visibilité comme aujourd'hui. | `LayerPanel` migré en section ; parité fonctionnelle (toggle, tout/rien, isoler, couleurs par calque) ; prêt à accueillir le filtrage à deux niveaux d'E20. | S | 3 |
-| E19-03 | En tant qu'utilisateur, je veux la section **Edit** dans la barre afin de créer/éditer sans barre d'outils séparée. | Palette d'outils (icônes + tooltips, directive IHM) + inspector de l'objet sélectionné regroupés dans la section ; VCB conservé ; parité avec l'`EditBar` actuelle. | S | 5 |
+| E19-03 | En tant qu'utilisateur, je veux la section **Edit** dans la barre afin de créer/éditer sans barre d'outils séparée. | Palette d'outils (icônes + tooltips, directive IHM), undo/redo et export regroupés dans la section ; l'**inspector de l'objet sélectionné part dans le panneau Info détaché** (rectification PO : panneau commun objets SketchUp + objets app) ; VCB conservé ; parité avec l'`EditBar` actuelle. | S | 5 |
 | E19-04 | En tant qu'utilisateur, je veux la section **Vue** afin de régler la navigation et l'affichage. | Regroupe : bascule Orbite/Visite, recentrer, FOV de visite (expose E17-04/09 gelé — au moins le FOV), overlay perf (dev), et le plein écran **E17-11**. | S | 3 |
 | E19-05 | En tant qu'utilisateur, je veux une section **More** afin de retrouver les actions secondaires. | Ouvrir/charger un modèle, infos du modèle (métadonnées scène), à-propos/version ; extensible. | S | 2 |
 | E19-06 | En tant qu'utilisateur mobile, je veux que la barre latérale cohabite avec la visite tactile. | En visite sur tactile, la barre n'entre pas en conflit avec les joysticks (E17-10) ; en portrait, drawer pleine largeur ; pas de scroll parasite. | S | 3 |
+| E19-07 | En tant qu'utilisateur, je veux un overlay listant tous les raccourcis clavier de l'app afin de les découvrir sans documentation. | Overlay modal ouvert par la touche « ? » et depuis la barre latérale ; liste complète et à jour (globaux, édition/VCB, visite) ; ÉCHAP / clic hors panneau / ✕ ferme. | S | 2 |
 
-> **Estimation : 19 pts ≈ 3 à 4 jours-homme** (dev solo). Chantier surtout de
+> **Estimation : 21 pts ≈ 3 à 4 jours-homme** (dev solo). Chantier surtout de
 > **réagencement** (les panneaux existants sont déjà fonctionnels) : le risque est
 > la parité (ne rien perdre en migrant) plus que la nouveauté. E19-02 est le point
 > de contact avec **E20** (le filtrage à deux niveaux des calques y prendra place).
