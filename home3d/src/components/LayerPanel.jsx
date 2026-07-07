@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import useStore from '../store/useStore.js'
 import { subtypesOf } from '../lib/naming.js'
 
-// Panneau de calques (E5-01 → E5-04) : liste label + pastille couleur
-// issus des extras scène, toggle visibilité, actions globales
-// (tout afficher / tout masquer / isoler) et colorisation par calque.
+// Section Calques de la barre latérale (E19-02, ex-panneau flottant E5-01 →
+// E5-04) : liste label + pastille couleur issus des extras scène, toggle
+// visibilité, actions globales (tout afficher / tout masquer / isoler) et
+// colorisation par calque.
 // E20-04 : chaque calque se déplie en sous-types (segment `type` des nodes
 // importés) — visibilité et isolation par sous-type ; les types hors
 // vocabulaire canonique sont agrégés dans un bucket « Autres ».
@@ -56,37 +57,34 @@ export default function LayerPanel() {
   const isolateLayer = useStore((state) => state.isolateLayer)
   const colorByLayer = useStore((state) => state.colorByLayer)
   const toggleColorByLayer = useStore((state) => state.toggleColorByLayer)
-  const editMode = useStore((state) => state.editMode)
 
   // Calques dépliés (état local d'UI, réinitialisé au remontage du panneau).
   const [expanded, setExpanded] = useState({})
   const tree = useMemo(() => subtypeTreeOf(nodes), [nodes])
 
   const entries = Object.entries(layers)
-  // En édition, le panneau de gauche affiche l'EditBar à la place des calques.
-  if (entries.length === 0 || editMode) return null
+  if (entries.length === 0) {
+    return <p className="edit-hint">Chargez un modèle pour piloter ses calques.</p>
+  }
 
   return (
-    <aside className="layer-panel" aria-label="Calques">
-      <header className="panel-header">
-        <h2>Calques</h2>
-        <div className="layer-global-actions">
-          <button
-            className="small"
-            title="Tout afficher"
-            onClick={() => setAllLayersVisible(true)}
-          >
-            Tout
-          </button>
-          <button
-            className="small"
-            title="Tout masquer"
-            onClick={() => setAllLayersVisible(false)}
-          >
-            Aucun
-          </button>
-        </div>
-      </header>
+    <>
+      <div className="layer-global-actions">
+        <button
+          className="small"
+          title="Tout afficher"
+          onClick={() => setAllLayersVisible(true)}
+        >
+          Tout
+        </button>
+        <button
+          className="small"
+          title="Tout masquer"
+          onClick={() => setAllLayersVisible(false)}
+        >
+          Aucun
+        </button>
+      </div>
 
       <ul className="layer-list">
         {entries.map(([id, layer]) => {
@@ -167,6 +165,6 @@ export default function LayerPanel() {
         />
         Couleurs par calque
       </label>
-    </aside>
+    </>
   )
 }

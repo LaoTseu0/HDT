@@ -14,7 +14,6 @@ import { touchInput, gamepadInput, clampStick } from '../lib/visitInput.js'
 // cf. VisitSticks) et manette (Gamepad API) ; le stick droit pilote le regard.
 
 const EYE_HEIGHT = 1.6 // m — hauteur d'œil (E17-02/04)
-const VISIT_FOV = 70 // ° — champ de vision plus large en vue subjective (E17-02)
 const MOVE_SPEED = 3.2 // m/s — allure de marche réaliste (E17-03)
 const LOOK_SPEED = 2.4 // rad/s à pleine course du stick droit (E17-10)
 const MAX_PITCH = Math.PI / 2 - 0.05 // même butée verticale que le verrou souris
@@ -28,6 +27,9 @@ export default function VisitControls() {
   const camera = useThree((state) => state.camera)
   const glb = useStore((state) => state.glb)
   const setPointerLocked = useStore((state) => state.setPointerLocked)
+  // FOV de visite réglable (section Vue, E19-04) — champ plus large qu'en
+  // orbite en vue subjective (E17-02), 70° par défaut.
+  const visitFov = useStore((state) => state.visitFov)
 
   // État clavier (refs : pas de re-render, lu dans la boucle de rendu).
   const keys = useRef({ forward: false, back: false, left: false, right: false })
@@ -39,15 +41,28 @@ export default function VisitControls() {
   // souris → le regard stick et le regard souris se cumulent sans gîte.
   const eulerV = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
 
-  // E17-04 : entrée à hauteur d'œil au centre du modèle, regard à
-  // l'horizontale. + FOV de visite, restauré en quittant le mode.
+  // FOV d'orbite restauré en quittant le mode visite (capturé au montage,
+  // AVANT que l'effet suivant applique le FOV de visite).
   useEffect(() => {
     const prevFov = camera.fov
+    return () => {
+      camera.fov = prevFov
+      camera.updateProjectionMatrix()
+    }
+  }, [camera])
+
+  // FOV de visite, ré-appliqué en direct quand le réglage change (E19-04).
+  useEffect(() => {
     // On mute la caméra vivante du Canvas (pattern three.js/R3F standard) ;
     // l'affectation de propriété déclenche la règle d'immutabilité, ici voulue.
     // eslint-disable-next-line react-hooks/immutability
-    camera.fov = VISIT_FOV
+    camera.fov = visitFov
+    camera.updateProjectionMatrix()
+  }, [camera, visitFov])
 
+  // E17-04 : entrée à hauteur d'œil au centre du modèle, regard à
+  // l'horizontale.
+  useEffect(() => {
     const start = new THREE.Vector3(0, EYE_HEIGHT, 0)
     if (glb) {
       const box = new THREE.Box3().setFromObject(glb.scene)
@@ -58,12 +73,6 @@ export default function VisitControls() {
     }
     camera.position.copy(start)
     camera.lookAt(start.x, start.y, start.z - 1) // regard horizontal vers -Z
-    camera.updateProjectionMatrix()
-
-    return () => {
-      camera.fov = prevFov
-      camera.updateProjectionMatrix()
-    }
   }, [camera, glb])
 
   // E17-03 : déplacement clavier. WASD + flèches, pris en compte tant que

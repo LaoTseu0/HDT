@@ -1,39 +1,17 @@
 import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
 import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
-import { nodeName, LEVELS, subtypesOf, normalizeType } from '../lib/naming.js'
-import { OPENING_PRESETS, DOOR_PRESETS, WINDOW_KIND, isOpeningKind } from '../lib/opening.js'
-import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from '../lib/elec.js'
-import {
-  JOINERY_KIND,
-  DOOR_LEAF_KIND,
-  JOINERY_VARIANTS,
-  JOINERY_VARIANT_KEYS,
-} from '../lib/joinery.js'
-import { CABLE_SECTIONS, CABLE_SECTION_KEYS, CABLE_KIND } from '../lib/cable.js'
-import {
-  PIPE_SECTIONS,
-  PIPE_SECTION_KEYS,
-  PIPE_KIND,
-  pipeLength,
-  MAX_PENTE_PCT,
-} from '../lib/plumbing.js'
-import { pathLength } from '../lib/routing.js'
-import { VALVE_KIND } from '../lib/valve.js'
+import { OPENING_PRESETS, DOOR_PRESETS } from '../lib/opening.js'
+import { ELEC_COMPONENTS, ELEC_KINDS } from '../lib/elec.js'
+import { JOINERY_VARIANTS, JOINERY_VARIANT_KEYS } from '../lib/joinery.js'
+import { CABLE_SECTIONS, CABLE_SECTION_KEYS } from '../lib/cable.js'
+import { PIPE_SECTIONS, PIPE_SECTION_KEYS } from '../lib/plumbing.js'
 
-// Libellés FR des niveaux (segment `level` de la convention de nommage).
-const LEVEL_LABELS = {
-  ss: 'Sous-sol',
-  rdc: 'Rez-de-chaussée',
-  r1: 'R+1',
-  r2: 'R+2',
-  combles: 'Combles',
-  ext: 'Extérieur',
-}
-
-// Panneau d'édition (Edit mode, Slice 0) : barre d'outils à ICÔNES + tooltips
-// (directive IHM 2026-06-24), undo/redo (zundo, E10-03) et inspector éditable de
-// l'objet app sélectionné (E12-01/E13-04). Remplace le panneau Calques à gauche.
+// Section Edit de la barre latérale (E19-03, ex-panneau flottant Slice 0) :
+// bascule View ↔ Edit, barre d'outils à ICÔNES + tooltips (directive IHM
+// 2026-06-24), undo/redo (zundo, E10-03) et export. L'inspector de l'objet
+// sélectionné vit dans le panneau Info détaché (ObjectInspector,
+// rectification PO E19 2026-07-07).
 
 // Icônes d'outils (stroke = currentColor) — pictogramme + tooltip natif (title).
 function ToolIcon({ id }) {
@@ -417,94 +395,6 @@ const DOOR_PRESET_LIST = [
   { id: 'etroite', label: 'Étroite' },
 ]
 
-function SelectField({ label, value, options, onChange }) {
-  // Options acceptées en `'x'` ou `{ value, label }` → forme normalisée unique.
-  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }))
-  // La valeur courante peut manquer des options (zone par défaut, ou zone d'un
-  // objet rechargé absente du modèle courant) → on l'ajoute en tête.
-  if (!opts.some((o) => o.value === value)) opts.unshift({ value, label: value })
-  return (
-    <label className="edit-field">
-      <span>{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)}>
-        {opts.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
-
-// Sous-type de l'objet (E20-03) : dropdown du vocabulaire canonique du système
-// (SUBTYPES, source unique script/naming.mjs) + « Autre… » pour une saisie
-// libre normalisée — le vocabulaire est OUVERT, un type hors liste est accepté.
-// Monté avec key={obj.id} : l'état de saisie libre se réinitialise par objet.
-const OTHER_SUBTYPE = '__autre__'
-
-function SubtypeField({ obj, onChange }) {
-  const [freeEntry, setFreeEntry] = useState(false)
-  const options = [
-    ...subtypesOf(obj.system),
-    { value: OTHER_SUBTYPE, label: 'Autre…' },
-  ]
-  if (freeEntry) {
-    return (
-      <label className="edit-field">
-        <span>Type</span>
-        <input
-          type="text"
-          autoFocus
-          placeholder="ex : pergola"
-          defaultValue={obj.type}
-          onBlur={(event) => {
-            onChange(normalizeType(event.target.value, obj.type))
-            setFreeEntry(false)
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') event.currentTarget.blur()
-            if (event.key === 'Escape') setFreeEntry(false)
-          }}
-        />
-      </label>
-    )
-  }
-  return (
-    <SelectField
-      label="Type"
-      value={obj.type}
-      options={options}
-      onChange={(value) => {
-        if (value === OTHER_SUBTYPE) setFreeEntry(true)
-        else onChange(value)
-      }}
-    />
-  )
-}
-
-function NumberField({ label, value, onChange, allowZero = false, signed = false, step = '0.05' }) {
-  // `signed` : valeur réelle non nulle (ex. balayage d'arc en degrés, ±360).
-  const min = signed ? undefined : allowZero ? '0' : '0.01'
-  return (
-    <label className="edit-field">
-      <span>{label}</span>
-      <input
-        type="number"
-        min={min}
-        step={step}
-        value={value ?? 0}
-        onChange={(event) => {
-          const v = parseFloat(event.target.value)
-          if (Number.isNaN(v)) return
-          const ok = signed ? v !== 0 : allowZero ? v >= 0 : v > 0
-          if (ok) onChange(Number(v.toFixed(3)))
-        }}
-      />
-    </label>
-  )
-}
-
 const TOOLS = [
   {
     id: 'select',
@@ -604,20 +494,15 @@ const TOOL_HINTS = {
 
 export default function EditBar() {
   const editMode = useStore((state) => state.editMode)
+  const toggleEditMode = useStore((state) => state.toggleEditMode)
+  const viewMode = useStore((state) => state.viewMode)
   const activeTool = useStore((state) => state.activeTool)
   const setActiveTool = useStore((state) => state.setActiveTool)
   const objects = useStore((state) => state.objects)
-  const selectedNode = useStore((state) => state.selectedNode)
-  const updateObjectParams = useStore((state) => state.updateObjectParams)
-  const setOpeningAllege = useStore((state) => state.setOpeningAllege)
-  const setObjectFloorHeight = useStore((state) => state.setObjectFloorHeight)
-  const setObjectNaming = useStore((state) => state.setObjectNaming)
-  const deleteObject = useStore((state) => state.deleteObject)
   const glb = useStore((state) => state.glb)
   const metadata = useStore((state) => state.metadata)
   const gridSnap = useStore((state) => state.gridSnap)
   const toggleGridSnap = useStore((state) => state.toggleGridSnap)
-  const csgFallbackIds = useStore((state) => state.csgFallbackIds)
   const openingPreset = useStore((state) => state.openingPreset)
   const setOpeningPreset = useStore((state) => state.setOpeningPreset)
   const doorPreset = useStore((state) => state.doorPreset)
@@ -651,22 +536,34 @@ export default function EditBar() {
     }
   }
 
-  if (!editMode) return null
-  const selectedObj = selectedNode ? objects[selectedNode] : null
+  // Hors édition : la section n'offre que l'entrée en mode édition (touche E).
+  if (!editMode) {
+    return (
+      <>
+        <button
+          disabled={!glb || viewMode === 'visit'}
+          title="Mode édition — créer des formes (E)"
+          onClick={toggleEditMode}
+        >
+          Passer en édition
+        </button>
+        <p className="edit-hint">
+          {glb
+            ? 'La palette d’outils, l’annulation et l’export s’affichent ici en mode édition.'
+            : 'Chargez un modèle pour pouvoir éditer.'}
+        </p>
+      </>
+    )
+  }
+
   const objectCount = Object.keys(objects).length
-  // Catalogue de sections d'un run routé sélectionné (câble E15-03 / tuyau
-  // E16-01) — l'inspector est commun, seul le catalogue change.
-  const runCatalog =
-    selectedObj?.kind === CABLE_KIND
-      ? { sections: CABLE_SECTIONS, list: CABLE_SECTION_LIST }
-      : selectedObj?.kind === PIPE_KIND
-        ? { sections: PIPE_SECTIONS, list: PIPE_SECTION_LIST }
-        : null
 
   return (
-    <aside className="edit-bar" aria-label="Édition">
-      <header className="panel-header">
-        <h2>Édition</h2>
+    <>
+      <div className="edit-section-top">
+        <button title="Revenir en visualisation (E)" onClick={toggleEditMode}>
+          Quitter l'édition
+        </button>
         <div className="edit-history">
           <button
             className="small"
@@ -685,7 +582,7 @@ export default function EditBar() {
             ↷
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="edit-tools" role="toolbar" aria-label="Outils">
         {TOOLS.map((tool) => (
@@ -831,229 +728,11 @@ export default function EditBar() {
 
       {TOOL_HINTS[activeTool] && <p className="edit-hint">{TOOL_HINTS[activeTool]}</p>}
 
-      {selectedObj ? (
-        <div className="edit-inspector">
-          <code className="info-node-name">{nodeName(selectedObj)}</code>
-          <SubtypeField
-            key={selectedObj.id}
-            obj={selectedObj}
-            onChange={(type) => setObjectNaming(selectedObj.id, { type })}
-          />
-          <SelectField
-            label="Zone"
-            value={selectedObj.zone}
-            options={metadata?.model?.zones ?? []}
-            onChange={(zone) => setObjectNaming(selectedObj.id, { zone })}
-          />
-          <SelectField
-            label="Niveau"
-            value={selectedObj.level}
-            options={LEVELS.map((id) => ({ value: id, label: LEVEL_LABELS[id] ?? id }))}
-            onChange={(level) => setObjectNaming(selectedObj.id, { level })}
-          />
-          {runCatalog ? (
-            <>
-              <SelectField
-                label="Section"
-                value={selectedObj.params.section}
-                options={runCatalog.list.map((s) => ({ value: s.id, label: s.label }))}
-                onChange={(section) => {
-                  const s = runCatalog.sections[section]
-                  if (!s) return
-                  updateObjectParams(selectedObj.id, {
-                    section,
-                    diametre_mm: s.diametre_mm,
-                    // La famille (cuivre/évac) n'existe que côté plomberie.
-                    ...(s.famille ? { famille: s.famille } : {}),
-                    largeur_m: s.dims.largeur_m,
-                    hauteur_m: s.dims.hauteur_m,
-                  })
-                }}
-              />
-              {/* Pente d'évacuation (E16-02) : % de descente par longueur
-                  horizontale, appliqué depuis l'AMONT (1er point tracé). Les
-                  runs d'alimentation (cuivre) n'ont pas de pente. */}
-              {selectedObj.kind === PIPE_KIND && selectedObj.params.famille === 'evac' && (
-                <NumberField
-                  label="Pente (%)"
-                  value={selectedObj.params.pente_pct ?? 0}
-                  allowZero
-                  step="0.5"
-                  onChange={(v) =>
-                    updateObjectParams(selectedObj.id, {
-                      pente_pct: Math.min(v, MAX_PENTE_PCT),
-                    })
-                  }
-                />
-              )}
-              <p className="edit-hint">
-                {selectedObj.params.points?.length ?? 0} sommets ·{' '}
-                {(selectedObj.kind === PIPE_KIND
-                  ? pipeLength(selectedObj.params)
-                  : pathLength(selectedObj.params.points ?? [])
-                ).toFixed(2)}{' '}
-                m
-              </p>
-            </>
-          ) : selectedObj.kind === VALVE_KIND ? (
-            // Vanne inline (E16-04) : la section vient du tuyau coupé à
-            // l'insertion — rien à éditer ici à part le nommage / suppression.
-            <p className="edit-hint">
-              Vanne{' '}
-              {PIPE_SECTIONS[selectedObj.params.section]?.label ??
-                `Ø${selectedObj.params.diametre_mm ?? '—'}`}{' '}
-              — insérée sur l'axe du tuyau (run coupé en deux tronçons).
-            </p>
-          ) : isElecKind(selectedObj.kind) ? (
-            <>
-              <NumberField
-                label="Largeur (m)"
-                value={selectedObj.params.largeur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
-              />
-              <NumberField
-                label="Hauteur (m)"
-                value={selectedObj.params.hauteur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
-              />
-              <NumberField
-                label="Profondeur (m)"
-                value={selectedObj.params.profondeur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
-              />
-              <NumberField
-                label="Hauteur / sol (m)"
-                value={selectedObj.plane?.origin?.[1] ?? 0}
-                allowZero
-                onChange={(v) => setObjectFloorHeight(selectedObj.id, v)}
-              />
-              <p className="edit-hint">
-                Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
-              </p>
-            </>
-          ) : selectedObj.kind === JOINERY_KIND || selectedObj.kind === DOOR_LEAF_KIND ? (
-            <>
-              {/* La variante (fixe/battant/coulissant) est propre aux fenêtres ;
-                  un vantail de porte (E14-07) n'en a pas. */}
-              {selectedObj.kind === JOINERY_KIND && (
-                <SelectField
-                  label="Variante"
-                  value={selectedObj.params.variante ?? 'fixe'}
-                  options={JOINERY_VARIANT_LIST.map((v) => ({ value: v.id, label: v.label }))}
-                  onChange={(variante) => updateObjectParams(selectedObj.id, { variante })}
-                />
-              )}
-              <NumberField
-                label="Largeur (m)"
-                value={selectedObj.params.largeur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
-              />
-              <NumberField
-                label="Hauteur (m)"
-                value={selectedObj.params.hauteur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
-              />
-              <NumberField
-                label="Épaisseur cadre (m)"
-                value={selectedObj.params.epaisseur_m}
-                step="0.01"
-                onChange={(v) => updateObjectParams(selectedObj.id, { epaisseur_m: v })}
-              />
-              <NumberField
-                label="Profondeur (m)"
-                value={selectedObj.params.profondeur_m}
-                step="0.01"
-                onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
-              />
-              <p className="edit-hint">
-                Ouverture : <code>{selectedObj.plane?.hostOf ?? '—'}</code>
-              </p>
-            </>
-          ) : isOpeningKind(selectedObj.kind) ? (
-            <>
-              <NumberField
-                label="Largeur (m)"
-                value={selectedObj.params.largeur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
-              />
-              <NumberField
-                label="Hauteur (m)"
-                value={selectedObj.params.hauteur_m}
-                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
-              />
-              {/* L'allège est propre aux fenêtres : le seuil d'une porte est au sol. */}
-              {selectedObj.kind === WINDOW_KIND && (
-                <NumberField
-                  label="Allège (m)"
-                  value={selectedObj.params.allege_m}
-                  allowZero
-                  onChange={(v) => setOpeningAllege(selectedObj.id, v)}
-                />
-              )}
-              <p className="edit-hint">
-                Mur : <code>{selectedObj.plane?.faceOf ?? '—'}</code>
-              </p>
-              {csgFallbackIds.includes(selectedObj.id) && (
-                <p className="edit-warning">
-                  ⚠ Mur non perçable (géométrie dégénérée) : ouverture posée en
-                  surface, sans trou.
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              {selectedObj.kind === 'sketch.circle' ? (
-                <NumberField
-                  label="Rayon (m)"
-                  value={selectedObj.params.rayon_m}
-                  onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
-                />
-              ) : selectedObj.kind === 'sketch.arc' ? (
-                <>
-                  <NumberField
-                    label="Rayon (m)"
-                    value={selectedObj.params.rayon_m}
-                    onChange={(v) => updateObjectParams(selectedObj.id, { rayon_m: v })}
-                  />
-                  <NumberField
-                    label="Balayage (°)"
-                    value={selectedObj.params.angle_balayage_deg}
-                    signed
-                    step="5"
-                    onChange={(v) =>
-                      updateObjectParams(selectedObj.id, { angle_balayage_deg: v })
-                    }
-                  />
-                </>
-              ) : (
-                <>
-                  <NumberField
-                    label="Largeur (m)"
-                    value={selectedObj.params.largeur_m}
-                    onChange={(v) => updateObjectParams(selectedObj.id, { largeur_m: v })}
-                  />
-                  <NumberField
-                    label="Profondeur (m)"
-                    value={selectedObj.params.profondeur_m}
-                    onChange={(v) => updateObjectParams(selectedObj.id, { profondeur_m: v })}
-                  />
-                </>
-              )}
-              <NumberField
-                label="Hauteur (m)"
-                value={selectedObj.params.hauteur_m}
-                allowZero
-                onChange={(v) => updateObjectParams(selectedObj.id, { hauteur_m: v })}
-              />
-            </>
-          )}
-          <button className="edit-delete" onClick={() => deleteObject(selectedObj.id)}>
-            Supprimer
-          </button>
-        </div>
-      ) : (
-        <p className="edit-hint">Sélectionnez une forme pour l'éditer.</p>
-      )}
+      {/* Rectification PO E19 : l'inspector de l'objet sélectionné s'affiche
+          dans le panneau Info détaché à droite (commun aux objets SketchUp). */}
+      <p className="edit-hint">
+        L'objet sélectionné s'édite dans le panneau Info, à droite.
+      </p>
 
       <footer className="edit-footer">
         <button
@@ -1069,6 +748,6 @@ export default function EditBar() {
           {exporting ? 'Export…' : `Exporter GLB (${objectCount})`}
         </button>
       </footer>
-    </aside>
+    </>
   )
 }

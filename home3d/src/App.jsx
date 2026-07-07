@@ -1,12 +1,11 @@
 import { useEffect } from 'react'
 import Viewer from './components/Viewer.jsx'
 import GLBLoader from './components/GLBLoader.jsx'
-import LayerPanel from './components/LayerPanel.jsx'
+import Sidebar from './components/Sidebar.jsx'
 import InfoPanel from './components/InfoPanel.jsx'
-import VisitOverlay from './components/VisitOverlay.jsx'
 import VisitSticks from './components/VisitSticks.jsx'
-import EditBar from './components/EditBar.jsx'
 import VCBOverlay from './components/VCBOverlay.jsx'
+import ShortcutsOverlay from './components/ShortcutsOverlay.jsx'
 import useStore from './store/useStore.js'
 
 // Saisie VCB (E12-04) pendant un tracé : construit la chaîne tapée, valide à
@@ -52,7 +51,8 @@ export default function App() {
 
   // Raccourcis clavier globaux : R = recentrer (E4-03), P = perf dev (E8-01),
   // V = Orbite/Visite (E17-01), E = View/Edit, G = accroche grille (E12-03),
-  // Ctrl+Z / Ctrl+Maj+Z = undo/redo.
+  // Ctrl+Z / Ctrl+Maj+Z = undo/redo, ? = overlay raccourcis (E19-07).
+  // Tenir ShortcutsOverlay.jsx à jour à chaque ajout.
   useEffect(() => {
     const onKeyDown = (event) => {
       const tag = event.target?.tagName
@@ -79,11 +79,23 @@ export default function App() {
       }
       if (event.ctrlKey || event.metaKey || event.altKey) return
 
-      // Échap : quitte la visite (verrou déjà relâché), sinon revient à l'outil
-      // Sélection en édition.
+      // ? : overlay des raccourcis clavier (E19-07).
+      if (event.key === '?') {
+        const { shortcutsOpen, setShortcutsOpen } = useStore.getState()
+        setShortcutsOpen(!shortcutsOpen)
+        return
+      }
+
+      // Échap, par priorité : ferme l'overlay raccourcis, quitte la visite
+      // (verrou déjà relâché), revient à l'outil Sélection en édition (la barre
+      // latérale y héberge la palette : on ne la ferme pas), ferme le menu.
       if (event.key === 'Escape') {
-        if (viewMode === 'visit' && !pointerLocked) setViewMode('orbit')
+        const { shortcutsOpen, setShortcutsOpen, menuOpen, setMenuOpen } =
+          useStore.getState()
+        if (shortcutsOpen) setShortcutsOpen(false)
+        else if (viewMode === 'visit' && !pointerLocked) setViewMode('orbit')
         else if (editMode) setActiveTool('select')
+        else if (menuOpen) setMenuOpen(false)
         return
       }
       const key = event.key.toLowerCase()
@@ -103,12 +115,11 @@ export default function App() {
     <div className="app">
       <Viewer />
       <GLBLoader />
-      <LayerPanel />
-      <EditBar />
+      <Sidebar />
       <InfoPanel />
       <VCBOverlay />
-      {/**<VisitOverlay />**/}
       <VisitSticks />
+      <ShortcutsOverlay />
     </div>
   )
 }

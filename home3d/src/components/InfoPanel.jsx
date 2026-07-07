@@ -1,8 +1,11 @@
 import useStore from '../store/useStore.js'
-import { subtypeLabel } from '../lib/naming.js'
+import { nodeName, subtypeLabel } from '../lib/naming.js'
+import ObjectInspector from './ObjectInspector.jsx'
 
-// Infos de l'objet sélectionné (E6-02) : extras formatés avec labels FR,
-// champs vides grisés, nom de node complet visible.
+// Panneau Info de l'objet sélectionné — détaché à droite (rectification PO
+// E19, 2026-07-07) et COMMUN aux deux origines : un objet importé de SketchUp
+// y montre ses extras formatés en lecture seule (E6-02), un objet créé in-app
+// y montre son inspector éditable (ObjectInspector, ex-EditBar).
 
 const LEVEL_LABELS = {
   ss: 'Sous-sol',
@@ -49,11 +52,9 @@ export default function InfoPanel() {
   const nodes = useStore((state) => state.nodes)
   const layers = useStore((state) => state.layers)
   const selectNode = useStore((state) => state.selectNode)
-  const isAppObject = useStore((state) => !!state.objects[state.selectedNode])
+  const appObject = useStore((state) => state.objects[state.selectedNode])
 
-  // Les objets créés in-app ont leur propre inspector (EditBar) : on n'affiche
-  // pas ce panneau d'infos d'objet importé pour eux.
-  if (!selectedNode || isAppObject) return null
+  if (!selectedNode) return null
   const extras = nodes[selectedNode]
 
   return (
@@ -69,9 +70,13 @@ export default function InfoPanel() {
         </button>
       </header>
 
-      <code className="info-node-name">{selectedNode}</code>
+      <code className="info-node-name">
+        {appObject ? nodeName(appObject) : selectedNode}
+      </code>
 
-      {extras ? (
+      {appObject ? (
+        <ObjectInspector obj={appObject} />
+      ) : extras ? (
         <dl className="info-rows">
           <Row label="Calque" value={layers[extras.layer]?.label ?? extras.layer} />
           <Row label="Type" value={formatSubtype(extras)} />
