@@ -229,6 +229,27 @@ const useStore = create(
       fitRequest: 0,
       requestFit: () => set((state) => ({ fitRequest: state.fitRequest + 1 })),
 
+      // E19-01 : barre latérale unique ouverte par le bouton burger. Une seule
+      // section dépliée à la fois (accordéon) : calques | edit | vue | more.
+      menuOpen: false,
+      toggleMenu: () => set((state) => ({ menuOpen: !state.menuOpen })),
+      setMenuOpen: (open) => set({ menuOpen: open }),
+      menuSection: 'calques',
+      setMenuSection: (section) => set({ menuSection: section }),
+
+      // E19-07 : overlay des raccourcis clavier (touche « ? » ou section More).
+      shortcutsOpen: false,
+      setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+
+      // E8-01 : overlay perf dev (touche P, section Vue). Exclu du bundle prod
+      // (cf. Viewer) — l'état existe toujours, le toggle est sans effet en prod.
+      showPerf: false,
+      togglePerf: () => set((state) => ({ showPerf: !state.showPerf })),
+
+      // E19-04 : FOV du mode visite (E17-04/09 gelés — seul réglage exposé).
+      visitFov: 70,
+      setVisitFov: (fov) => set({ visitFov: fov }),
+
       // E17 (mode visite, Niveau 1) : 'orbit' = OrbitControls ; 'visit' = vol
       // libre (PointerLockControls + WASD). `pointerLocked` = verrou souris natif.
       viewMode: 'orbit',
@@ -246,6 +267,8 @@ const useStore = create(
       // ('select' | 'rect' | …). draft : tracé en cours (non committé, éphémère).
       editMode: false,
       activeTool: 'select',
+      // Entrer en édition ouvre la barre latérale sur la section Edit (E19-03) :
+      // la palette d'outils y vit, sans ça la touche E semblerait sans effet.
       setEditMode: (on) =>
         set({
           editMode: on,
@@ -254,6 +277,7 @@ const useStore = create(
           activeTool: 'select',
           extrude: null,
           hoveredNode: null,
+          ...(on ? { menuOpen: true, menuSection: 'edit' } : {}),
         }),
       toggleEditMode: () =>
         set((state) => ({
@@ -263,6 +287,7 @@ const useStore = create(
           activeTool: 'select',
           extrude: null,
           hoveredNode: null,
+          ...(state.editMode ? {} : { menuOpen: true, menuSection: 'edit' }),
         })),
       // Changer d'outil efface le survol résiduel (Model coupe sa surbrillance
       // hors outil Sélection — sinon un highlight figé resterait).

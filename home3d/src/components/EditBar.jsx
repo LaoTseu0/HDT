@@ -7,9 +7,10 @@ import { JOINERY_VARIANTS, JOINERY_VARIANT_KEYS } from '../lib/joinery.js'
 import { CABLE_SECTIONS, CABLE_SECTION_KEYS } from '../lib/cable.js'
 import { PIPE_SECTIONS, PIPE_SECTION_KEYS } from '../lib/plumbing.js'
 
-// Panneau d'édition (Edit mode, Slice 0) : barre d'outils à ICÔNES + tooltips
-// (directive IHM 2026-06-24), undo/redo (zundo, E10-03) et export. L'inspector
-// de l'objet sélectionné vit dans le panneau Info détaché (ObjectInspector,
+// Section Edit de la barre latérale (E19-03, ex-panneau flottant Slice 0) :
+// bascule View ↔ Edit, barre d'outils à ICÔNES + tooltips (directive IHM
+// 2026-06-24), undo/redo (zundo, E10-03) et export. L'inspector de l'objet
+// sélectionné vit dans le panneau Info détaché (ObjectInspector,
 // rectification PO E19 2026-07-07).
 
 // Icônes d'outils (stroke = currentColor) — pictogramme + tooltip natif (title).
@@ -493,6 +494,8 @@ const TOOL_HINTS = {
 
 export default function EditBar() {
   const editMode = useStore((state) => state.editMode)
+  const toggleEditMode = useStore((state) => state.toggleEditMode)
+  const viewMode = useStore((state) => state.viewMode)
   const activeTool = useStore((state) => state.activeTool)
   const setActiveTool = useStore((state) => state.setActiveTool)
   const objects = useStore((state) => state.objects)
@@ -533,13 +536,34 @@ export default function EditBar() {
     }
   }
 
-  if (!editMode) return null
+  // Hors édition : la section n'offre que l'entrée en mode édition (touche E).
+  if (!editMode) {
+    return (
+      <>
+        <button
+          disabled={!glb || viewMode === 'visit'}
+          title="Mode édition — créer des formes (E)"
+          onClick={toggleEditMode}
+        >
+          Passer en édition
+        </button>
+        <p className="edit-hint">
+          {glb
+            ? 'La palette d’outils, l’annulation et l’export s’affichent ici en mode édition.'
+            : 'Chargez un modèle pour pouvoir éditer.'}
+        </p>
+      </>
+    )
+  }
+
   const objectCount = Object.keys(objects).length
 
   return (
-    <aside className="edit-bar" aria-label="Édition">
-      <header className="panel-header">
-        <h2>Édition</h2>
+    <>
+      <div className="edit-section-top">
+        <button title="Revenir en visualisation (E)" onClick={toggleEditMode}>
+          Quitter l'édition
+        </button>
         <div className="edit-history">
           <button
             className="small"
@@ -558,7 +582,7 @@ export default function EditBar() {
             ↷
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="edit-tools" role="toolbar" aria-label="Outils">
         {TOOLS.map((tool) => (
@@ -724,6 +748,6 @@ export default function EditBar() {
           {exporting ? 'Export…' : `Exporter GLB (${objectCount})`}
         </button>
       </footer>
-    </aside>
+    </>
   )
 }

@@ -38,27 +38,119 @@ button.secondary {
   background: transparent;
 }
 
-/* Barre d'outils (ouvrir un fichier, nom du modèle chargé) */
-.toolbar {
+/* E19-01 : bouton burger (coin haut-gauche) + barre latérale unique en
+   overlay au-dessus du canvas (choix tranché : pas de push, le canvas WebGL
+   garde sa taille). */
+.burger {
   position: absolute;
   top: 12px;
   left: 12px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  z-index: 10;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  z-index: 30;
 }
 
-.toolbar-file {
-  font-size: 13px;
+.sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  padding: 60px 10px 10px; /* dégage le burger */
+  box-sizing: border-box;
+  border-right: 1px solid #3a3d4a;
+  background: rgba(26, 28, 36, 0.96);
+  overflow-y: auto;
+  overscroll-behavior: contain; /* E19-06 : pas de scroll parasite */
+  z-index: 25;
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform 0.25s ease,
+    visibility 0s 0.25s;
+}
+
+.sidebar.open {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.25s ease;
+}
+
+/* Sections en accordéon (Calques · Édition · Vue · Plus) */
+.menu-section {
+  border-bottom: 1px solid #3a3d4a;
+}
+
+.menu-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e8e9ee;
+}
+
+.menu-chevron {
   color: #9aa0b0;
+  font-size: 11px;
 }
 
-/* Bouton actif (ex. « Quitter la visite » en mode visite, E17-01) */
-.toolbar button[aria-pressed='true'] {
+.menu-section-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 2px 8px 14px;
+}
+
+/* Bouton actif dans la barre (ex. « Quitter la visite », plein écran) */
+.sidebar button[aria-pressed='true'] {
   border-color: #378add;
   background: #1e3046;
   color: #cfe4f8;
+}
+
+.edit-section-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.view-fov input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.view-fov-value {
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #e8e9ee;
+}
+
+.menu-model-info {
+  padding-top: 8px;
+  border-top: 1px solid #3a3d4a;
+}
+
+.menu-about {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid #3a3d4a;
+  font-size: 12px;
+  color: #6b7080;
 }
 
 /* Mode visite (E17-01) : invite « Cliquez pour explorer » centrée.
@@ -137,24 +229,7 @@ button.secondary {
   background: rgba(154, 160, 176, 0.45);
 }
 
-/* Panneau d'édition (Edit mode, Slice 0) — à gauche, comme le panneau Calques */
-.edit-bar {
-  position: absolute;
-  top: 64px;
-  left: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 240px;
-  max-height: calc(100% - 140px);
-  padding: 12px;
-  border: 1px solid #3a3d4a;
-  border-radius: 10px;
-  background: rgba(26, 28, 36, 0.92);
-  overflow-y: auto;
-  z-index: 15;
-}
-
+/* Section Édition (E19-03, ex-panneau flottant Edit mode Slice 0) */
 .edit-history {
   display: flex;
   gap: 6px;
@@ -369,14 +444,16 @@ button.secondary {
   margin-top: 20px;
 }
 
-/* Panneaux superposés (calques à gauche, infos à droite) */
-.layer-panel,
+/* Panneau Info — détaché à droite (rectification PO E19), commun aux objets
+   importés (extras en lecture seule) et créés in-app (ObjectInspector). */
 .info-panel {
   position: absolute;
+  top: 12px;
+  right: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: 240px;
+  width: 280px;
   max-height: calc(100% - 140px);
   padding: 12px;
   border: 1px solid #3a3d4a;
@@ -384,17 +461,6 @@ button.secondary {
   background: rgba(26, 28, 36, 0.92);
   overflow-y: auto;
   z-index: 15;
-}
-
-.layer-panel {
-  top: 64px;
-  left: 12px;
-}
-
-.info-panel {
-  top: 64px;
-  right: 12px;
-  width: 280px;
 }
 
 .panel-header {
@@ -589,20 +655,104 @@ button.small {
   color: #9aa0b0;
 }
 
-/* Petits écrans (E4-04) : panneaux plus étroits, toujours superposés
-   au canvas — jamais de scroll de page, seulement dans les panneaux. */
+/* Petits écrans (E4-04, E19-06) : panneau Info plus étroit, drawer adapté —
+   jamais de scroll de page, seulement dans les panneaux. */
 @media (max-width: 640px) {
-  .layer-panel {
-    width: 180px;
-  }
-
   .info-panel {
     width: 200px;
+  }
+
+  .sidebar {
+    width: min(300px, 85vw);
   }
 
   .layer-row .layer-isolate {
     opacity: 1; /* pas de hover fiable au tactile */
   }
+}
+
+/* E19-06 : en portrait, drawer pleine largeur. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .sidebar {
+    width: 100%;
+    border-right: none;
+  }
+}
+
+/* E19-07 : overlay modal des raccourcis clavier. */
+.shortcuts-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 11, 15, 0.55);
+  z-index: 45;
+}
+
+.shortcuts-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(640px, calc(100% - 32px));
+  max-height: calc(100% - 64px);
+  padding: 16px 20px;
+  border: 1px solid #3a3d4a;
+  border-radius: 12px;
+  background: rgba(26, 28, 36, 0.97);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.shortcuts-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 28px;
+}
+
+.shortcuts-groups section {
+  flex: 1 1 260px;
+  min-width: 240px;
+}
+
+.shortcuts-groups h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9aa0b0;
+}
+
+.shortcuts-groups ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shortcuts-groups li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  color: #c8cbd6;
+}
+
+.shortcuts-groups kbd {
+  flex-shrink: 0;
+  min-width: 90px;
+  padding: 2px 8px;
+  border: 1px solid #3a3d4a;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #16171d;
+  font-family: inherit;
+  font-size: 12px;
+  color: #8fc7ff;
+  text-align: center;
 }
 
 /* Surbrillance pendant le drag d'un fichier (E3-01) */
