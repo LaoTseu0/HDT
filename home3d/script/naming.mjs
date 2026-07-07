@@ -150,14 +150,23 @@ export function normalizeSegment(segment) {
  * Valide un nom de node contre la convention et diagnostique chaque
  * violation (E2-02, E2-03).
  *
- * @returns {{ valid: boolean, errors: string[], suggestion: string|null, parsed: object|null }}
+ * @returns {{ valid: boolean, errors: string[], warnings: string[], suggestion: string|null, parsed: object|null }}
  *   - `errors`   : raisons lisibles (segment invalide, casse, accent…)
+ *   - `warnings` : avertissements NON bloquants (E20-02 : type hors vocabulaire
+ *                  canonique — le segment `type` est OUVERT, jamais rejeté)
  *   - `suggestion` : nom corrigé proposé quand une correction automatique a un sens
  *   - `parsed`   : { layer, type, zone, level, index } si le nom est valide
  */
 export function validateNodeName(name) {
   if (NODE_NAME_REGEX.test(name)) {
-    return { valid: true, errors: [], suggestion: null, parsed: parseNodeName(name) }
+    const parsed = parseNodeName(name)
+    const warnings = isKnownSubtype(parsed.layer, parsed.type)
+      ? []
+      : [
+          `type \`${parsed.type}\` hors vocabulaire canonique du système ` +
+            `\`${parsed.layer}\` (accepté — rangé en « Autres » dans l'app)`,
+        ]
+    return { valid: true, errors: [], warnings, suggestion: null, parsed }
   }
 
   const errors = []
@@ -207,7 +216,7 @@ export function validateNodeName(name) {
     if (NODE_NAME_REGEX.test(candidate) && candidate !== name) suggestion = candidate
   }
 
-  return { valid: false, errors, suggestion, parsed: null }
+  return { valid: false, errors, warnings: [], suggestion, parsed: null }
 }
 
 /**

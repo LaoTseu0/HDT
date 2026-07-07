@@ -146,6 +146,30 @@ describe('validateNodeName — noms invalides', () => {
   })
 })
 
+describe('validateNodeName — vocabulaire de type OUVERT (E20-02)', () => {
+  it('type canonique → valide, sans avertissement', () => {
+    const result = validateNodeName('structure__mur_porteur__salon__rdc__001')
+    assert.equal(result.valid, true)
+    assert.deepEqual(result.warnings, [])
+  })
+
+  it('type hors vocabulaire → VALIDE (jamais rejeté) mais averti', () => {
+    const result = validateNodeName('terrain__pergola__jardin__ext__001')
+    assert.equal(result.valid, true)
+    assert.deepEqual(result.errors, [])
+    assert.equal(result.warnings.length, 1)
+    assert.ok(result.warnings[0].includes('pergola'))
+    assert.ok(result.warnings[0].includes('hors vocabulaire'))
+    assert.ok(result.parsed) // le parsing n'est pas dégradé par l'avertissement
+  })
+
+  it('un nom invalide ne porte pas d’avertissement de vocabulaire', () => {
+    const result = validateNodeName('terrain__pergola__jardin__ext__1')
+    assert.equal(result.valid, false)
+    assert.deepEqual(result.warnings, [])
+  })
+})
+
 describe('parseNodeName', () => {
   it('extrait layer/type/zone/level et un index numérique', () => {
     assert.deepEqual(parseNodeName('plomberie__eau_froide__sdb__rdc__012'), {

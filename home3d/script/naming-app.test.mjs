@@ -8,6 +8,7 @@ import {
   NODE_NAME_REGEX,
   DEFAULT_ZONE,
 } from '../src/lib/naming.js'
+import { validateNodeName } from './naming.mjs'
 
 // Génération des node names conformes des objets créés in-app (E12-06). Module
 // PUR : testable hors navigateur. La convention (regex) est partagée avec le
@@ -37,6 +38,32 @@ describe('nodeName', () => {
     const name = nodeName({ system: 'terrain', type: 'forme', zone: 'jardin', level: 'ext', index: 0 })
     assert.ok(name.endsWith('__001'))
     assert.ok(NODE_NAME_REGEX.test(name))
+  })
+
+  it('un type canonique passe la validation pipeline SANS avertissement (E20-02)', () => {
+    const name = nodeName({
+      system: 'plomberie',
+      type: 'tuyau',
+      zone: 'sdb',
+      level: 'rdc',
+      index: 1,
+    })
+    const result = validateNodeName(name)
+    assert.equal(result.valid, true)
+    assert.deepEqual(result.warnings, [])
+  })
+
+  it('un type hors vocabulaire reste VALIDE côté pipeline (vocabulaire ouvert)', () => {
+    const name = nodeName({
+      system: 'terrain',
+      type: 'pergola',
+      zone: 'jardin',
+      level: 'ext',
+      index: 1,
+    })
+    const result = validateNodeName(name)
+    assert.equal(result.valid, true)
+    assert.equal(result.warnings.length, 1)
   })
 })
 
