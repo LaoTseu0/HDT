@@ -5,6 +5,7 @@ import {
   nodeName,
   nextIndex,
   normalizeZone,
+  normalizeType,
   NODE_NAME_REGEX,
   DEFAULT_ZONE,
 } from '../src/lib/naming.js'
@@ -118,6 +119,25 @@ describe('normalizeZone', () => {
     assert.equal(normalizeZone(''), DEFAULT_ZONE)
     assert.equal(normalizeZone(null), DEFAULT_ZONE)
     assert.equal(normalizeZone('   '), DEFAULT_ZONE)
+  })
+
+  it('un type saisi librement est normalisé, repli sur le type courant (E20-03)', () => {
+    assert.equal(normalizeType('Pergola Bois', 'forme'), 'pergola_bois')
+    assert.equal(normalizeType('Évacuation', 'forme'), 'evacuation')
+    assert.equal(normalizeType('', 'forme'), 'forme')
+    assert.equal(normalizeType('   ', 'forme'), 'forme')
+    assert.equal(normalizeType(null, 'forme'), 'forme')
+  })
+
+  it('un type normalisé produit bien un node name valide', () => {
+    const name = nodeName({
+      system: 'terrain',
+      type: normalizeType('Pergola', 'forme'),
+      zone: 'jardin',
+      level: 'ext',
+      index: 1,
+    })
+    assert.ok(NODE_NAME_REGEX.test(name))
   })
 
   it('une zone normalisée produit bien un node name valide', () => {

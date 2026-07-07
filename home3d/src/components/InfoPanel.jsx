@@ -1,4 +1,5 @@
 import useStore from '../store/useStore.js'
+import { subtypeLabel } from '../lib/naming.js'
 
 // Infos de l'objet sélectionné (E6-02) : extras formatés avec labels FR,
 // champs vides grisés, nom de node complet visible.
@@ -20,6 +21,17 @@ function formatDims(dims) {
     return `${key.replace(/_m$/, '').replaceAll('_', ' ')} : ${value}${metric ? ' m' : ''}`
   })
   return parts.length > 0 ? parts.join(' · ') : null
+}
+
+// Label FR du sous-type (E20-03) : priorité au label injecté par le pipeline
+// (extras.subtypeLabel), sinon recalcul depuis le vocabulaire (GLB traité avant
+// E20-02), sinon le segment brut humanisé — suffixé « hors vocabulaire » pour
+// signaler un type libre (vocabulaire ouvert, jamais bloquant).
+function formatSubtype(extras) {
+  if (!extras.type) return null
+  const label = extras.subtypeLabel ?? subtypeLabel(extras.layer, extras.type)
+  if (label) return label
+  return `${extras.type.replaceAll('_', ' ')} (hors vocabulaire)`
 }
 
 function Row({ label, value }) {
@@ -62,7 +74,7 @@ export default function InfoPanel() {
       {extras ? (
         <dl className="info-rows">
           <Row label="Calque" value={layers[extras.layer]?.label ?? extras.layer} />
-          <Row label="Type" value={extras.type?.replaceAll('_', ' ')} />
+          <Row label="Type" value={formatSubtype(extras)} />
           <Row label="Zone" value={extras.zone} />
           <Row label="Niveau" value={LEVEL_LABELS[extras.level] ?? extras.level} />
           <Row

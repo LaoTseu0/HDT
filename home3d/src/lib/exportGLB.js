@@ -19,7 +19,7 @@
 import * as THREE from 'three'
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'
 import { generateObject, deriveDims } from './editRegistry.js'
-import { nodeName } from './naming.js'
+import { nodeName, subtypeLabel } from './naming.js'
 import { withPristineGeometry } from './csg.js'
 
 // Extras d'un node créé in-app. `layer/type/zone/level/index` = métadonnées de
@@ -34,6 +34,9 @@ export function buildAppNodeExtras(obj) {
     zone: obj.zone,
     level: obj.level,
     index: obj.index,
+    // Parité pipeline (E20-02) : sous-type + label FR (null hors vocabulaire).
+    subtype: obj.type,
+    subtypeLabel: subtypeLabel(obj.system, obj.type),
     edit: { kind: obj.kind, plane: obj.plane, params: obj.params },
     material: '',
     notes: '',

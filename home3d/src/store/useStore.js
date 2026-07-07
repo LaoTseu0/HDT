@@ -357,20 +357,26 @@ const useStore = create(
       currentZone: DEFAULT_ZONE,
       currentLevel: DEFAULT_LEVEL,
 
-      // E12-06 : change zone et/ou niveau de l'objet sélectionné → recalcule l'index
-      // dans le nouveau bucket (système, zone, niveau) et reconstruit le node name
-      // (dérivé). Historisé (mutation de `objects`) ; met aussi à jour la zone/niveau
-      // courants. L'`id` (clé) reste stable — pas de renommage de clé.
+      // E12-06 : change zone / niveau / sous-type (E20-03) de l'objet sélectionné →
+      // recalcule l'index dans le nouveau bucket (système, zone, niveau — le type
+      // n'en fait pas partie) et reconstruit le node name (dérivé). Historisé
+      // (mutation de `objects`) ; met aussi à jour la zone/niveau courants.
+      // L'`id` (clé) reste stable — pas de renommage de clé.
       setObjectNaming: (id, patch) =>
         set((state) => {
           const obj = state.objects[id]
           if (!obj) return state
           const zone = patch.zone !== undefined ? patch.zone : obj.zone
           const level = patch.level !== undefined ? patch.level : obj.level
-          if (zone === obj.zone && level === obj.level) return state
+          const type = patch.type !== undefined ? patch.type : obj.type
+          if (zone === obj.zone && level === obj.level && type === obj.type) return state
+          // Le sous-type ne change pas le bucket d'indexation : index conservé.
+          if (zone === obj.zone && level === obj.level) {
+            return { objects: { ...state.objects, [id]: { ...obj, type } } }
+          }
           const index = nextIndex(state.objects, { system: obj.system, zone, level }, id)
           return {
-            objects: { ...state.objects, [id]: { ...obj, zone, level, index } },
+            objects: { ...state.objects, [id]: { ...obj, type, zone, level, index } },
             currentZone: zone,
             currentLevel: level,
           }
