@@ -50,6 +50,7 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-06 | **Visite Niveaux 2 & 3 mise de côté** : le développement de **E17-05, E17-06, E17-07, E17-08 et E17-09** est gelé jusqu'à nouvel ordre du PO. |
 | 2026-07-07 | **E18 (PWA) mise en pause** : toutes ses stories (E18-01→05) sont gelées. Priorité donnée à **E19** (refonte UX des menus) et **E20** (taxonomie à deux niveaux). |
 | 2026-07-07 | **Taxonomie à deux niveaux (E20)** : la catégorie **et** le sous-type d'un objet sont portés par la **nomenclature du nom** (`système__type__…`), **pas** par le Tag SketchUp du groupe. Le sous-type est le segment `type`, désormais issu d'un **vocabulaire contrôlé par système**. |
+| 2026-07-07 | **Segment `type` OUVERT (E20)** : le vocabulaire par système est **canonique/suggéré**, pas fermé. Un `type` hors liste est **accepté** (avertissement, jamais rejet) et rangé en « Autres » — pour ne pas perdre les types déjà prévus ni brider la modélisation. |
 
 ---
 
@@ -472,7 +473,7 @@ même distinction label/segment que pour les systèmes, ex. `elec` → « Élect
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E20-01 | En tant que dev, je veux LA source unique de la taxonomie à deux niveaux afin qu'app, pipeline, Ruby et docs en héritent. | `SUBTYPES` dans [naming.mjs](home3d/script/naming.mjs) : par système, liste `{ value, label }` (value normalisée) ; typos corrigées (Structures, Réseaux) ; **choix tranché ouvert vs fermé** (cf. note ci-dessous) documenté dans le code. | S | 3 |
+| E20-01 | En tant que dev, je veux LA source unique de la taxonomie à deux niveaux afin qu'app, pipeline, Ruby et docs en héritent. | `SUBTYPES` dans [naming.mjs](home3d/script/naming.mjs) : par système, liste `{ value, label }` (value normalisée) ; typos corrigées (Structures, Réseaux) ; segment `type` **ouvert** (décision 2026-07-07, cf. note) → ces listes sont le vocabulaire **canonique/suggéré**, complétées des types déjà prévus non listés (`dalle`, `fondation`, `poteau`, `tableau`, `gaine`, `velux`, `porte_garage`…). | S | 3 |
 | E20-02 | En tant qu'utilisateur du pipeline, je veux que le sous-type soit validé et enrichi afin d'avoir un classement fiable. | `process.mjs`/`naming.mjs` : `type` validé contre `SUBTYPES` du système (selon E20-01) ; `extras` porte `subtype` + son label ; rapport d'erreur ciblé ; tests `naming.test.mjs` / `naming-app.test.mjs` mis à jour. | S | 5 |
 | E20-03 | En tant qu'utilisateur, je veux voir et éditer le sous-type in-app. | `InfoPanel` affiche le label du sous-type ; `editRegistry` (`kindNaming`) et la génération de nom ([naming.js](home3d/src/lib/naming.js)) alignés sur le vocabulaire ; sélection du sous-type dans l'inspector d'édition. | S | 3 |
 | E20-04 | En tant qu'utilisateur, je veux filtrer/afficher les calques à deux niveaux. | Section **Calques** (E19-02) : arborescence système → sous-type ; visibilité et (option) couleur par sous-type ; « isoler » applicable à un sous-type. | S | 5 |
@@ -483,19 +484,19 @@ même distinction label/segment que pour les systèmes, ex. `elec` → « Élect
 > attendu, mais **contenu** par la décision « nom, pas Tag » : on enrichit un
 > segment existant, pas de refonte de schéma ni de migration des données.
 >
-> **Point à trancher (E20-01) — vocabulaire `type` ouvert ou fermé ?**
-> Aujourd'hui `type` est **libre** (`[a-z0-9_]+`). Le figer à ces listes **fermées**
-> ferait **perdre** des types déjà prévus (structure : `dalle`, `fondation`,
-> `poteau` ; élec : `tableau`, `gaine` ; ouvertures : `velux`, `porte_garage`).
-> **Recommandation : garder `type` ouvert**, avec ces listes comme vocabulaire
-> **canonique/suggéré** (dropdowns + « autre… »), et regrouper l'UI sur ce
-> vocabulaire — un `type` hors liste tombe dans un bucket « Autres » du système.
-> On garde la souplesse de modélisation sans casser les objets existants.
+> **Décision (2026-07-07) — vocabulaire `type` OUVERT.** Le segment reste libre
+> (`[a-z0-9_]+`) ; les listes ci-dessus sont le vocabulaire **canonique/suggéré**
+> (dropdowns + « autre… »), pas une contrainte fermée. Motif : un enum fermé
+> ferait **perdre** des types déjà prévus (`dalle`, `fondation`, `poteau`,
+> `tableau`, `gaine`, `velux`, `porte_garage`…) et interdirait d'en ajouter en
+> modélisant. Conséquences pour E20-02/04/05 : la validation **avertit** (ne
+> rejette pas) un `type` hors vocabulaire ; l'UI le range dans un bucket
+> « Autres » du système ; le vocabulaire canonique intègre les types manquants.
 >
-> **Chevauchements repérés** (à arbitrer en E20-01) : « Garage » est à la fois un
-> sous-type Terrain **et** une zone (`BASE_ZONES`) ; « Sécurité » (Réseaux) recoupe
-> l'alarme ; le niveau 1 perd la finesse porteur/cloison des types actuels
-> (`mur_porteur`/`mur_cloison`) si on ne garde que « Murs » — d'où la reco « ouvert ».
+> **Chevauchements à arbitrer en E20-01** : « Garage » est à la fois un sous-type
+> Terrain **et** une zone (`BASE_ZONES`) ; « Sécurité » (Réseaux) recoupe l'alarme ;
+> conserver les types fins existants (`mur_porteur`/`mur_cloison` sous « Murs ») —
+> le vocabulaire ouvert le permet sans arbitrage bloquant.
 
 ---
 
