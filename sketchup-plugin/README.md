@@ -15,7 +15,7 @@ ex. structure__mur_porteur__salon__rdc__001
 
 - **Nommer la sélection…** — boîte de dialogue à dropdowns :
   - **Système** : liste fermée (`structure`, `ouvertures`, `elec`, `plomberie`, `vmc`, `reseau`, `terrain`).
-  - **Type** : suggestions par système + option « (autre…) » pour saisie libre.
+  - **Type** : vocabulaire canonique du système (E20, miroir de `SUBTYPES` dans `home3d/script/naming.mjs`) + option « (autre…) » pour saisie libre — le segment reste ouvert.
   - **Zone** : suggestions + zones déjà présentes dans le modèle + « (autre…) ».
   - **Niveau** : liste fermée (`ss`, `rdc`, `r1`, `r2`, `combles`, `ext`), libellés FR.
   - **Index auto-incrémenté** par bucket (système, zone, niveau) en `max + 1`.

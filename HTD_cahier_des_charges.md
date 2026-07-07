@@ -89,11 +89,18 @@ node glTF par le script de post-processing, après l'export SketchUp.
   "zone": "salon",
   "level": "rdc",
   "index": 1,
+  "subtype": "mur_porteur",
+  "subtypeLabel": "Mur porteur",
   "dims": { "largeur_m": 0.20, "profondeur_m": 0.15, "hauteur_m": 2.50 },
   "material": "beton",
   "notes": ""
 }
 ```
+
+> `subtype`/`subtypeLabel` (E20-02, taxonomie à deux niveaux) : le sous-type
+> **est** le segment `type` ; le label FR vient du vocabulaire canonique
+> (`SUBTYPES` dans `script/naming.mjs`), `null` si le type est hors liste
+> (vocabulaire **ouvert** : accepté avec avertissement, jamais rejeté).
 
 > `dims` est **calculé automatiquement** par le pipeline (issue #9) à partir de la
 > bounding box de la géométrie : bornes de l'accesseur `POSITION` × scale monde du
@@ -134,7 +141,7 @@ Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 5.1.
     "elec":       { "label": "Électricité",    "color": "#D85A30", "visible": false },
     "plomberie":  { "label": "Plomberie",      "color": "#7F77DD", "visible": false },
     "vmc":        { "label": "VMC/Chauffage",  "color": "#BA7517", "visible": false },
-    "reseau":     { "label": "Réseau/Fibre",   "color": "#A855F7", "visible": false },
+    "reseau":     { "label": "Réseaux",        "color": "#A855F7", "visible": false },
     "terrain":    { "label": "Terrain",        "color": "#4CAF50", "visible": true }
   }
 }
@@ -163,10 +170,24 @@ Valeurs autorisées par segment :
 | Segment | Valeurs |
 |---|---|
 | système | `structure`, `ouvertures`, `elec`, `plomberie`, `vmc`, `reseau`, `terrain` |
-| type | libre, minuscules, `_` comme séparateur de mots |
+| type | **sous-type** de la taxonomie à deux niveaux (E20) : vocabulaire canonique par système (table ci-dessous), **ouvert** — un type hors liste est accepté (minuscules, `_` entre les mots), averti par le pipeline et rangé en « Autres » dans l'app |
 | zone | nom de pièce : `salon`, `cuisine`, `sdb`, `chambre1`, `garage`... |
 | niveau | `ss`, `rdc`, `r1`, `r2`, `combles`, `ext` |
 | index | 3 chiffres : `001`, `002`... |
+
+**Taxonomie à deux niveaux (E20) — sous-types canoniques par système** (source
+unique : `SUBTYPES` dans `home3d/script/naming.mjs`, miroir Ruby
+`TYPES_BY_SYSTEM` dans le plugin) :
+
+| Système | Sous-types (segment → label FR) |
+|---|---|
+| structure | `mur_porteur` Mur porteur · `mur_cloison` Cloison · `plancher` Plancher · `dalle` Dalle · `toiture` Toiture · `escalier` Escalier · `poutre` Poutre · `poteau` Poteau · `fondation` Fondation · `forme` Forme libre · `disque` Disque · `arc` Arc |
+| ouvertures | `fenetre` Fenêtre · `porte` Porte · `porte_int` Porte intérieure · `porte_ext` Porte extérieure · `porte_garage` Porte de garage · `baie` Baie vitrée · `velux` Velux · `volet` Volet · `menuiserie` Menuiserie · `vantail` Vantail |
+| elec | `cable` Câble · `gaine` Gaine · `prise` Prise · `circuit_prises` Circuit de prises · `interrupteur` Interrupteur · `luminaire` Luminaire · `tableau` Tableau électrique · `boite_derivation` Boîte de dérivation · `compteur` Compteur |
+| plomberie | `tuyau` Tuyau · `eau_froide` Eau froide · `eau_chaude` Eau chaude · `evacuation` Évacuation · `robinetterie` Robinetterie · `vanne` Vanne · `evier` Évier · `toilettes` Toilettes · `sanitaire` Sanitaire · `chauffe_eau` Chauffe-eau |
+| vmc | `gaine` Gaine · `bouche` Bouche · `caisson` Caisson VMC · `radiateur` Radiateur · `chaudiere` Chaudière · `thermostat` Thermostat · `chauffage` Chauffage |
+| reseau | `rj45` RJ45 · `fibre` Fibre · `internet` Internet · `telephone` Téléphone · `tv` TV · `coffret` Coffret · `antenne` Antenne · `securite` Sécurité |
+| terrain | `jardin` Jardin · `terrasse` Terrasse · `potager` Potager · `serre` Serre · `arche` Arche · `allee` Allée · `cloture` Clôture · `garage` Garage · `piscine` Piscine |
 
 Exemples :
 ```
