@@ -8,13 +8,18 @@ import assert from 'node:assert/strict'
 import {
   LAYERS_CONFIG,
   NODE_NAME_REGEX,
+  SUBTYPES,
   SYSTEMS,
   collectCandidateNodes,
   computeDims,
   isCandidateNode,
   isExporterGeomName,
+  isKnownSubtype,
+  normalizeSegment,
   parseNodeName,
   stripExporterPrefix,
+  subtypeLabel,
+  subtypesOf,
   validateNodeName,
 } from './naming.mjs'
 
@@ -325,6 +330,84 @@ describe('computeDims — dimensions depuis la bounding box (issue #9)', () => {
   it('arrondit au millimètre (3 décimales)', () => {
     const dims = computeDims([{ min: [0, 0, 0], max: [1, 1, 1], scale: [INCH, INCH, INCH] }])
     assert.deepEqual(dims, { largeur_m: 0.025, profondeur_m: 0.025, hauteur_m: 0.025 })
+  })
+})
+
+describe('SUBTYPES — vocabulaire des sous-types (E20-01)', () => {
+  it('couvre exactement les systèmes autorisés', () => {
+    assert.deepEqual(Object.keys(SUBTYPES).sort(), [...SYSTEMS].sort())
+  })
+
+  it('chaque value est un segment déjà normalisé (stable par normalizeSegment)', () => {
+    for (const [system, subtypes] of Object.entries(SUBTYPES)) {
+      for (const { value } of subtypes) {
+        assert.equal(
+          normalizeSegment(value),
+          value,
+          `SUBTYPES.${system} : \`${value}\` n'est pas un segment normalisé`
+        )
+        assert.match(value, /^[a-z0-9_]+$/)
+      }
+    }
+  })
+
+  it('chaque value compose un node name valide (segment type de la regex)', () => {
+    for (const [system, subtypes] of Object.entries(SUBTYPES)) {
+      for (const { value } of subtypes) {
+        assert.ok(
+          NODE_NAME_REGEX.test(`${system}__${value}__salon__rdc__001`),
+          `\`${system}__${value}__…\` devrait passer la regex`
+        )
+      }
+    }
+  })
+
+  it('pas de doublon de value au sein d’un système, labels non vides', () => {
+    for (const [system, subtypes] of Object.entries(SUBTYPES)) {
+      const values = subtypes.map((s) => s.value)
+      assert.equal(new Set(values).size, values.length, `doublon dans ${system}`)
+      for (const { label } of subtypes) assert.ok(label.length > 0)
+    }
+  })
+
+  it('subtypeLabel retrouve le label FR, null hors vocabulaire (ouvert)', () => {
+    assert.equal(subtypeLabel('structure', 'mur_porteur'), 'Mur porteur')
+    assert.equal(subtypeLabel('ouvertures', 'velux'), 'Velux')
+    assert.equal(subtypeLabel('structure', 'pergola'), null)
+    assert.equal(subtypeLabel('inconnu', 'mur_porteur'), null)
+  })
+
+  it('isKnownSubtype distingue canonique / hors vocabulaire', () => {
+    assert.equal(isKnownSubtype('terrain', 'potager'), true)
+    assert.equal(isKnownSubtype('terrain', 'pergola'), false)
+  })
+
+  it('subtypesOf renvoie une liste vide pour un système inconnu', () => {
+    assert.deepEqual(subtypesOf('chauffage'), [])
+  })
+
+  it('les types générés in-app (kindNaming) sont dans le vocabulaire', () => {
+    // Miroir des KIND_NAMING d'editRegistry.js + catalogue ELEC_COMPONENTS —
+    // garantit que tout objet créé in-app porte un sous-type canonique.
+    const APP_TYPES = [
+      ['structure', 'forme'],
+      ['structure', 'disque'],
+      ['structure', 'arc'],
+      ['ouvertures', 'fenetre'],
+      ['ouvertures', 'porte'],
+      ['ouvertures', 'menuiserie'],
+      ['ouvertures', 'vantail'],
+      ['elec', 'cable'],
+      ['elec', 'prise'],
+      ['elec', 'interrupteur'],
+      ['elec', 'boite_derivation'],
+      ['elec', 'compteur'],
+      ['plomberie', 'tuyau'],
+      ['plomberie', 'vanne'],
+    ]
+    for (const [system, type] of APP_TYPES) {
+      assert.equal(isKnownSubtype(system, type), true, `${system}__${type} hors vocabulaire`)
+    }
   })
 })
 
