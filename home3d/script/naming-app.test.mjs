@@ -5,9 +5,11 @@ import {
   nodeName,
   nextIndex,
   normalizeZone,
+  normalizeType,
   NODE_NAME_REGEX,
   DEFAULT_ZONE,
 } from '../src/lib/naming.js'
+import { validateNodeName } from './naming.mjs'
 
 // Génération des node names conformes des objets créés in-app (E12-06). Module
 // PUR : testable hors navigateur. La convention (regex) est partagée avec le
@@ -37,6 +39,32 @@ describe('nodeName', () => {
     const name = nodeName({ system: 'terrain', type: 'forme', zone: 'jardin', level: 'ext', index: 0 })
     assert.ok(name.endsWith('__001'))
     assert.ok(NODE_NAME_REGEX.test(name))
+  })
+
+  it('un type canonique passe la validation pipeline SANS avertissement (E20-02)', () => {
+    const name = nodeName({
+      system: 'plomberie',
+      type: 'tuyau',
+      zone: 'sdb',
+      level: 'rdc',
+      index: 1,
+    })
+    const result = validateNodeName(name)
+    assert.equal(result.valid, true)
+    assert.deepEqual(result.warnings, [])
+  })
+
+  it('un type hors vocabulaire reste VALIDE côté pipeline (vocabulaire ouvert)', () => {
+    const name = nodeName({
+      system: 'terrain',
+      type: 'pergola',
+      zone: 'jardin',
+      level: 'ext',
+      index: 1,
+    })
+    const result = validateNodeName(name)
+    assert.equal(result.valid, true)
+    assert.equal(result.warnings.length, 1)
   })
 })
 
@@ -91,6 +119,25 @@ describe('normalizeZone', () => {
     assert.equal(normalizeZone(''), DEFAULT_ZONE)
     assert.equal(normalizeZone(null), DEFAULT_ZONE)
     assert.equal(normalizeZone('   '), DEFAULT_ZONE)
+  })
+
+  it('un type saisi librement est normalisé, repli sur le type courant (E20-03)', () => {
+    assert.equal(normalizeType('Pergola Bois', 'forme'), 'pergola_bois')
+    assert.equal(normalizeType('Évacuation', 'forme'), 'evacuation')
+    assert.equal(normalizeType('', 'forme'), 'forme')
+    assert.equal(normalizeType('   ', 'forme'), 'forme')
+    assert.equal(normalizeType(null, 'forme'), 'forme')
+  })
+
+  it('un type normalisé produit bien un node name valide', () => {
+    const name = nodeName({
+      system: 'terrain',
+      type: normalizeType('Pergola', 'forme'),
+      zone: 'jardin',
+      level: 'ext',
+      index: 1,
+    })
+    assert.ok(NODE_NAME_REGEX.test(name))
   })
 
   it('une zone normalisée produit bien un node name valide', () => {

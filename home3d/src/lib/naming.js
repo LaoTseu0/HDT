@@ -11,9 +11,18 @@
 // DÉRIVÉ des champs de nommage → on peut changer zone/niveau dans l'inspector
 // sans renommer la clé du store (cohérent avec l'immutabilité des ids, E7-03).
 
-import { NODE_NAME_REGEX, SYSTEMS, LEVELS, normalizeSegment } from '../../script/naming.mjs'
+import {
+  NODE_NAME_REGEX,
+  SYSTEMS,
+  LEVELS,
+  SUBTYPES,
+  normalizeSegment,
+  subtypesOf,
+  subtypeLabel,
+  isKnownSubtype,
+} from '../../script/naming.mjs'
 
-export { NODE_NAME_REGEX, SYSTEMS, LEVELS }
+export { NODE_NAME_REGEX, SYSTEMS, LEVELS, SUBTYPES, subtypesOf, subtypeLabel, isKnownSubtype }
 
 // Zone / niveau par défaut quand le modèle n'en fournit pas (édition sans modèle
 // chargé, ou toute première forme). Segments valides au sens de la convention.
@@ -29,6 +38,16 @@ const pad3 = (n) => String(Math.max(1, Math.trunc(Number(n) || 1))).padStart(3, 
 export function normalizeZone(zone) {
   const z = normalizeSegment(String(zone ?? ''))
   return /[a-z0-9]/.test(z) ? z : DEFAULT_ZONE
+}
+
+/**
+ * Normalise un sous-type choisi/saisi (E20-03) : le vocabulaire est OUVERT, une
+ * saisie libre est acceptée telle quelle après normalisation ; repli `fallback`
+ * (le type courant de l'objet) si rien d'utilisable ne reste.
+ */
+export function normalizeType(type, fallback) {
+  const t = normalizeSegment(String(type ?? ''))
+  return /[a-z0-9]/.test(t) ? t : fallback
 }
 
 /**

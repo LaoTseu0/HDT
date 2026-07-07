@@ -16,6 +16,7 @@ export default function Model() {
   const pendingFile = useStore((state) => state.pendingFile)
   const glb = useStore((state) => state.glb)
   const layers = useStore((state) => state.layers)
+  const hiddenSubtypes = useStore((state) => state.hiddenSubtypes)
   const colorByLayer = useStore((state) => state.colorByLayer)
   const selectedNode = useStore((state) => state.selectedNode)
   const hoveredNode = useStore((state) => state.hoveredNode)
@@ -80,8 +81,14 @@ export default function Model() {
   // passe sur la scène.
   useEffect(() => {
     if (!glb) return
-    applyAppearance(glb.scene, { layers, colorByLayer, selectedNode, hoveredNode })
-  }, [glb, layers, colorByLayer, selectedNode, hoveredNode])
+    applyAppearance(glb.scene, {
+      layers,
+      hiddenSubtypes,
+      colorByLayer,
+      selectedNode,
+      hoveredNode,
+    })
+  }, [glb, layers, hiddenSubtypes, colorByLayer, selectedNode, hoveredNode])
 
   // E6-04 : curseur pointer au survol d'un objet sélectionnable.
   useEffect(() => {

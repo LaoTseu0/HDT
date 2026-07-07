@@ -486,6 +486,53 @@ button.small {
   opacity: 0.35;
 }
 
+/* E20-04 : arborescence système → sous-type */
+.layer-expand {
+  flex-shrink: 0;
+  width: 18px;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: #9aa0b0;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.layer-expand:hover {
+  color: #e6e8ef;
+}
+
+.layer-expand-spacer {
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.subtype-list {
+  margin: 2px 0 4px;
+  padding: 0 0 0 24px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.subtype-row .layer-toggle {
+  padding: 3px 8px;
+}
+
+.subtype-row .layer-label {
+  font-size: 12px;
+}
+
+.subtype-count {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #6b7080;
+  background: #313548;
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+
 .layer-colorize {
   display: flex;
   align-items: center;

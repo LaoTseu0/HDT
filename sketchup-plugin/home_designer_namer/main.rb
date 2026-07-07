@@ -27,16 +27,19 @@ module HomeDesigner
       'combles' => 'Combles (combles)', 'ext' => 'Extérieur (ext)'
     }.freeze
 
-    # Vocabulaire de `type` suggéré par système (le segment type reste libre ;
-    # ces listes alimentent juste les dropdowns). Tirées des exemples du CdC.
+    # Vocabulaire de `type` canonique par système (E20-05) : MIROIR MANUEL des
+    # `value` de SUBTYPES dans home3d/script/naming.mjs — même contenu, même
+    # ordre. Le segment type reste OUVERT (décision PO 2026-07-07) : ces listes
+    # alimentent les dropdowns, l'option « (autre…) » accepte une saisie libre ;
+    # le pipeline avertit (sans rejeter) sur un type hors liste.
     TYPES_BY_SYSTEM = {
-      'structure'  => %w[mur_porteur mur_cloison dalle plancher poteau poutre fondation toiture escalier forme],
-      'ouvertures' => %w[porte_int porte_ext fenetre baie velux porte_garage],
-      'elec'       => %w[prise interrupteur circuit_prises tableau luminaire cable gaine],
-      'plomberie'  => %w[eau_froide eau_chaude evacuation sanitaire chauffe_eau],
-      'vmc'        => %w[gaine bouche caisson chauffage radiateur],
-      'reseau'     => %w[rj45 fibre coffret antenne],
-      'terrain'    => %w[jardin terrasse cloture allee piscine]
+      'structure'  => %w[mur_porteur mur_cloison plancher dalle toiture escalier poutre poteau fondation forme disque arc],
+      'ouvertures' => %w[fenetre porte porte_int porte_ext porte_garage baie velux volet menuiserie vantail],
+      'elec'       => %w[cable gaine prise circuit_prises interrupteur luminaire tableau boite_derivation compteur],
+      'plomberie'  => %w[tuyau eau_froide eau_chaude evacuation robinetterie vanne evier toilettes sanitaire chauffe_eau],
+      'vmc'        => %w[gaine bouche caisson radiateur chaudiere thermostat chauffage],
+      'reseau'     => %w[rj45 fibre internet telephone tv coffret antenne securite],
+      'terrain'    => %w[jardin terrasse potager serre arche allee cloture garage piscine]
     }.freeze
 
     # Zones courantes proposées (le segment zone reste libre).

@@ -27,6 +27,7 @@ import {
   computeDims,
   parseNodeName,
   stripExporterPrefix,
+  subtypeLabel,
   validateNodeName,
 } from './naming.mjs'
 
@@ -108,6 +109,7 @@ function listCandidateNodes(document) {
 
 function validateNodes(document) {
   const report = []
+  const warnings = []
   const nodes = listCandidateNodes(document)
   for (const node of nodes) {
     const name = node.getName()
@@ -121,8 +123,23 @@ function validateNodes(document) {
     }
     const result = validateNodeName(name)
     if (!result.valid) report.push({ name, ...result })
+    // E20-02 : vocabulaire de `type` OUVERT — un type hors liste canonique
+    // avertit (rapport ciblé) mais ne bloque jamais le pipeline.
+    else if (result.warnings.length > 0) warnings.push({ name, warnings: result.warnings })
   }
-  return { report, candidates: nodes.length }
+  return { report, warnings, candidates: nodes.length }
+}
+
+function printSubtypeWarnings(warnings) {
+  console.warn(`\n⚠ ${warnings.length} node(s) avec un type hors vocabulaire canonique :`)
+  for (const { name, warnings: reasons } of warnings) {
+    console.warn(`  ${name}`)
+    for (const reason of reasons) console.warn(`    – ${reason}`)
+  }
+  console.warn(
+    '  (accepté : le vocabulaire est ouvert — cf. SUBTYPES dans script/naming.mjs ' +
+      'pour les types suggérés)\n'
+  )
 }
 
 function printValidationReport(report) {
@@ -198,12 +215,16 @@ function injectNodeExtras(document) {
     zones.add(parsed.zone)
     // `dims` calculé depuis la bounding box (issue #9) ; material/notes
     // restent vides, réservés à l'édition in-app (E10-02, V2).
+    // `subtype`/`subtypeLabel` (E20-02) : le sous-type EST le segment `type` ;
+    // le label FR vient du vocabulaire canonique, null si hors liste (ouvert).
     node.setExtras({
       layer: parsed.layer,
       type: parsed.type,
       zone: parsed.zone,
       level: parsed.level,
       index: parsed.index,
+      subtype: parsed.type,
+      subtypeLabel: subtypeLabel(parsed.layer, parsed.type),
       dims: computeDims(collectDimsParts(node, worldScales)),
       material: '',
       notes: '',
@@ -358,12 +379,13 @@ async function main() {
   }
 
   // 1. Validation
-  const { report, candidates } = validateNodes(document)
+  const { report, warnings, candidates } = validateNodes(document)
   if (report.length > 0) {
     printValidationReport(report)
     process.exit(1)
   }
   console.log(`Validation    : ${candidates} node(s) conformes à la convention`)
+  if (warnings.length > 0) printSubtypeWarnings(warnings)
 
   // 2 + 3. Extras
   const { injected, levels, zones } = injectNodeExtras(document)

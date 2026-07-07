@@ -151,14 +151,17 @@ const useStore = create(
             [id]: { ...state.layers[id], visible: !state.layers[id].visible },
           },
         })),
-      // E5-03 : tout afficher / tout masquer.
+      // E5-03 : tout afficher / tout masquer. Réinitialise aussi l'état fin des
+      // sous-types (E20-04) : « Tout »/« Aucun » repartent d'un état simple.
       setAllLayersVisible: (visible) =>
         set((state) => ({
           layers: Object.fromEntries(
             Object.entries(state.layers).map(([id, layer]) => [id, { ...layer, visible }])
           ),
+          hiddenSubtypes: {},
         })),
-      // E5-03 : isoler un calque (masque tous les autres).
+      // E5-03 : isoler un calque (masque tous les autres). Le calque isolé
+      // s'affiche ENTIER : son état de sous-types est réinitialisé (E20-04).
       isolateLayer: (id) =>
         set((state) => ({
           layers: Object.fromEntries(
@@ -167,6 +170,44 @@ const useStore = create(
               { ...layer, visible: key === id },
             ])
           ),
+          hiddenSubtypes: {},
+        })),
+
+      // E20-04 : sous-types masqués par calque { [layerId]: { [type]: true } }.
+      // Un node importé est visible si son calque l'est ET si son type ne figure
+      // pas ici. Les types sont les segments réels des nodes ; le bucket
+      // « Autres » de l'UI est un groupe de types hors vocabulaire.
+      hiddenSubtypes: {},
+      // Toggle d'un GROUPE de types (un sous-type = [type] ; « Autres » = tous
+      // ses types) : si tout le groupe est masqué on le réaffiche, sinon on le
+      // masque entièrement.
+      toggleSubtypes: (layerId, types) =>
+        set((state) => {
+          const current = state.hiddenSubtypes[layerId] ?? {}
+          const allHidden = types.every((t) => current[t])
+          const next = { ...current }
+          for (const t of types) {
+            if (allHidden) delete next[t]
+            else next[t] = true
+          }
+          return { hiddenSubtypes: { ...state.hiddenSubtypes, [layerId]: next } }
+        }),
+      // Isoler un groupe de sous-types : seul son calque reste visible, et dans
+      // ce calque seuls `keepTypes` restent affichés. `allTypes` = tous les types
+      // présents dans le calque (connus du panneau, pas du store).
+      isolateSubtypes: (layerId, keepTypes, allTypes) =>
+        set((state) => ({
+          layers: Object.fromEntries(
+            Object.entries(state.layers).map(([key, layer]) => [
+              key,
+              { ...layer, visible: key === layerId },
+            ])
+          ),
+          hiddenSubtypes: {
+            [layerId]: Object.fromEntries(
+              allTypes.filter((t) => !keepTypes.includes(t)).map((t) => [t, true])
+            ),
+          },
         })),
 
       // E5-04 : colorisation des objets par la couleur de leur calque.
@@ -357,20 +398,26 @@ const useStore = create(
       currentZone: DEFAULT_ZONE,
       currentLevel: DEFAULT_LEVEL,
 
-      // E12-06 : change zone et/ou niveau de l'objet sélectionné → recalcule l'index
-      // dans le nouveau bucket (système, zone, niveau) et reconstruit le node name
-      // (dérivé). Historisé (mutation de `objects`) ; met aussi à jour la zone/niveau
-      // courants. L'`id` (clé) reste stable — pas de renommage de clé.
+      // E12-06 : change zone / niveau / sous-type (E20-03) de l'objet sélectionné →
+      // recalcule l'index dans le nouveau bucket (système, zone, niveau — le type
+      // n'en fait pas partie) et reconstruit le node name (dérivé). Historisé
+      // (mutation de `objects`) ; met aussi à jour la zone/niveau courants.
+      // L'`id` (clé) reste stable — pas de renommage de clé.
       setObjectNaming: (id, patch) =>
         set((state) => {
           const obj = state.objects[id]
           if (!obj) return state
           const zone = patch.zone !== undefined ? patch.zone : obj.zone
           const level = patch.level !== undefined ? patch.level : obj.level
-          if (zone === obj.zone && level === obj.level) return state
+          const type = patch.type !== undefined ? patch.type : obj.type
+          if (zone === obj.zone && level === obj.level && type === obj.type) return state
+          // Le sous-type ne change pas le bucket d'indexation : index conservé.
+          if (zone === obj.zone && level === obj.level) {
+            return { objects: { ...state.objects, [id]: { ...obj, type } } }
+          }
           const index = nextIndex(state.objects, { system: obj.system, zone, level }, id)
           return {
-            objects: { ...state.objects, [id]: { ...obj, zone, level, index } },
+            objects: { ...state.objects, [id]: { ...obj, type, zone, level, index } },
             currentZone: zone,
             currentLevel: level,
           }
@@ -501,6 +548,7 @@ const useStore = create(
           glb: { scene, fileName },
           metadata,
           layers,
+          hiddenSubtypes: {},
           nodes,
           pendingFile: null,
           isLoading: false,

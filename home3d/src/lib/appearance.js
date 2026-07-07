@@ -45,13 +45,14 @@ function getLayerMaterial(cache, layerId, color) {
  *
  * @param scene scène du GLB chargé
  * @param layers config des calques { id: { visible, color, label } }
+ * @param hiddenSubtypes sous-types masqués { layerId: { type: true } } (E20-04)
  * @param colorByLayer toggle global « couleurs par calque » (E5-04)
  * @param selectedNode node name sélectionné, ou null (E6-01)
  * @param hoveredNode node name survolé, ou null (E6-04)
  */
 export function applyAppearance(
   scene,
-  { layers, colorByLayer, selectedNode, hoveredNode }
+  { layers, hiddenSubtypes = {}, colorByLayer, selectedNode, hoveredNode }
 ) {
   const cache = getCache(scene)
 
@@ -62,7 +63,11 @@ export function applyAppearance(
   const walk = (object, inheritedLayer, inheritedSelected, inheritedHovered) => {
     const ownLayer = object.userData?.layer
     if (ownLayer && layers[ownLayer]) {
-      object.visible = layers[ownLayer].visible
+      // Visibilité à deux niveaux (E20-04) : calque ET sous-type. Le porteur du
+      // layer porte aussi le `type` (mêmes extras pipeline) ; un node sans type
+      // (« non classé ») ne relève que du calque.
+      const typeHidden = !!hiddenSubtypes[ownLayer]?.[object.userData?.type]
+      object.visible = layers[ownLayer].visible && !typeHidden
     }
     const layer = ownLayer ?? inheritedLayer
     const selected = inheritedSelected || (selectedNode != null && object.name === selectedNode)

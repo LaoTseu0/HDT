@@ -1,4 +1,4 @@
-# Backlog — Home3D Viewer
+﻿# Backlog — Home3D Viewer
 
 > Backlog produit élaboré à partir de `HTD_cahier_des_charges.md` (V2).
 > Priorisation MoSCoW : **M** (Must have), **S** (Should have), **C** (Could have), **W** (Won't have / hors scope cette version).
@@ -75,6 +75,7 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-06 | Retrait du journal de réalisation détaillé ; ajout des **Directives produit** ; **gel E17-05→09** (directive PO) ; **E17-10 livré** (joysticks tactiles + manette) ; ajout de l'**Epic E18 — PWA**. |
 | 2026-07-06 | Le plein écran navigateur ([#23](https://github.com/LaoTseu0/HDT/issues/23)) sort d'E18 → nouvelle story **E17-11** (mode visite). |
 | 2026-07-07 | **E18 (PWA) mise en pause** ; ajout de l'**Epic E19** (refonte UX des menus : burger + barre latérale) et de l'**Epic E20** (taxonomie à deux niveaux systèmes → sous-types, portée par la nomenclature du nom). |
+| 2026-07-07 | **E20 livré** (E20-01→06) : vocabulaire `SUBTYPES` (source unique `naming.mjs`, miroir Ruby testé anti-dérive), validation ouverte + extras `subtype`/`subtypeLabel` dans le pipeline, sous-type visible/éditable in-app, calques à deux niveaux (visibilité + isolation par sous-type, bucket « Autres »), docs alignées. Le filtrage prendra sa place dans la barre latérale E19-02 lors d'E19. |
 
 ---
 
@@ -473,12 +474,12 @@ même distinction label/segment que pour les systèmes, ex. `elec` → « Élect
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
-| E20-01 | En tant que dev, je veux LA source unique de la taxonomie à deux niveaux afin qu'app, pipeline, Ruby et docs en héritent. | `SUBTYPES` dans [naming.mjs](home3d/script/naming.mjs) : par système, liste `{ value, label }` (value normalisée) ; typos corrigées (Structures, Réseaux) ; segment `type` **ouvert** (décision 2026-07-07, cf. note) → ces listes sont le vocabulaire **canonique/suggéré**, complétées des types déjà prévus non listés (`dalle`, `fondation`, `poteau`, `tableau`, `gaine`, `velux`, `porte_garage`…). | S | 3 |
-| E20-02 | En tant qu'utilisateur du pipeline, je veux que le sous-type soit validé et enrichi afin d'avoir un classement fiable. | `process.mjs`/`naming.mjs` : `type` validé contre `SUBTYPES` du système (selon E20-01) ; `extras` porte `subtype` + son label ; rapport d'erreur ciblé ; tests `naming.test.mjs` / `naming-app.test.mjs` mis à jour. | S | 5 |
-| E20-03 | En tant qu'utilisateur, je veux voir et éditer le sous-type in-app. | `InfoPanel` affiche le label du sous-type ; `editRegistry` (`kindNaming`) et la génération de nom ([naming.js](home3d/src/lib/naming.js)) alignés sur le vocabulaire ; sélection du sous-type dans l'inspector d'édition. | S | 3 |
-| E20-04 | En tant qu'utilisateur, je veux filtrer/afficher les calques à deux niveaux. | Section **Calques** (E19-02) : arborescence système → sous-type ; visibilité et (option) couleur par sous-type ; « isoler » applicable à un sous-type. | S | 5 |
-| E20-05 | En tant que modeleur, je veux que le plugin SketchUp propose le vocabulaire par système. | [main.rb](sketchup-plugin/home_designer_namer/main.rb) : `TYPES_BY_SYSTEM` aligné sur `SUBTYPES` (miroir de naming.mjs) ; dropdown filtré par système ; comportement ouvert/fermé cohérent avec E20-01. | S | 2 |
-| E20-06 | En tant que dev, je veux la doc alignée sur la taxonomie à deux niveaux. | `HTD_cahier_des_charges.md` (nomenclature), [docs/workflow-sketchup.md](docs/workflow-sketchup.md), [docs/edit-mode-design.md](docs/edit-mode-design.md) mis à jour ; table de correspondance système → sous-types. | S | 2 |
+| E20-01 ✅ | En tant que dev, je veux LA source unique de la taxonomie à deux niveaux afin qu'app, pipeline, Ruby et docs en héritent. | `SUBTYPES` dans [naming.mjs](home3d/script/naming.mjs) : par système, liste `{ value, label }` (value normalisée) ; typos corrigées (Structures, Réseaux) ; segment `type` **ouvert** (décision 2026-07-07, cf. note) → ces listes sont le vocabulaire **canonique/suggéré**, complétées des types déjà prévus non listés (`dalle`, `fondation`, `poteau`, `tableau`, `gaine`, `velux`, `porte_garage`…). | S | 3 |
+| E20-02 ✅ | En tant qu'utilisateur du pipeline, je veux que le sous-type soit validé et enrichi afin d'avoir un classement fiable. | `process.mjs`/`naming.mjs` : `type` validé contre `SUBTYPES` du système (selon E20-01) ; `extras` porte `subtype` + son label ; rapport d'erreur ciblé ; tests `naming.test.mjs` / `naming-app.test.mjs` mis à jour. | S | 5 |
+| E20-03 ✅ | En tant qu'utilisateur, je veux voir et éditer le sous-type in-app. | `InfoPanel` affiche le label du sous-type ; `editRegistry` (`kindNaming`) et la génération de nom ([naming.js](home3d/src/lib/naming.js)) alignés sur le vocabulaire ; sélection du sous-type dans l'inspector d'édition. | S | 3 |
+| E20-04 ✅ | En tant qu'utilisateur, je veux filtrer/afficher les calques à deux niveaux. | Section **Calques** (E19-02) : arborescence système → sous-type ; visibilité et (option) couleur par sous-type ; « isoler » applicable à un sous-type. | S | 5 |
+| E20-05 ✅ | En tant que modeleur, je veux que le plugin SketchUp propose le vocabulaire par système. | [main.rb](sketchup-plugin/home_designer_namer/main.rb) : `TYPES_BY_SYSTEM` aligné sur `SUBTYPES` (miroir de naming.mjs) ; dropdown filtré par système ; comportement ouvert/fermé cohérent avec E20-01. | S | 2 |
+| E20-06 ✅ | En tant que dev, je veux la doc alignée sur la taxonomie à deux niveaux. | `HTD_cahier_des_charges.md` (nomenclature), [docs/workflow-sketchup.md](docs/workflow-sketchup.md), [docs/edit-mode-design.md](docs/edit-mode-design.md) mis à jour ; table de correspondance système → sous-types. | S | 2 |
 
 > **Estimation : 20 pts ≈ 4 à 5 jours-homme** (dev solo) — le « gros travail »
 > attendu, mais **contenu** par la décision « nom, pas Tag » : on enrichit un

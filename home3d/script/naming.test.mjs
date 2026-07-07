@@ -5,16 +5,24 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import {
   LAYERS_CONFIG,
   NODE_NAME_REGEX,
+  SUBTYPES,
   SYSTEMS,
   collectCandidateNodes,
   computeDims,
   isCandidateNode,
   isExporterGeomName,
+  isKnownSubtype,
+  normalizeSegment,
   parseNodeName,
   stripExporterPrefix,
+  subtypeLabel,
+  subtypesOf,
   validateNodeName,
 } from './naming.mjs'
 
@@ -138,6 +146,30 @@ describe('validateNodeName — noms invalides', () => {
     const result = validateNodeName('Mesh.001')
     assert.equal(result.valid, false)
     assert.ok(result.errors.length > 0)
+  })
+})
+
+describe('validateNodeName — vocabulaire de type OUVERT (E20-02)', () => {
+  it('type canonique → valide, sans avertissement', () => {
+    const result = validateNodeName('structure__mur_porteur__salon__rdc__001')
+    assert.equal(result.valid, true)
+    assert.deepEqual(result.warnings, [])
+  })
+
+  it('type hors vocabulaire → VALIDE (jamais rejeté) mais averti', () => {
+    const result = validateNodeName('terrain__pergola__jardin__ext__001')
+    assert.equal(result.valid, true)
+    assert.deepEqual(result.errors, [])
+    assert.equal(result.warnings.length, 1)
+    assert.ok(result.warnings[0].includes('pergola'))
+    assert.ok(result.warnings[0].includes('hors vocabulaire'))
+    assert.ok(result.parsed) // le parsing n'est pas dégradé par l'avertissement
+  })
+
+  it('un nom invalide ne porte pas d’avertissement de vocabulaire', () => {
+    const result = validateNodeName('terrain__pergola__jardin__ext__1')
+    assert.equal(result.valid, false)
+    assert.deepEqual(result.warnings, [])
   })
 })
 
@@ -325,6 +357,113 @@ describe('computeDims — dimensions depuis la bounding box (issue #9)', () => {
   it('arrondit au millimètre (3 décimales)', () => {
     const dims = computeDims([{ min: [0, 0, 0], max: [1, 1, 1], scale: [INCH, INCH, INCH] }])
     assert.deepEqual(dims, { largeur_m: 0.025, profondeur_m: 0.025, hauteur_m: 0.025 })
+  })
+})
+
+describe('SUBTYPES — vocabulaire des sous-types (E20-01)', () => {
+  it('couvre exactement les systèmes autorisés', () => {
+    assert.deepEqual(Object.keys(SUBTYPES).sort(), [...SYSTEMS].sort())
+  })
+
+  it('chaque value est un segment déjà normalisé (stable par normalizeSegment)', () => {
+    for (const [system, subtypes] of Object.entries(SUBTYPES)) {
+      for (const { value } of subtypes) {
+        assert.equal(
+          normalizeSegment(value),
+          value,
+          `SUBTYPES.${system} : \`${value}\` n'est pas un segment normalisé`
+        )
+        assert.match(value, /^[a-z0-9_]+$/)
+      }
+    }
+  })
+
+  it('chaque value compose un node name valide (segment type de la regex)', () => {
+    for (const [system, subtypes] of Object.entries(SUBTYPES)) {
+      for (const { value } of subtypes) {
+        assert.ok(
+          NODE_NAME_REGEX.test(`${system}__${value}__salon__rdc__001`),
+          `\`${system}__${value}__…\` devrait passer la regex`
+        )
+      }
+    }
+  })
+
+  it('pas de doublon de value au sein d’un système, labels non vides', () => {
+    for (const [system, subtypes] of Object.entries(SUBTYPES)) {
+      const values = subtypes.map((s) => s.value)
+      assert.equal(new Set(values).size, values.length, `doublon dans ${system}`)
+      for (const { label } of subtypes) assert.ok(label.length > 0)
+    }
+  })
+
+  it('subtypeLabel retrouve le label FR, null hors vocabulaire (ouvert)', () => {
+    assert.equal(subtypeLabel('structure', 'mur_porteur'), 'Mur porteur')
+    assert.equal(subtypeLabel('ouvertures', 'velux'), 'Velux')
+    assert.equal(subtypeLabel('structure', 'pergola'), null)
+    assert.equal(subtypeLabel('inconnu', 'mur_porteur'), null)
+  })
+
+  it('isKnownSubtype distingue canonique / hors vocabulaire', () => {
+    assert.equal(isKnownSubtype('terrain', 'potager'), true)
+    assert.equal(isKnownSubtype('terrain', 'pergola'), false)
+  })
+
+  it('subtypesOf renvoie une liste vide pour un système inconnu', () => {
+    assert.deepEqual(subtypesOf('chauffage'), [])
+  })
+
+  it('les types générés in-app (kindNaming) sont dans le vocabulaire', () => {
+    // Miroir des KIND_NAMING d'editRegistry.js + catalogue ELEC_COMPONENTS —
+    // garantit que tout objet créé in-app porte un sous-type canonique.
+    const APP_TYPES = [
+      ['structure', 'forme'],
+      ['structure', 'disque'],
+      ['structure', 'arc'],
+      ['ouvertures', 'fenetre'],
+      ['ouvertures', 'porte'],
+      ['ouvertures', 'menuiserie'],
+      ['ouvertures', 'vantail'],
+      ['elec', 'cable'],
+      ['elec', 'prise'],
+      ['elec', 'interrupteur'],
+      ['elec', 'boite_derivation'],
+      ['elec', 'compteur'],
+      ['plomberie', 'tuyau'],
+      ['plomberie', 'vanne'],
+    ]
+    for (const [system, type] of APP_TYPES) {
+      assert.equal(isKnownSubtype(system, type), true, `${system}__${type} hors vocabulaire`)
+    }
+  })
+})
+
+describe('miroir Ruby — TYPES_BY_SYSTEM du plugin SketchUp (E20-05)', () => {
+  // TYPES_BY_SYSTEM (main.rb) est un miroir MANUEL des values de SUBTYPES :
+  // ce test lit le fichier Ruby et échoue au moindre écart (contenu ou ordre),
+  // pour que le vocabulaire ne dérive pas silencieusement entre app et plugin.
+  const mainRb = readFileSync(
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      '..', '..', 'sketchup-plugin', 'home_designer_namer', 'main.rb'
+    ),
+    'utf8'
+  )
+
+  it('chaque système du plugin liste exactement les values de SUBTYPES', () => {
+    const rubyLists = {}
+    for (const [, system, body] of mainRb.matchAll(/'(\w+)'\s*=>\s*%w\[([^\]]*)\]/g)) {
+      rubyLists[system] = body.trim().split(/\s+/)
+    }
+    // TYPES_BY_SYSTEM est la seule table `'système' => %w[...]` couvrant tous
+    // les systèmes ; BASE_ZONES (autre %w) n'a pas de clé système.
+    for (const system of SYSTEMS) {
+      assert.deepEqual(
+        rubyLists[system],
+        SUBTYPES[system].map((s) => s.value),
+        `TYPES_BY_SYSTEM['${system}'] (main.rb) a dérivé de SUBTYPES.${system}`
+      )
+    }
   })
 })
 

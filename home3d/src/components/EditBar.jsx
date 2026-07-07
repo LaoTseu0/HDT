@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
 import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
-import { nodeName, LEVELS } from '../lib/naming.js'
+import { nodeName, LEVELS, subtypesOf, normalizeType } from '../lib/naming.js'
 import { OPENING_PRESETS, DOOR_PRESETS, WINDOW_KIND, isOpeningKind } from '../lib/opening.js'
 import { ELEC_COMPONENTS, ELEC_KINDS, isElecKind } from '../lib/elec.js'
 import {
@@ -437,6 +437,52 @@ function SelectField({ label, value, options, onChange }) {
   )
 }
 
+// Sous-type de l'objet (E20-03) : dropdown du vocabulaire canonique du système
+// (SUBTYPES, source unique script/naming.mjs) + « Autre… » pour une saisie
+// libre normalisée — le vocabulaire est OUVERT, un type hors liste est accepté.
+// Monté avec key={obj.id} : l'état de saisie libre se réinitialise par objet.
+const OTHER_SUBTYPE = '__autre__'
+
+function SubtypeField({ obj, onChange }) {
+  const [freeEntry, setFreeEntry] = useState(false)
+  const options = [
+    ...subtypesOf(obj.system),
+    { value: OTHER_SUBTYPE, label: 'Autre…' },
+  ]
+  if (freeEntry) {
+    return (
+      <label className="edit-field">
+        <span>Type</span>
+        <input
+          type="text"
+          autoFocus
+          placeholder="ex : pergola"
+          defaultValue={obj.type}
+          onBlur={(event) => {
+            onChange(normalizeType(event.target.value, obj.type))
+            setFreeEntry(false)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur()
+            if (event.key === 'Escape') setFreeEntry(false)
+          }}
+        />
+      </label>
+    )
+  }
+  return (
+    <SelectField
+      label="Type"
+      value={obj.type}
+      options={options}
+      onChange={(value) => {
+        if (value === OTHER_SUBTYPE) setFreeEntry(true)
+        else onChange(value)
+      }}
+    />
+  )
+}
+
 function NumberField({ label, value, onChange, allowZero = false, signed = false, step = '0.05' }) {
   // `signed` : valeur réelle non nulle (ex. balayage d'arc en degrés, ±360).
   const min = signed ? undefined : allowZero ? '0' : '0.01'
@@ -788,6 +834,11 @@ export default function EditBar() {
       {selectedObj ? (
         <div className="edit-inspector">
           <code className="info-node-name">{nodeName(selectedObj)}</code>
+          <SubtypeField
+            key={selectedObj.id}
+            obj={selectedObj}
+            onChange={(type) => setObjectNaming(selectedObj.id, { type })}
+          />
           <SelectField
             label="Zone"
             value={selectedObj.zone}

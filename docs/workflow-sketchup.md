@@ -40,7 +40,7 @@ Chaque objet exportable est un **Groupe ou Composant nommé** selon le format
 | Segment | Valeurs autorisées |
 |---|---|
 | système | `structure`, `ouvertures`, `elec`, `plomberie`, `vmc`, `reseau`, `terrain` |
-| type | libre — minuscules, `_` (underscore simple) entre les mots |
+| type | **sous-type** (taxonomie à deux niveaux, E20) : privilégier le vocabulaire canonique du système — table complète dans `HTD_cahier_des_charges.md` (§ convention de nommage). Reste **ouvert** : un type hors liste est accepté (minuscules, `_` entre les mots), le pipeline avertit sans rejeter et l'app le range en « Autres » |
 | zone | nom de pièce : `salon`, `cuisine`, `sdb`, `chambre1`, `garage`… |
 | niveau | `ss`, `rdc`, `r1`, `r2`, `combles`, `ext` |
 | index | 3 chiffres : `001`, `002`… |
@@ -81,6 +81,9 @@ terrain__jardin__ext__ext__001
 
 > **Plugin SketchUp (E9-01)** : l'extension `sketchup-plugin/` génère ces noms
 > automatiquement (dropdowns système/type/zone/niveau, index auto, Tag assigné).
+> Depuis E20-05, le dropdown **type** propose le vocabulaire canonique du
+> système sélectionné (miroir de `SUBTYPES`, `home3d/script/naming.mjs`) avec
+> l'option « (autre…) » pour une saisie libre.
 > Menu *Extensions > Home Designer > Nommer la sélection…*. Installation et
 > usage : `sketchup-plugin/README.md`. Sans le plugin : copier-coller un nom
 > valide et modifier.

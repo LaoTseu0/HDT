@@ -18,14 +18,119 @@ export const NODE_NAME_REGEX =
   /^(structure|ouvertures|elec|plomberie|vmc|reseau|terrain)__[a-z0-9_]+__[a-z0-9_]+__(ss|rdc|r1|r2|combles|ext)__\d{3}$/
 
 // Config des calques injectée dans les extras de la scène racine (E2-05).
+// Label `reseau` aligné sur la taxonomie E20 (« Réseaux », ex-« Réseau/Fibre »).
 export const LAYERS_CONFIG = {
   structure: { label: 'Structure', color: '#378ADD', visible: true },
   ouvertures: { label: 'Ouvertures', color: '#1D9E75', visible: true },
   elec: { label: 'Électricité', color: '#D85A30', visible: false },
   plomberie: { label: 'Plomberie', color: '#7F77DD', visible: false },
   vmc: { label: 'VMC/Chauffage', color: '#BA7517', visible: false },
-  reseau: { label: 'Réseau/Fibre', color: '#A855F7', visible: false },
+  reseau: { label: 'Réseaux', color: '#A855F7', visible: false },
   terrain: { label: 'Terrain', color: '#4CAF50', visible: true },
+}
+
+// Taxonomie à deux niveaux (E20) : vocabulaire des sous-types par système.
+// Le sous-type EST le segment `type` du node name — le vocabulaire est
+// CANONIQUE/SUGGÉRÉ, pas fermé (décision PO 2026-07-07) : un `type` hors liste
+// est accepté (avertissement, jamais rejet) et rangé en « Autres » côté UI.
+// `value` = segment stocké (normalisé, [a-z0-9_]+) ; `label` = libellé FR.
+// SOURCE UNIQUE : l'app (naming.js, editRegistry), le pipeline (process.mjs)
+// et le plugin SketchUp (TYPES_BY_SYSTEM, miroir manuel) en héritent.
+export const SUBTYPES = {
+  structure: [
+    { value: 'mur_porteur', label: 'Mur porteur' },
+    { value: 'mur_cloison', label: 'Cloison' },
+    { value: 'plancher', label: 'Plancher' },
+    { value: 'dalle', label: 'Dalle' },
+    { value: 'toiture', label: 'Toiture' },
+    { value: 'escalier', label: 'Escalier' },
+    { value: 'poutre', label: 'Poutre' },
+    { value: 'poteau', label: 'Poteau' },
+    { value: 'fondation', label: 'Fondation' },
+    { value: 'forme', label: 'Forme libre' },
+    { value: 'disque', label: 'Disque' },
+    { value: 'arc', label: 'Arc' },
+  ],
+  ouvertures: [
+    { value: 'fenetre', label: 'Fenêtre' },
+    { value: 'porte', label: 'Porte' },
+    { value: 'porte_int', label: 'Porte intérieure' },
+    { value: 'porte_ext', label: 'Porte extérieure' },
+    { value: 'porte_garage', label: 'Porte de garage' },
+    { value: 'baie', label: 'Baie vitrée' },
+    { value: 'velux', label: 'Velux' },
+    { value: 'volet', label: 'Volet' },
+    { value: 'menuiserie', label: 'Menuiserie' },
+    { value: 'vantail', label: 'Vantail' },
+  ],
+  elec: [
+    { value: 'cable', label: 'Câble' },
+    { value: 'gaine', label: 'Gaine' },
+    { value: 'prise', label: 'Prise' },
+    { value: 'circuit_prises', label: 'Circuit de prises' },
+    { value: 'interrupteur', label: 'Interrupteur' },
+    { value: 'luminaire', label: 'Luminaire' },
+    { value: 'tableau', label: 'Tableau électrique' },
+    { value: 'boite_derivation', label: 'Boîte de dérivation' },
+    { value: 'compteur', label: 'Compteur' },
+  ],
+  plomberie: [
+    { value: 'tuyau', label: 'Tuyau' },
+    { value: 'eau_froide', label: 'Eau froide' },
+    { value: 'eau_chaude', label: 'Eau chaude' },
+    { value: 'evacuation', label: 'Évacuation' },
+    { value: 'robinetterie', label: 'Robinetterie' },
+    { value: 'vanne', label: 'Vanne' },
+    { value: 'evier', label: 'Évier' },
+    { value: 'toilettes', label: 'Toilettes' },
+    { value: 'sanitaire', label: 'Sanitaire' },
+    { value: 'chauffe_eau', label: 'Chauffe-eau' },
+  ],
+  vmc: [
+    { value: 'gaine', label: 'Gaine' },
+    { value: 'bouche', label: 'Bouche' },
+    { value: 'caisson', label: 'Caisson VMC' },
+    { value: 'radiateur', label: 'Radiateur' },
+    { value: 'chaudiere', label: 'Chaudière' },
+    { value: 'thermostat', label: 'Thermostat' },
+    { value: 'chauffage', label: 'Chauffage' },
+  ],
+  reseau: [
+    { value: 'rj45', label: 'RJ45' },
+    { value: 'fibre', label: 'Fibre' },
+    { value: 'internet', label: 'Internet' },
+    { value: 'telephone', label: 'Téléphone' },
+    { value: 'tv', label: 'TV' },
+    { value: 'coffret', label: 'Coffret' },
+    { value: 'antenne', label: 'Antenne' },
+    { value: 'securite', label: 'Sécurité' },
+  ],
+  terrain: [
+    { value: 'jardin', label: 'Jardin' },
+    { value: 'terrasse', label: 'Terrasse' },
+    { value: 'potager', label: 'Potager' },
+    { value: 'serre', label: 'Serre' },
+    { value: 'arche', label: 'Arche' },
+    { value: 'allee', label: 'Allée' },
+    { value: 'cloture', label: 'Clôture' },
+    { value: 'garage', label: 'Garage' },
+    { value: 'piscine', label: 'Piscine' },
+  ],
+}
+
+/** Sous-types canoniques d'un système (liste vide si système inconnu). */
+export function subtypesOf(system) {
+  return SUBTYPES[system] ?? []
+}
+
+/** Label FR du sous-type `type` dans `system`, ou null s'il est hors vocabulaire. */
+export function subtypeLabel(system, type) {
+  return subtypesOf(system).find((s) => s.value === type)?.label ?? null
+}
+
+/** Vrai si `type` appartient au vocabulaire canonique de `system`. */
+export function isKnownSubtype(system, type) {
+  return subtypeLabel(system, type) !== null
 }
 
 // Diacritiques combinants (U+0300–U+036F), produits par la décomposition NFD.
@@ -45,14 +150,23 @@ export function normalizeSegment(segment) {
  * Valide un nom de node contre la convention et diagnostique chaque
  * violation (E2-02, E2-03).
  *
- * @returns {{ valid: boolean, errors: string[], suggestion: string|null, parsed: object|null }}
+ * @returns {{ valid: boolean, errors: string[], warnings: string[], suggestion: string|null, parsed: object|null }}
  *   - `errors`   : raisons lisibles (segment invalide, casse, accent…)
+ *   - `warnings` : avertissements NON bloquants (E20-02 : type hors vocabulaire
+ *                  canonique — le segment `type` est OUVERT, jamais rejeté)
  *   - `suggestion` : nom corrigé proposé quand une correction automatique a un sens
  *   - `parsed`   : { layer, type, zone, level, index } si le nom est valide
  */
 export function validateNodeName(name) {
   if (NODE_NAME_REGEX.test(name)) {
-    return { valid: true, errors: [], suggestion: null, parsed: parseNodeName(name) }
+    const parsed = parseNodeName(name)
+    const warnings = isKnownSubtype(parsed.layer, parsed.type)
+      ? []
+      : [
+          `type \`${parsed.type}\` hors vocabulaire canonique du système ` +
+            `\`${parsed.layer}\` (accepté — rangé en « Autres » dans l'app)`,
+        ]
+    return { valid: true, errors: [], warnings, suggestion: null, parsed }
   }
 
   const errors = []
@@ -102,7 +216,7 @@ export function validateNodeName(name) {
     if (NODE_NAME_REGEX.test(candidate) && candidate !== name) suggestion = candidate
   }
 
-  return { valid: false, errors, suggestion, parsed: null }
+  return { valid: false, errors, warnings: [], suggestion, parsed: null }
 }
 
 /**

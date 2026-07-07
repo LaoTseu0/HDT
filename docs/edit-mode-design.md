@@ -240,6 +240,7 @@ useStore += {
 
 - **Génération des node names** (E12-06) : l'app fabrique des noms **conformes à la convention** (`système__type__zone__niveau__index`), index **auto-incrémenté** par (système, zone, niveau). ← rend le plugin SketchUp **E9-01 inutile** pour les objets créés in-app.
   - *Point ouvert* : l'attribution de la **zone** en 3D pur (pas de notion de pièce côté app) — pour l'instant choix manuel dans l'inspector, avec une « zone courante » par défaut. Voir § 7.
+  - **Sous-type éditable** (E20-03) : le `type` initial vient du registre (`kindNaming`), puis reste modifiable dans l'inspector — dropdown du vocabulaire canonique du système (`SUBTYPES`, source unique `script/naming.mjs`) + « Autre… » (saisie libre normalisée, vocabulaire **ouvert**). L'index ne change pas (le bucket d'indexation reste système/zone/niveau). Les extras exportés portent `subtype` + `subtypeLabel`, comme le pipeline (E20-02).
 - **Re-export** : `GLTFExporter` (navigateur) réécrit la scène en GLB. On **bake** la géométrie générée **mais on conserve les `edit.params`** dans les `extras` → le fichier reste **ré-éditable** à la prochaine ouverture. Le mur d'origine est conservé (la découpe est recalculée, pas figée).
 - Re-passer le GLB par `script/process.mjs` reste possible (validation, Draco/KTX2) — les objets app passent la regex de nommage par construction.
 
