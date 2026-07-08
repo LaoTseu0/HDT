@@ -4,6 +4,7 @@ import GLBLoader from './components/GLBLoader.jsx'
 import Sidebar from './components/Sidebar.jsx'
 import InfoPanel from './components/InfoPanel.jsx'
 import VisitSticks from './components/VisitSticks.jsx'
+import VisitFullscreen from './components/VisitFullscreen.jsx'
 import VCBOverlay from './components/VCBOverlay.jsx'
 import ShortcutsOverlay from './components/ShortcutsOverlay.jsx'
 import useStore from './store/useStore.js'
@@ -119,6 +120,7 @@ export default function App() {
       <InfoPanel />
       <VCBOverlay />
       <VisitSticks />
+      <VisitFullscreen />
       <ShortcutsOverlay />
     </div>
   )

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
 import useStore from '../store/useStore.js'
+import useFullscreen from '../lib/useFullscreen.js'
 
 // Section Vue de la barre latérale (E19-04) : bascule Orbite/Visite (E17-01),
 // recentrage caméra (E4-03), FOV du mode visite (E17-04/09 gelés — seul
@@ -17,18 +17,9 @@ export default function ViewSection() {
   const showPerf = useStore((state) => state.showPerf)
   const togglePerf = useStore((state) => state.togglePerf)
 
-  // E17-11 : plein écran navigateur — état natif du document, suivi via
-  // fullscreenchange (la touche F11 / ÉCHAP sortent aussi du plein écran).
-  const [fullscreen, setFullscreen] = useState(!!document.fullscreenElement)
-  useEffect(() => {
-    const onChange = () => setFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [])
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen()
-    else document.documentElement.requestFullscreen?.()
-  }
+  // E17-11 : plein écran navigateur (hook partagé avec le bouton de visite).
+  const { supported: fsSupported, fullscreen, toggle: toggleFullscreen } =
+    useFullscreen()
 
   return (
     <>
@@ -59,13 +50,15 @@ export default function ViewSection() {
         />
         <span className="view-fov-value">{visitFov}°</span>
       </label>
-      <button
-        aria-pressed={fullscreen}
-        title="Plein écran in-navigateur (E17-11)"
-        onClick={toggleFullscreen}
-      >
-        {fullscreen ? 'Quitter le plein écran' : 'Plein écran'}
-      </button>
+      {fsSupported && (
+        <button
+          aria-pressed={fullscreen}
+          title="Plein écran in-navigateur (E17-11)"
+          onClick={toggleFullscreen}
+        >
+          {fullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+        </button>
+      )}
       {import.meta.env.DEV && (
         <label className="layer-colorize">
           <input type="checkbox" checked={showPerf} onChange={togglePerf} />

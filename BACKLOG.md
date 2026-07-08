@@ -78,6 +78,7 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-07 | **E18 (PWA) mise en pause** ; ajout de l'**Epic E19** (refonte UX des menus : burger + barre latérale) et de l'**Epic E20** (taxonomie à deux niveaux systèmes → sous-types, portée par la nomenclature du nom). |
 | 2026-07-07 | **E20 livré** (E20-01→06) : vocabulaire `SUBTYPES` (source unique `naming.mjs`, miroir Ruby testé anti-dérive), validation ouverte + extras `subtype`/`subtypeLabel` dans le pipeline, sous-type visible/éditable in-app, calques à deux niveaux (visibilité + isolation par sous-type, bucket « Autres »), docs alignées. Le filtrage prendra sa place dans la barre latérale E19-02 lors d'E19. |
 | 2026-07-07 | **E19 livré** (E19-01→07) : barre latérale unique (burger, overlay) à sections accordéon Calques/Édition/Vue/Plus ; panneau **Info détaché à droite rendu commun** (inspector des objets app déplacé de l'`EditBar`, rectification PO) ; slider FOV de visite ; plein écran E17-11 ; overlay des raccourcis clavier (touche « ? »). |
+| 2026-07-08 | **E17-11 livré** ([#23](https://github.com/LaoTseu0/HDT/issues/23)) : plein écran in-navigateur — hook partagé `useFullscreen`, bouton ⛶ flottant en mode visite + bouton de la section Vue, masqués si l'API est absente (Safari iPhone). |
 
 ---
 
@@ -371,14 +372,14 @@ de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séq
 | E17-06 ⏸ | En tant qu'utilisateur, je veux marcher au sol et monter les escaliers. | Gravité + snap au sol + franchissement de marches. | M | 5 |
 | E17-07 ⏸ | En tant que dev, je veux (re)construire le collider au chargement du modèle. | Collider rebâti à chaque modèle chargé (drag & drop). | M | 2 |
 
-**Niveau 3 — finitions** — ⏸ E17-08 et E17-09 **mis de côté** (même directive) ; E17-10 et E17-11 non concernés.
+**Niveau 3 — finitions** — ⏸ E17-08 et E17-09 **mis de côté** (même directive) ; E17-10 et E17-11 livrés (hors gel).
 
 | ID | User story | Critères d'acceptation | Prio | Pts |
 |---|---|---|---|---|
 | E17-08 ⏸ | En tant qu'utilisateur, je veux placer le point de départ de la visite. | « Placer la caméra » : cliquer un point → départ de la visite. | C | 3 |
 | E17-09 ⏸ | En tant qu'utilisateur, je veux régler le confort (vitesse, accroupi, FOV). | Réglages exposés ; pas de *head-bob* par défaut. | C | 2 |
 | E17-10 ✅ | En tant qu'utilisateur (mobile), je veux des contrôles tactiles / manette. | Joysticks virtuels / gamepad. | C | 5 |
-| E17-11 | En tant qu'utilisateur (mobile), je veux passer en plein écran pendant la visite afin de masquer la barre du navigateur ([#23](https://github.com/LaoTseu0/HDT/issues/23)). | Bouton ⛶ dans l'UI de visite (l'API exige un geste utilisateur, pas de plein écran forcé au chargement) : `requestFullscreen()` / `exitFullscreen()` ; état du bouton synchronisé via `fullscreenchange` (sortie possible par geste système) ; bouton masqué si l'API est absente (Safari iPhone). | C | 2 |
+| E17-11 ✅ | En tant qu'utilisateur (mobile), je veux passer en plein écran pendant la visite afin de masquer la barre du navigateur ([#23](https://github.com/LaoTseu0/HDT/issues/23)). | Bouton ⛶ dans l'UI de visite (l'API exige un geste utilisateur, pas de plein écran forcé au chargement) : `requestFullscreen()` / `exitFullscreen()` ; état du bouton synchronisé via `fullscreenchange` (sortie possible par geste système) ; bouton masqué si l'API est absente (Safari iPhone). | C | 2 |
 
 > **E17-10 livré le 2026-07-06** — joysticks virtuels sur appareil tactile
 > ([VisitSticks.jsx](home3d/src/components/VisitSticks.jsx) : stick gauche = se déplacer,
@@ -386,6 +387,15 @@ de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séq
 > sondée chaque frame). Maths des axes (zone morte, clamp) dans
 > [visitInput.js](home3d/src/lib/visitInput.js) (testé). Vol libre N1 inchangé ; sans API
 > Pointer Lock (mobile), le verrou souris et son invite sont simplement absents.
+
+> **E17-11 livré le 2026-07-08** — plein écran in-navigateur. Hook partagé
+> [useFullscreen.js](home3d/src/lib/useFullscreen.js) (`requestFullscreen`/`exitFullscreen`,
+> état suivi via `fullscreenchange`, `supported` = API d'élément HTML présente).
+> Bouton ⛶ flottant en mode visite ([VisitFullscreen.jsx](home3d/src/components/VisitFullscreen.jsx),
+> coin haut-droit) **et** bouton de la section Vue ([ViewSection.jsx](home3d/src/components/ViewSection.jsx)),
+> tous deux masqués si l'API est absente (Safari iPhone). Complète, sans le
+> remplacer, le `display: standalone` de la PWA (E18) pour l'usage **sans**
+> installation.
 
 ---
 
