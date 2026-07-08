@@ -124,6 +124,18 @@ function commitRun(state, d) {
   }
 }
 
+// Solder un tracé en cours quand on QUITTE l'outil (Échap, outil Sélection, sortie
+// d'édition — cf. #28). Un run (câble E15-03 / tuyau E16-01) n'est pas un geste
+// unique jetable comme un rectangle : ses sommets déjà cliqués sont des ANCRAGES
+// que l'utilisateur veut conserver → on le FINALISE (commitRun, qui exige ≥ 2
+// sommets distincts, sinon jette proprement). Les autres tracés (rect/cercle/arc),
+// gestes incomplets, sont simplement abandonnés. Renvoie le patch d'état à fusionner.
+export function finalizeDraft(state) {
+  const d = state.draft
+  if (d && (d.tool === 'cable' || d.tool === 'pipe')) return commitRun(state, d)
+  return { draft: null, vcbText: '' }
+}
+
 // Store Zustand — structure V2-ready (cf. cahier des charges, E7-01).
 // Toute mutation passe par une action nommée. Depuis la V2 (Slice 0), le store
 // est enveloppé par le middleware `zundo` (`temporal`) : undo/redo sur l'état
@@ -269,30 +281,36 @@ const useStore = create(
       activeTool: 'select',
       // Entrer en édition ouvre la barre latérale sur la section Edit (E19-03) :
       // la palette d'outils y vit, sans ça la touche E semblerait sans effet.
+      // Un run câble/tuyau en cours est FINALISÉ (pas jeté) quand on quitte
+      // l'édition — cf. finalizeDraft / #28.
       setEditMode: (on) =>
-        set({
+        set((state) => ({
+          ...finalizeDraft(state),
           editMode: on,
-          draft: null,
-          vcbText: '',
           activeTool: 'select',
           extrude: null,
           hoveredNode: null,
           ...(on ? { menuOpen: true, menuSection: 'edit' } : {}),
-        }),
+        })),
       toggleEditMode: () =>
         set((state) => ({
+          ...finalizeDraft(state),
           editMode: !state.editMode,
-          draft: null,
-          vcbText: '',
           activeTool: 'select',
           extrude: null,
           hoveredNode: null,
           ...(state.editMode ? {} : { menuOpen: true, menuSection: 'edit' }),
         })),
       // Changer d'outil efface le survol résiduel (Model coupe sa surbrillance
-      // hors outil Sélection — sinon un highlight figé resterait).
+      // hors outil Sélection — sinon un highlight figé resterait). Un run
+      // câble/tuyau en cours est finalisé, pas jeté (finalizeDraft, #28).
       setActiveTool: (tool) =>
-        set({ activeTool: tool, draft: null, vcbText: '', extrude: null, hoveredNode: null }),
+        set((state) => ({
+          ...finalizeDraft(state),
+          activeTool: tool,
+          extrude: null,
+          hoveredNode: null,
+        })),
       draft: null,
       setDraft: (draft) => set({ draft }),
 
