@@ -229,6 +229,37 @@ button.secondary {
   background: rgba(154, 160, 176, 0.45);
 }
 
+/* E17-11 (issue #23) : bouton plein écran flottant du mode visite. Coin
+   haut-droit — dégage le burger (haut-gauche) et les joysticks (bas). */
+.visit-fullscreen {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: #e8e9ee;
+  border: 1px solid #3a3d4a;
+  border-radius: 10px;
+  background: rgba(22, 23, 29, 0.72);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.visit-fullscreen:hover {
+  background: rgba(40, 42, 52, 0.82);
+}
+
+.visit-fullscreen[aria-pressed='true'] {
+  border-color: #5b6cff;
+}
+
 /* Section Édition (E19-03, ex-panneau flottant Edit mode Slice 0) */
 .edit-history {
   display: flex;
