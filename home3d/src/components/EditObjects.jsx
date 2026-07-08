@@ -396,14 +396,25 @@ function EditObject({
       onClick={
         selectable || hostable || valvable
           ? (event) => {
-              event.stopPropagation()
               // Outil Menuiserie (E14-05) : cliquer une ouverture y pose le cadre.
-              if (hostable) onHost(obj.id)
+              if (hostable) {
+                event.stopPropagation()
+                onHost(obj.id)
+                return
+              }
               // Outil Vanne (E16-04) : cliquer un tuyau y insère une vanne, au
               // point cliqué (l'intersection monde sur la surface du run).
-              else if (valvable)
+              if (valvable) {
+                event.stopPropagation()
                 onValve(obj.id, [event.point.x, event.point.y, event.point.z])
-              else onSelect(obj.id)
+                return
+              }
+              // Sélection : en mode découverte l'orbite est active → ignorer un
+              // drag (comme Model.jsx, E6-01) pour ne pas sélectionner en fin
+              // de rotation caméra.
+              if (event.delta > 4) return
+              event.stopPropagation()
+              onSelect(obj.id)
             }
           : undefined
       }
@@ -977,6 +988,7 @@ export default function EditObjects() {
   const extrude = useStore((state) => state.extrude)
   const glb = useStore((state) => state.glb)
   const nodes = useStore((state) => state.nodes)
+  const viewMode = useStore((state) => state.viewMode)
   const setExtrude = useStore((state) => state.setExtrude)
   const updateObjectParams = useStore((state) => state.updateObjectParams)
 
@@ -984,7 +996,10 @@ export default function EditObjects() {
   const camera = useThree((state) => state.camera)
   const raycaster = useThree((state) => state.raycaster)
 
-  const selectable = editMode && activeTool === 'select'
+  // Sélection des objets app : alignée sur les objets importés (Model.jsx) —
+  // active en mode découverte (orbite) ET en Édition avec l'outil Sélection ;
+  // exclue en visite et pendant les outils de tracé/édition (E6-01).
+  const selectable = viewMode !== 'visit' && (!editMode || activeTool === 'select')
   // Menuiserie (E14-05) : pas de surface d'esquisse — l'hôte du clic est une
   // OUVERTURE déjà posée (son marqueur devient cliquable), pas une face de mur.
   const hosting = editMode && activeTool === 'joinery'
