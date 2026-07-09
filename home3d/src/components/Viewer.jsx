@@ -1,4 +1,5 @@
-import { lazy, Suspense, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import * as THREE from 'three'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid } from '@react-three/drei'
 import Model from './Model.jsx'
@@ -17,8 +18,52 @@ const Perf = import.meta.env.DEV
   ? lazy(() => import('r3f-perf').then((m) => ({ default: m.Perf })))
   : null
 
+// E21-01 : navigation caméra sous Ctrl (PC). Sans Ctrl, clic gauche/droit
+// sont inertes (action -1 → STATE.NONE) ; Ctrl enfoncé, gauche = orbite et
+// droit = pan. On bascule `mouseButtons` (prop d'OrbitControls) — PAS
+// `enabled`, qui tuerait aussi le zoom molette et le tactile (`touches`
+// reste au défaut : 1 doigt orbite, 2 doigts pan/pinch).
+// E21-03 : curseur grab (Ctrl enfoncé) / grabbing (bouton pressé en plus).
+// Renvoie l'état Ctrl + bouton souris, suivi par écouteurs globaux ; reset
+// sur blur, sans quoi Ctrl+Tab / Alt+Tab laisserait un Ctrl « collé » (le
+// keyup part vers l'autre fenêtre).
+function useCtrlNav() {
+  const [ctrlDown, setCtrlDown] = useState(false)
+  const [buttonDown, setButtonDown] = useState(false)
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Control') setCtrlDown(event.type === 'keydown')
+    }
+    const onBlur = () => setCtrlDown(false)
+    const onPointer = (event) => setButtonDown(event.type === 'pointerdown')
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('keyup', onKey)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('pointerdown', onPointer)
+    window.addEventListener('pointerup', onPointer)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKey)
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('pointerup', onPointer)
+    }
+  }, [])
+  return { ctrlDown, buttonDown }
+}
+
+// ATTENTION : OrbitControls (three-stdlib) échange ROTATE↔PAN quand
+// Ctrl/Meta/Shift est pressé au mousedown — on assigne donc LEFT=PAN /
+// RIGHT=ROTATE pour obtenir gauche=orbite / droit=pan à l'écran sous Ctrl.
+const CTRL_MOUSE_BUTTONS = {
+  LEFT: THREE.MOUSE.PAN,
+  MIDDLE: THREE.MOUSE.DOLLY,
+  RIGHT: THREE.MOUSE.ROTATE,
+}
+const IDLE_MOUSE_BUTTONS = { LEFT: -1, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: -1 }
+
 // Canvas R3F principal (E4-01, E4-02).
-// Orbite clic gauche, pan clic droit, zoom molette (OrbitControls).
+// Orbite Ctrl+clic gauche, pan Ctrl+clic droit, zoom molette (E21-01).
 // Éclairage ambiant + directionnelle clé + directionnelle de débouchage
 // opposée : pas de faces noires sans aucune configuration.
 export default function Viewer() {
@@ -27,26 +72,25 @@ export default function Viewer() {
   // E17 : en mode visite, OrbitControls laisse la place au vol libre
   // (PointerLockControls + WASD).
   const viewMode = useStore((state) => state.viewMode)
-  // Slice 0 : pendant le tracé d'une forme, on coupe OrbitControls (le drag
-  // sert à dessiner, pas à orbiter ; les contrôles écoutent le DOM directement,
-  // un stopPropagation R3F ne les arrête pas).
-  const editMode = useStore((state) => state.editMode)
-  const activeTool = useStore((state) => state.activeTool)
-  // Outils à glisser (tracé du rectangle, extrusion Push/Pull) : on coupe
-  // OrbitControls, sinon le drag orbite au lieu d'agir.
-  const drawingTool = editMode && (activeTool === 'rect' || activeTool === 'pushpull')
   // E6-01 : clic dans le vide → désélection. onPointerMissed se déclenche
   // aussi en fin d'orbite ; on ne désélectionne que si le pointeur n'a
   // quasiment pas bougé entre down et up (vrai clic).
   const downPosition = useRef([0, 0])
+  const { ctrlDown, buttonDown } = useCtrlNav()
 
   return (
     <Canvas
       camera={{ position: [8, 6, 8], fov: 50 }}
+      style={
+        ctrlDown && viewMode !== 'visit'
+          ? { cursor: buttonDown ? 'grabbing' : 'grab' }
+          : undefined
+      }
       onPointerDown={(event) => {
         downPosition.current = [event.clientX, event.clientY]
       }}
       onPointerMissed={(event) => {
+        if (event.ctrlKey) return // E21-02 : Ctrl+clic = navigation pure
         const [x, y] = downPosition.current
         if (Math.hypot(event.clientX - x, event.clientY - y) < 6) selectNode(null)
       }}
@@ -70,7 +114,10 @@ export default function Viewer() {
       {viewMode === 'visit' ? (
         <VisitControls />
       ) : (
-        <OrbitControls makeDefault enabled={!drawingTool} />
+        <OrbitControls
+          makeDefault
+          mouseButtons={ctrlDown ? CTRL_MOUSE_BUTTONS : IDLE_MOUSE_BUTTONS}
+        />
       )}
 
       {Perf && showPerf && (

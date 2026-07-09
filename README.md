@@ -12,6 +12,10 @@
 ## ✨ Fonctionnalités
 
 - **Viewer 3D web** d'un modèle de maison au format GLB (glTF 2.0 binaire).
+  Navigation caméra sur PC : **Ctrl+clic gauche** = orbite, **Ctrl+clic
+  droit** = pan, **molette** = zoom — Ctrl enfoncé, aucune action d'objet ne
+  se déclenche (le clic nu reste réservé à la sélection et aux outils
+  d'édition) ; tactile : 1 doigt orbite, 2 doigts pan/pinch.
 - **Calques techniques** : allumer / éteindre / isoler / coloriser chaque
   système (structure, ouvertures, élec, plomberie, VMC, réseau, terrain).
 - **Inspection au clic** : métadonnées par objet (zone, niveau, système…),
