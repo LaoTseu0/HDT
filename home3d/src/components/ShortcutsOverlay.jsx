@@ -18,6 +18,15 @@ const GROUPS = [
     ],
   },
   {
+    title: 'Navigation (orbite)',
+    rows: [
+      ['Ctrl+clic gauche', 'Orbiter autour du modèle'],
+      ['Ctrl+clic droit', 'Panner (déplacer la vue)'],
+      ['Molette', 'Zoomer (sans Ctrl)'],
+      ['Ctrl enfoncé', 'Verrou de navigation : aucune action sur les objets'],
+    ],
+  },
+  {
     title: 'Édition',
     rows: [
       ['G', 'Accroche à la grille (pas de 0,1 m)'],

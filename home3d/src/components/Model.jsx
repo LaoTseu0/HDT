@@ -115,6 +115,7 @@ export default function Model() {
   // E6-01 : sélection par raycasting (events R3F).
   const handleClick = useCallback(
     (event) => {
+      if (event.ctrlKey) return // E21-02 : Ctrl+clic = navigation pure
       if (event.delta > 4) return // drag d'orbite, pas un clic
       const name = resolveNodeName(event.intersections)
       if (!name) return

@@ -396,6 +396,8 @@ function EditObject({
       onClick={
         selectable || hostable || valvable
           ? (event) => {
+              // E21-02 : Ctrl enfoncé = navigation caméra, aucune action objet.
+              if (event.ctrlKey) return
               // Outil Menuiserie (E14-05) : cliquer une ouverture y pose le cadre.
               if (hostable) {
                 event.stopPropagation()
@@ -421,6 +423,7 @@ function EditObject({
       onPointerDown={
         pushable
           ? (event) => {
+              if (event.ctrlKey) return // E21-02 : verrou d'action sous Ctrl
               event.stopPropagation()
               onStartPush(obj.id, event)
             }
@@ -793,6 +796,12 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   }
 
   const onPointerMove = (event) => {
+    // E21-02 : Ctrl enfoncé = navigation caméra — on gèle le tracé/survol (masquer
+    // l'aperçu évite un marqueur fantôme qui flotterait pendant l'orbite).
+    if (event.ctrlKey) {
+      setHover(null)
+      return
+    }
     // Run routé (câble/tuyau) : polyligne multi-clics ; suit le curseur sur le plan
     // contextuel, avec aperçu du tronçon en cours dès qu'un premier sommet est posé.
     if (tool === 'cable' || tool === 'pipe') {
@@ -844,6 +853,7 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   }
 
   const onPointerDown = (event) => {
+    if (event.ctrlKey) return // E21-02 : Ctrl+clic = navigation pure, pas de tracé
     event.stopPropagation()
     const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
     const { rect, cursor } = cursorOf(event)
@@ -947,6 +957,7 @@ function SketchSurface({ tool, glbScene, nodes, objects }) {
   // Run routé : double-clic = fin du routage (les deux clics ajoutent un sommet
   // chacun, le doublon final est fusionné par la déduplication de commitRun).
   const onDoubleClick = (event) => {
+    if (event.ctrlKey) return // E21-02 : verrou d'action sous Ctrl
     if (tool !== 'cable' && tool !== 'pipe') return
     event.stopPropagation()
     if (useStore.getState().draft) useStore.getState().commitDraft()
