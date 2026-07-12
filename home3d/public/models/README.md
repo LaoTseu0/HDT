@@ -1,7 +1,7 @@
 # Modèles 3D
 
 Les modèles `.glb` volumineux (~30 Mo pièce) sont **hébergés hors de l'historique
-git**, sur une [release GitHub](https://github.com/LaoTseu0/HDT/releases/tag/models-v1)
+git**, sur une [release GitHub](https://github.com/LaoTseu0/3d-home-tour/releases/tag/models-v1)
 (tag `models-v1`), pour ne pas gonfler le dépôt (git ne sait pas compresser en
 delta des binaires compressés → chaque révision ajouterait le fichier entier et
 définitivement à l'historique).

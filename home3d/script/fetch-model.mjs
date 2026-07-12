@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const RELEASE = 'models-v1'
-const BASE = `https://github.com/LaoTseu0/HDT/releases/download/${RELEASE}`
+const BASE = `https://github.com/LaoTseu0/3d-home-tour/releases/download/${RELEASE}`
 
 // Modèles à récupérer. `maison.glb` (démo) suffit à lancer l'app ; l'export brut
 // `maison_raw.glb` est une archive source, tiré seulement à la demande (--raw).

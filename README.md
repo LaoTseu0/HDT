@@ -53,7 +53,7 @@
 **Prérequis** : [Node.js](https://nodejs.org/) ≥ 22 et npm.
 
 ```bash
-git clone https://github.com/LaoTseu0/HDT.git
+git clone https://github.com/LaoTseu0/3d-home-tour.git
 cd HDT/home3d
 npm install          # installe les deps + copie les décodeurs Draco/Basis (postinstall)
 npm run dev          # démarre le serveur de dev Vite (http://localhost:5173)

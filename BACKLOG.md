@@ -78,11 +78,11 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-04 | **E14 phase 2 complète** : menuiseries, variantes, portes. |
 | 2026-07-04 → 06 | **Slice 3 livrée** (plomberie E16 complet : tuyaux, raccords auto, pente, vannes). |
 | 2026-07-06 | Retrait du journal de réalisation détaillé ; ajout des **Directives produit** ; **gel E17-05→09** (directive PO) ; **E17-10 livré** (joysticks tactiles + manette) ; ajout de l'**Epic E18 — PWA**. |
-| 2026-07-06 | Le plein écran navigateur ([#23](https://github.com/LaoTseu0/HDT/issues/23)) sort d'E18 → nouvelle story **E17-11** (mode visite). |
+| 2026-07-06 | Le plein écran navigateur ([#23](https://github.com/LaoTseu0/3d-home-tour/issues/23)) sort d'E18 → nouvelle story **E17-11** (mode visite). |
 | 2026-07-07 | **E18 (PWA) mise en pause** ; ajout de l'**Epic E19** (refonte UX des menus : burger + barre latérale) et de l'**Epic E20** (taxonomie à deux niveaux systèmes → sous-types, portée par la nomenclature du nom). |
 | 2026-07-07 | **E20 livré** (E20-01→06) : vocabulaire `SUBTYPES` (source unique `naming.mjs`, miroir Ruby testé anti-dérive), validation ouverte + extras `subtype`/`subtypeLabel` dans le pipeline, sous-type visible/éditable in-app, calques à deux niveaux (visibilité + isolation par sous-type, bucket « Autres »), docs alignées. Le filtrage prendra sa place dans la barre latérale E19-02 lors d'E19. |
 | 2026-07-07 | **E19 livré** (E19-01→07) : barre latérale unique (burger, overlay) à sections accordéon Calques/Édition/Vue/Plus ; panneau **Info détaché à droite rendu commun** (inspector des objets app déplacé de l'`EditBar`, rectification PO) ; slider FOV de visite ; plein écran E17-11 ; overlay des raccourcis clavier (touche « ? »). |
-| 2026-07-08 | **E17-11 livré** ([#23](https://github.com/LaoTseu0/HDT/issues/23)) : plein écran in-navigateur — hook partagé `useFullscreen`, bouton ⛶ flottant en mode visite + bouton de la section Vue, masqués si l'API est absente (Safari iPhone). |
+| 2026-07-08 | **E17-11 livré** ([#23](https://github.com/LaoTseu0/3d-home-tour/issues/23)) : plein écran in-navigateur — hook partagé `useFullscreen`, bouton ⛶ flottant en mode visite + bouton de la section Vue, masqués si l'API est absente (Safari iPhone). |
 | 2026-07-09 | Ajout de l'**Epic E21** (navigation caméra sous Ctrl sur PC, avec verrou d'action) et de l'**Epic E22** (poignées de manipulation directe : déformation paramétrique par poignées d'accroche, réemploi du moteur Push/Pull ; absorbe **E12-07** et la partie poignées d'**E13-04**). Ordre : E21 avant E22 (la convention Ctrl doit précéder les nouveaux handlers de poignées). |
 | 2026-07-11 | **E22-01 et E22-02 livrés** : moteur « drag sur axe connu » extrait du Push/Pull (`lib/useAxisDrag`, consommé sans régression), poignées de déformation du **rectangle** (6 faces en solide, 5 en plat) et du **cercle** (4 radiales centre fixe + hauteur) via `deformHandles` du registre + composant `DeformHandles` (taille écran constante, couleurs d'axe, verrou Ctrl E21-02). Restent E22-03→06. |
 | 2026-07-11 | **E22-03 livré** : accroche pendant le drag d'une poignée / du Push/Pull (références du modèle et des autres objets app projetées sur l'axe du drag, marqueur, grille en dernier recours) + **VCB au drag** (cote vive dans la boîte de mesure, Entrée valide, Échap annule) — la dette « VCB du Push/Pull » (E12-08) est soldée. Restent E22-04→06. |
@@ -386,7 +386,7 @@ de SketchUp. Feature **Viewer**, orthogonale à l'édition. Articulation du séq
 | E17-08 ⏸ | En tant qu'utilisateur, je veux placer le point de départ de la visite. | « Placer la caméra » : cliquer un point → départ de la visite. | C | 3 |
 | E17-09 ⏸ | En tant qu'utilisateur, je veux régler le confort (vitesse, accroupi, FOV). | Réglages exposés ; pas de *head-bob* par défaut. | C | 2 |
 | E17-10 ✅ | En tant qu'utilisateur (mobile), je veux des contrôles tactiles / manette. | Joysticks virtuels / gamepad. | C | 5 |
-| E17-11 ✅ | En tant qu'utilisateur (mobile), je veux passer en plein écran pendant la visite afin de masquer la barre du navigateur ([#23](https://github.com/LaoTseu0/HDT/issues/23)). | Bouton ⛶ dans l'UI de visite (l'API exige un geste utilisateur, pas de plein écran forcé au chargement) : `requestFullscreen()` / `exitFullscreen()` ; état du bouton synchronisé via `fullscreenchange` (sortie possible par geste système) ; bouton masqué si l'API est absente (Safari iPhone). | C | 2 |
+| E17-11 ✅ | En tant qu'utilisateur (mobile), je veux passer en plein écran pendant la visite afin de masquer la barre du navigateur ([#23](https://github.com/LaoTseu0/3d-home-tour/issues/23)). | Bouton ⛶ dans l'UI de visite (l'API exige un geste utilisateur, pas de plein écran forcé au chargement) : `requestFullscreen()` / `exitFullscreen()` ; état du bouton synchronisé via `fullscreenchange` (sortie possible par geste système) ; bouton masqué si l'API est absente (Safari iPhone). | C | 2 |
 
 > **E17-10 livré le 2026-07-06** — joysticks virtuels sur appareil tactile
 > ([VisitSticks.jsx](home3d/src/components/VisitSticks.jsx) : stick gauche = se déplacer,
@@ -431,9 +431,9 @@ Le plein écran **in-navigateur** (usage sans installation) est traité à part 
 > E18-02 ~0,25 j ; E18-03 ~1 j (le gros morceau : stratégie de cache du GLB) ;
 > E18-04 ~0,5 j ; E18-05 ~0,5 j (vérifications sur appareil réel comprises).
 > NB : ne remplace pas le bouton plein écran in-navigateur **E17-11**
-> ([#23](https://github.com/LaoTseu0/HDT/issues/23)), utile pour l'usage **sans**
+> ([#23](https://github.com/LaoTseu0/3d-home-tour/issues/23)), utile pour l'usage **sans**
 > installation ; dépend du correctif verrou souris mobile
-> [#22](https://github.com/LaoTseu0/HDT/issues/22) pour une visite mobile utilisable.
+> [#22](https://github.com/LaoTseu0/3d-home-tour/issues/22) pour une visite mobile utilisable.
 
 ---
 
@@ -625,7 +625,7 @@ dérisquage. Détail : [docs/edit-mode-design.md](docs/edit-mode-design.md) § 6
 > Le journal de bord détaillé de la réalisation V2 (avancement incrément par incrément
 > des Slices 0→3) a été retiré du backlog le 2026-07-06. Il reste consultable dans
 > l'historique git : `git log --follow -- BACKLOG.md` (commits `docs(backlog)`) et les
-> PR [#17](https://github.com/LaoTseu0/HDT/pull/17) → [#20](https://github.com/LaoTseu0/HDT/pull/20).
+> PR [#17](https://github.com/LaoTseu0/3d-home-tour/pull/17) → [#20](https://github.com/LaoTseu0/3d-home-tour/pull/20).
 
 **Definition of Done V2** : les 4 slices d'édition démontrables sur un **vrai modèle
 SketchUp** (objets **persistés** au ré-export GLB et **ré-éditables** après rechargement),
