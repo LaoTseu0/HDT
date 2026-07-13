@@ -1,35 +1,50 @@
 import { useMemo, useState } from 'react'
-import useStore from '../store/useStore.js'
+import useStore from '@/store/useStore'
 import { subtypesOf } from '@/core/naming'
+import type { NodesTable } from '@/types'
 
 // Section Calques de la barre latérale (E19-02, ex-panneau flottant E5-01 →
 // E5-04) : liste label + pastille couleur issus des extras scène, toggle
 // visibilité, actions globales (tout afficher / tout masquer / isoler) et
 // colorisation par calque.
 // E20-04 : chaque calque se déplie en sous-types (segment `type` des nodes
-// importés) — visibilité et isolation par sous-type ; les types hors
-// vocabulaire canonique sont agrégés dans un bucket « Autres ».
+// importés) — visibilité et isolation par sous-type ; les types hors vocabulaire
+// canonique sont agrégés dans un bucket « Autres ».
+
+/** Une ligne de sous-type de l'arbre : pilote un groupe de segments réels. */
+interface SubtypeRow {
+  value: string
+  label: string
+  count: number
+  types: string[]
+}
+
+interface LayerSubtree {
+  rows: SubtypeRow[]
+  allTypes: string[]
+}
 
 // Arborescence des sous-types PRÉSENTS dans le modèle, par calque, depuis les
-// extras des nodes importés. Chaque ligne = { value, label, count, types } où
-// `types` est le groupe de segments réels qu'elle pilote (un type canonique →
-// [lui-même] ; « Autres » → tous les types hors vocabulaire du calque).
-function subtypeTreeOf(nodes) {
-  const countsByLayer = {}
+// extras des nodes importés. Chaque ligne pilote son groupe de segments réels (un
+// type canonique → [lui-même] ; « Autres » → tous les types hors vocabulaire).
+function subtypeTreeOf(nodes: NodesTable): Record<string, LayerSubtree> {
+  const countsByLayer: Record<string, Map<string, number>> = {}
   for (const extras of Object.values(nodes)) {
     if (!extras?.layer || !extras?.type) continue
     const counts = (countsByLayer[extras.layer] ??= new Map())
     counts.set(extras.type, (counts.get(extras.type) ?? 0) + 1)
   }
-  const tree = {}
+  const tree: Record<string, LayerSubtree> = {}
   for (const [layerId, counts] of Object.entries(countsByLayer)) {
-    const vocab = subtypesOf(layerId)
-    const rows = vocab
+    // subtypesOf vient du module de convention partagé (.mjs, non typé) → on fige
+    // ici la forme attendue (value/label du vocabulaire).
+    const vocab = subtypesOf(layerId) as Array<{ value: string; label: string }>
+    const rows: SubtypeRow[] = vocab
       .filter((s) => counts.has(s.value))
       .map((s) => ({
         value: s.value,
         label: s.label,
-        count: counts.get(s.value),
+        count: counts.get(s.value)!,
         types: [s.value],
       }))
     const others = [...counts.keys()].filter((t) => !vocab.some((s) => s.value === t))
@@ -37,7 +52,7 @@ function subtypeTreeOf(nodes) {
       rows.push({
         value: '__autres__',
         label: 'Autres',
-        count: others.reduce((n, t) => n + counts.get(t), 0),
+        count: others.reduce((n, t) => n + counts.get(t)!, 0),
         types: others,
       })
     }
@@ -59,7 +74,7 @@ export default function LayerPanel() {
   const toggleColorByLayer = useStore((state) => state.toggleColorByLayer)
 
   // Calques dépliés (état local d'UI, réinitialisé au remontage du panneau).
-  const [expanded, setExpanded] = useState({})
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const tree = useMemo(() => subtypeTreeOf(nodes), [nodes])
 
   const entries = Object.entries(layers)
@@ -122,14 +137,18 @@ export default function LayerPanel() {
                   Isoler
                 </button>
               </div>
-              {isOpen && (
+              {isOpen && sub && (
                 <ul className="subtype-list">
                   {sub.rows.map((row) => {
                     const rowHidden = row.types.every((t) => hiddenSubtypes[id]?.[t])
                     return (
                       <li
                         key={row.value}
-                        className={rowHidden ? 'layer-row subtype-row hidden' : 'layer-row subtype-row'}
+                        className={
+                          rowHidden
+                            ? 'layer-row subtype-row hidden'
+                            : 'layer-row subtype-row'
+                        }
                       >
                         <button
                           className="layer-toggle"
@@ -158,11 +177,7 @@ export default function LayerPanel() {
       </ul>
 
       <label className="layer-colorize">
-        <input
-          type="checkbox"
-          checked={colorByLayer}
-          onChange={toggleColorByLayer}
-        />
+        <input type="checkbox" checked={colorByLayer} onChange={toggleColorByLayer} />
         Couleurs par calque
       </label>
     </>

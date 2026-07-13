@@ -1,17 +1,17 @@
 import { useEffect } from 'react'
-import Viewer from './components/Viewer.jsx'
+import Viewer from './components/Viewer'
 import GLBLoader from './components/GLBLoader'
 import Sidebar from './components/Sidebar'
 import InfoPanel from './components/InfoPanel'
-import VisitSticks from './components/VisitSticks.jsx'
+import VisitSticks from './components/VisitSticks'
 import VisitFullscreen from './components/VisitFullscreen'
 import VCBOverlay from './components/VCBOverlay'
 import ShortcutsOverlay from './components/ShortcutsOverlay'
-import useStore from './store/useStore.js'
+import useStore from './store/useStore'
 
 // Saisie VCB (E12-04) pendant un tracé : construit la chaîne tapée, valide à
 // Entrée, efface à Échap (si non vide). Renvoie true si la touche est consommée.
-function handleVcbKey(event) {
+function handleVcbKey(event: KeyboardEvent): boolean {
   const { vcbText, setVcbText, commitDraft } = useStore.getState()
   const k = event.key
   if (k === 'Enter') {
@@ -53,17 +53,17 @@ export default function App() {
   // Raccourcis clavier globaux : R = recentrer (E4-03), P = perf dev (E8-01),
   // V = Orbite/Visite (E17-01), E = View/Edit, G = accroche grille (E12-03),
   // Ctrl+Z / Ctrl+Maj+Z = undo/redo, ? = overlay raccourcis (E19-07).
-  // Tenir ShortcutsOverlay.jsx à jour à chaque ajout.
+  // Tenir ShortcutsOverlay à jour à chaque ajout.
   useEffect(() => {
-    const onKeyDown = (event) => {
-      const tag = event.target?.tagName
+    const onKeyDown = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') return
       const { viewMode, pointerLocked, editMode, setActiveTool } = useStore.getState()
 
       // VCB (E12-04) : pendant un tracé OU un drag sur axe (poignée/Push-Pull,
-      // E22-03), on capte la saisie de cote AVANT les raccourcis (sinon taper
-      // une cote déclencherait R/G/V/E…). Pour un drag, Entrée/Échap sont
-      // aussi écoutés par le moteur (useAxisDrag : valider / annuler).
+      // E22-03), on capte la saisie de cote AVANT les raccourcis (sinon taper une
+      // cote déclencherait R/G/V/E…). Pour un drag, Entrée/Échap sont aussi
+      // écoutés par le moteur (useAxisDrag : valider / annuler).
       const { draft, extrude } = useStore.getState()
       if (editMode && (draft || extrude) && handleVcbKey(event)) return
 
@@ -72,7 +72,8 @@ export default function App() {
         if (!editMode) return
         event.preventDefault()
         const temporal = useStore.temporal.getState()
-        event.shiftKey ? temporal.redo() : temporal.undo()
+        if (event.shiftKey) temporal.redo()
+        else temporal.undo()
         return
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
@@ -90,9 +91,9 @@ export default function App() {
         return
       }
 
-      // Échap, par priorité : ferme l'overlay raccourcis, quitte la visite
-      // (verrou déjà relâché), revient à l'outil Sélection en édition (la barre
-      // latérale y héberge la palette : on ne la ferme pas), ferme le menu.
+      // Échap, par priorité : ferme l'overlay raccourcis, quitte la visite (verrou
+      // déjà relâché), revient à l'outil Sélection en édition (la barre latérale y
+      // héberge la palette : on ne la ferme pas), ferme le menu.
       if (event.key === 'Escape') {
         const { shortcutsOpen, setShortcutsOpen, menuOpen, setMenuOpen } =
           useStore.getState()
