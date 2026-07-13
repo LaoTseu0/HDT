@@ -1,24 +1,32 @@
 import { useEffect, useRef } from 'react'
-import useStore from '../store/useStore.js'
-import LayerPanel from './LayerPanel.jsx'
+import type { ComponentType } from 'react'
+import useStore from '@/store/useStore'
+import LayerPanel from './LayerPanel'
 import EditBar from '@/features/edit/EditBar'
-import ViewSection from './ViewSection.jsx'
-import MoreSection from './MoreSection.jsx'
+import ViewSection from './ViewSection'
+import MoreSection from './MoreSection'
+import type { MenuSection } from '@/store/types'
 
-// E19-01 : bouton burger + barre latérale unique, en OVERLAY au-dessus du
-// canvas (choix tranché vs push : le canvas WebGL garde sa taille, pas de
-// re-layout à chaque ouverture). Sections en accordéon — Calques (E19-02),
-// Édition (E19-03), Vue (E19-04), Plus (E19-05) — une seule dépliée à la
-// fois. ÉCHAP (App.jsx) et clic hors panneau ferment.
+// E19-01 : bouton burger + barre latérale unique, en OVERLAY au-dessus du canvas
+// (choix tranché vs push : le canvas WebGL garde sa taille, pas de re-layout à
+// chaque ouverture). Sections en accordéon — Calques (E19-02), Édition (E19-03),
+// Vue (E19-04), Plus (E19-05) — une seule dépliée à la fois. ÉCHAP (App) et clic
+// hors panneau ferment.
 
-const SECTIONS = [
+interface SectionDef {
+  id: MenuSection
+  label: string
+  Body: ComponentType
+}
+
+const SECTIONS: SectionDef[] = [
   { id: 'calques', label: 'Calques', Body: LayerPanel },
   { id: 'edit', label: 'Édition', Body: EditBar },
   { id: 'vue', label: 'Vue', Body: ViewSection },
   { id: 'more', label: 'Plus', Body: MoreSection },
 ]
 
-function BurgerIcon({ open }) {
+function BurgerIcon({ open }: { open: boolean }) {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
       {open ? (
@@ -47,16 +55,16 @@ export default function Sidebar() {
   const menuSection = useStore((state) => state.menuSection)
   const setMenuSection = useStore((state) => state.setMenuSection)
   const pointerLocked = useStore((state) => state.pointerLocked)
-  const rootRef = useRef(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   // Clic hors panneau → fermeture (E19-01). Pas de backdrop : le canvas reste
   // interactif sur desktop. Exception : en édition, le clic canvas EST l'action
   // (tracer, sélectionner) et la palette vit dans la barre — on ne ferme pas.
   useEffect(() => {
     if (!menuOpen) return
-    const onPointerDown = (event) => {
+    const onPointerDown = (event: PointerEvent) => {
       if (useStore.getState().editMode) return
-      if (rootRef.current && !rootRef.current.contains(event.target)) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         setMenuOpen(false)
       }
     }
@@ -64,8 +72,8 @@ export default function Sidebar() {
     return () => window.removeEventListener('pointerdown', onPointerDown)
   }, [menuOpen, setMenuOpen])
 
-  // Verrou souris (visite clavier/souris) : plus de pointeur, on masque le
-  // menu. Les joysticks tactiles (E17-10), eux, cohabitent avec la barre.
+  // Verrou souris (visite clavier/souris) : plus de pointeur, on masque le menu.
+  // Les joysticks tactiles (E17-10), eux, cohabitent avec la barre.
   if (pointerLocked) return null
 
   return (

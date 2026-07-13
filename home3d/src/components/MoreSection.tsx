@@ -1,13 +1,14 @@
 import { useRef } from 'react'
-import useStore from '../store/useStore.js'
+import type { ReactNode } from 'react'
+import useStore from '@/store/useStore'
 import { openGlbFile, loadDemoModel } from '@/features/model-io/openGlbFile'
 import pkg from '../../package.json'
 
-// Section More de la barre latérale (E19-05) : actions secondaires — ouvrir
-// un modèle, infos du modèle chargé (métadonnées scène du pipeline),
-// raccourcis clavier (E19-07) et à-propos/version.
+// Section More de la barre latérale (E19-05) : actions secondaires — ouvrir un
+// modèle, infos du modèle chargé (métadonnées scène du pipeline), raccourcis
+// clavier (E19-07) et à-propos/version.
 
-function Row({ label, value }) {
+function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="info-row">
       <dt>{label}</dt>
@@ -22,7 +23,7 @@ export default function MoreSection() {
   const nodeCount = useStore((state) => Object.keys(state.nodes).length)
   const layerCount = useStore((state) => Object.keys(state.layers).length)
   const setShortcutsOpen = useStore((state) => state.setShortcutsOpen)
-  const fileInputRef = useRef(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const model = metadata?.model
 
   return (
@@ -33,12 +34,12 @@ export default function MoreSection() {
         accept=".glb"
         hidden
         onChange={(event) => {
-          openGlbFile(event.target.files?.[0])
+          void openGlbFile(event.target.files?.[0])
           event.target.value = ''
         }}
       />
       <button onClick={() => fileInputRef.current?.click()}>Ouvrir un GLB…</button>
-      <button className="secondary" onClick={loadDemoModel}>
+      <button className="secondary" onClick={() => void loadDemoModel()}>
         Modèle de démo
       </button>
       <button className="secondary" onClick={() => setShortcutsOpen(true)}>
@@ -52,7 +53,7 @@ export default function MoreSection() {
           <Row label="Objets" value={nodeCount} />
           <Row label="Zones" value={model?.zones?.join(', ')} />
           <Row label="Niveaux" value={model?.levels?.join(', ')} />
-          <Row label="Schéma" value={model?.version} />
+          <Row label="Schéma" value={model?.version as ReactNode} />
         </dl>
       ) : (
         <p className="edit-hint">Aucun modèle chargé.</p>

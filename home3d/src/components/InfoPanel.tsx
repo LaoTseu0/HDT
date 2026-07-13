@@ -1,13 +1,15 @@
-import useStore from '../store/useStore.js'
+import type { ReactNode } from 'react'
+import useStore from '@/store/useStore'
 import { nodeName, subtypeLabel } from '@/core/naming'
-import ObjectInspector from './ObjectInspector.jsx'
+import ObjectInspector from './ObjectInspector'
+import type { NodeExtras } from '@/types'
 
-// Panneau Info de l'objet sélectionné — détaché à droite (rectification PO
-// E19, 2026-07-07) et COMMUN aux deux origines : un objet importé de SketchUp
-// y montre ses extras formatés en lecture seule (E6-02), un objet créé in-app
-// y montre son inspector éditable (ObjectInspector, ex-EditBar).
+// Panneau Info de l'objet sélectionné — détaché à droite (rectification PO E19,
+// 2026-07-07) et COMMUN aux deux origines : un objet importé de SketchUp y montre
+// ses extras formatés en lecture seule (E6-02), un objet créé in-app y montre son
+// inspector éditable (ObjectInspector, ex-EditBar).
 
-const LEVEL_LABELS = {
+const LEVEL_LABELS: Record<string, string> = {
   ss: 'Sous-sol',
   rdc: 'Rez-de-chaussée',
   r1: 'R+1',
@@ -16,9 +18,9 @@ const LEVEL_LABELS = {
   ext: 'Extérieur',
 }
 
-function formatDims(dims) {
+function formatDims(dims: unknown): string | null {
   if (!dims || typeof dims !== 'object') return null
-  const parts = Object.entries(dims).map(([key, value]) => {
+  const parts = Object.entries(dims as Record<string, unknown>).map(([key, value]) => {
     // Clés de la forme `thickness_m` → « thickness 0.2 m ».
     const metric = key.endsWith('_m')
     return `${key.replace(/_m$/, '').replaceAll('_', ' ')} : ${value}${metric ? ' m' : ''}`
@@ -30,14 +32,14 @@ function formatDims(dims) {
 // (extras.subtypeLabel), sinon recalcul depuis le vocabulaire (GLB traité avant
 // E20-02), sinon le segment brut humanisé — suffixé « hors vocabulaire » pour
 // signaler un type libre (vocabulaire ouvert, jamais bloquant).
-function formatSubtype(extras) {
+function formatSubtype(extras: NodeExtras): string | null {
   if (!extras.type) return null
   const label = extras.subtypeLabel ?? subtypeLabel(extras.layer, extras.type)
   if (label) return label
   return `${extras.type.replaceAll('_', ' ')} (hors vocabulaire)`
 }
 
-function Row({ label, value }) {
+function Row({ label, value }: { label: string; value: ReactNode }) {
   const empty = value == null || value === ''
   return (
     <div className={empty ? 'info-row empty' : 'info-row'}>
@@ -52,7 +54,9 @@ export default function InfoPanel() {
   const nodes = useStore((state) => state.nodes)
   const layers = useStore((state) => state.layers)
   const selectNode = useStore((state) => state.selectNode)
-  const appObject = useStore((state) => state.objects[state.selectedNode])
+  const appObject = useStore((state) =>
+    state.selectedNode ? state.objects[state.selectedNode] : undefined
+  )
 
   if (!selectedNode) return null
   const extras = nodes[selectedNode]
@@ -78,10 +82,16 @@ export default function InfoPanel() {
         <ObjectInspector obj={appObject} />
       ) : extras ? (
         <dl className="info-rows">
-          <Row label="Calque" value={layers[extras.layer]?.label ?? extras.layer} />
+          <Row
+            label="Calque"
+            value={(extras.layer && layers[extras.layer]?.label) ?? extras.layer}
+          />
           <Row label="Type" value={formatSubtype(extras)} />
           <Row label="Zone" value={extras.zone} />
-          <Row label="Niveau" value={LEVEL_LABELS[extras.level] ?? extras.level} />
+          <Row
+            label="Niveau"
+            value={(extras.level && LEVEL_LABELS[extras.level]) ?? extras.level}
+          />
           <Row
             label="Index"
             value={extras.index != null ? String(extras.index).padStart(3, '0') : null}
@@ -92,8 +102,8 @@ export default function InfoPanel() {
         </dl>
       ) : (
         <p className="info-unclassified">
-          Objet sans métadonnées (calque « Non classé ») : fichier non passé
-          par le pipeline pour ce node.
+          Objet sans métadonnées (calque « Non classé ») : fichier non passé par le
+          pipeline pour ce node.
         </p>
       )}
     </aside>

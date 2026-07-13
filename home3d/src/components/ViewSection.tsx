@@ -1,11 +1,10 @@
-import useStore from '../store/useStore.js'
+import useStore from '@/store/useStore'
 import useFullscreen from '@/hooks/useFullscreen'
 
 // Section Vue de la barre latérale (E19-04) : bascule Orbite/Visite (E17-01),
-// recentrage caméra (E4-03), FOV du mode visite (E17-04/09 gelés — seul
-// réglage exposé), plein écran in-navigateur (E17-11, issue #23) et overlay
-// perf dev (E8-01).
-
+// recentrage caméra (E4-03), FOV du mode visite (E17-04/09 gelés — seul réglage
+// exposé), plein écran in-navigateur (E17-11, issue #23) et overlay perf dev
+// (E8-01).
 export default function ViewSection() {
   const glb = useStore((state) => state.glb)
   const viewMode = useStore((state) => state.viewMode)
@@ -18,8 +17,7 @@ export default function ViewSection() {
   const togglePerf = useStore((state) => state.togglePerf)
 
   // E17-11 : plein écran navigateur (hook partagé avec le bouton de visite).
-  const { supported: fsSupported, fullscreen, toggle: toggleFullscreen } =
-    useFullscreen()
+  const { supported: fsSupported, fullscreen, toggle: toggleFullscreen } = useFullscreen()
 
   return (
     <>
