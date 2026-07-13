@@ -1,5 +1,5 @@
 import useStore from '../store/useStore.js'
-import { nodeName, subtypeLabel } from '../lib/naming.js'
+import { nodeName, subtypeLabel } from '@/core/naming'
 import ObjectInspector from './ObjectInspector.jsx'
 
 // Panneau Info de l'objet sélectionné — détaché à droite (rectification PO

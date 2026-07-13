@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
-import { deformHandles } from '../lib/editRegistry.js'
-import { frameOfObjectPlane } from '../lib/workPlanes.js'
-import { axisColorForDir } from '../lib/snapping.js'
-import { worldPerPixel } from '../lib/snapRefs.js'
+import { deformHandles } from '@/features/edit/registry'
+import { frameOfObjectPlane } from '@/core/workPlanes'
+import { axisColorForDir } from '@/core/snapping'
+import { worldPerPixel } from '@/core/snapRefs'
 
 // Poignées de déformation paramétrique (E22-01) : l'objet app sélectionné
 // (mode édition, outil Sélection) affiche des poignées de face ; les tirer

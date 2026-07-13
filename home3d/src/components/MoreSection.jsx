@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import useStore from '../store/useStore.js'
-import { openGlbFile, loadDemoModel } from '../lib/openGlbFile.js'
+import { openGlbFile, loadDemoModel } from '@/features/model-io/openGlbFile'
 import pkg from '../../package.json'
 
 // Section More de la barre latérale (E19-05) : actions secondaires — ouvrir

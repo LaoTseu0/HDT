@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import useStore from '../store/useStore.js'
-import { subtypesOf } from '../lib/naming.js'
+import { subtypesOf } from '@/core/naming'
 
 // Section Calques de la barre latérale (E19-02, ex-panneau flottant E5-01 →
 // E5-04) : liste label + pastille couleur issus des extras scène, toggle

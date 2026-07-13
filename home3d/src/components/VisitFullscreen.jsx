@@ -1,5 +1,5 @@
 import useStore from '../store/useStore.js'
-import useFullscreen from '../lib/useFullscreen.js'
+import useFullscreen from '@/hooks/useFullscreen.js'
 
 // E17-11 (issue #23) : bouton ⛶ flottant dans l'UI du mode visite. Sur mobile,
 // il masque la barre d'URL du navigateur pour une immersion type lecteur média.

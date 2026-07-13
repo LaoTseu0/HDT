@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import useStore, { useTemporal } from '../store/useStore.js'
-import { buildEditedGLB, downloadGLB } from '../lib/exportGLB.js'
-import { OPENING_PRESETS, DOOR_PRESETS } from '../lib/opening.js'
-import { ELEC_COMPONENTS, ELEC_KINDS } from '../lib/elec.js'
-import { JOINERY_VARIANTS, JOINERY_VARIANT_KEYS } from '../lib/joinery.js'
-import { CABLE_SECTIONS, CABLE_SECTION_KEYS } from '../lib/cable.js'
-import { PIPE_SECTIONS, PIPE_SECTION_KEYS } from '../lib/plumbing.js'
+import { buildEditedGLB, downloadGLB } from '@/features/model-io/exportGLB'
+import { OPENING_PRESETS, DOOR_PRESETS } from '@/features/openings/opening'
+import { ELEC_COMPONENTS, ELEC_KINDS } from '@/features/mep/elec'
+import { JOINERY_VARIANTS, JOINERY_VARIANT_KEYS } from '@/features/openings/joinery'
+import { CABLE_SECTIONS, CABLE_SECTION_KEYS } from '@/features/mep/cable'
+import { PIPE_SECTIONS, PIPE_SECTION_KEYS } from '@/features/mep/plumbing'
 
 // Section Edit de la barre latérale (E19-03, ex-panneau flottant Slice 0) :
 // bascule View ↔ Edit, barre d'outils à ICÔNES + tooltips (directive IHM

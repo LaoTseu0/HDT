@@ -17,7 +17,7 @@ export default defineConfig({
   // Tests unitaires purs (vitest), colocalisés avec les modules. Environnement
   // node : la lib testée ne touche pas au DOM.
   test: {
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'script/**/*.test.mjs'],
     environment: 'node',
   },
 })

@@ -1,5 +1,5 @@
 import useStore from '../store/useStore.js'
-import useFullscreen from '../lib/useFullscreen.js'
+import useFullscreen from '@/hooks/useFullscreen.js'
 
 // Section Vue de la barre latérale (E19-04) : bascule Orbite/Visite (E17-01),
 // recentrage caméra (E4-03), FOV du mode visite (E17-04/09 gelés — seul

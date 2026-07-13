@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import useStore from '../store/useStore.js'
-import { isOpeningKind } from '../lib/opening.js'
+import { isOpeningKind } from '@/features/openings/opening'
 import {
   openingCutBox,
   cutWallGeometry,
@@ -8,7 +8,7 @@ import {
   markPristine,
   applyCut,
   restoreAll,
-} from '../lib/csg.js'
+} from '@/features/openings/csg'
 
 // Perçage CSG des murs par les ouvertures (E14-02, cf. docs/edit-mode-design § 5.4).
 // Vit dans le Canvas, actif en vue COMME en édition (le trou fait partie du

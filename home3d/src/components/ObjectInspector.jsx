@@ -1,24 +1,24 @@
 import { useState } from 'react'
 import useStore from '../store/useStore.js'
-import { LEVELS, subtypesOf, normalizeType } from '../lib/naming.js'
-import { WINDOW_KIND, isOpeningKind } from '../lib/opening.js'
-import { isElecKind } from '../lib/elec.js'
+import { LEVELS, subtypesOf, normalizeType } from '@/core/naming'
+import { WINDOW_KIND, isOpeningKind } from '@/features/openings/opening'
+import { isElecKind } from '@/features/mep/elec'
 import {
   JOINERY_KIND,
   DOOR_LEAF_KIND,
   JOINERY_VARIANTS,
   JOINERY_VARIANT_KEYS,
-} from '../lib/joinery.js'
-import { CABLE_SECTIONS, CABLE_SECTION_KEYS, CABLE_KIND } from '../lib/cable.js'
+} from '@/features/openings/joinery'
+import { CABLE_SECTIONS, CABLE_SECTION_KEYS, CABLE_KIND } from '@/features/mep/cable'
 import {
   PIPE_SECTIONS,
   PIPE_SECTION_KEYS,
   PIPE_KIND,
   pipeLength,
   MAX_PENTE_PCT,
-} from '../lib/plumbing.js'
-import { pathLength } from '../lib/routing.js'
-import { VALVE_KIND } from '../lib/valve.js'
+} from '@/features/mep/plumbing'
+import { pathLength } from '@/features/mep/routing'
+import { VALVE_KIND } from '@/features/mep/valve'
 
 // Inspector éditable de l'objet app sélectionné (E12-01/E13-04), affiché dans
 // le panneau Info détaché à droite — le MÊME panneau que les infos des objets

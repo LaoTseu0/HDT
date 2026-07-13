@@ -2,8 +2,8 @@ import { useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import useStore from '../store/useStore.js'
-import { extractModelData, parseGLB, PipelineError } from '../lib/loadModel.js'
-import { applyAppearance, isChainVisible } from '../lib/appearance.js'
+import { extractModelData, parseGLB, PipelineError } from '@/features/model-io/loadModel'
+import { applyAppearance, isChainVisible } from '@/features/layers/appearance'
 
 // Rendu du GLB chargé + parse des fichiers déposés (E3-03 → E3-06),
 // sélection au clic (E6-01, E6-03), survol (E6-04) et application de

@@ -1,24 +1,24 @@
 import { create } from 'zustand'
 import { useStore as useZustandStore } from 'zustand'
 import { temporal } from 'zundo'
-import { rectPayloadFromDraft, MIN_SIZE } from '../lib/sketchRect.js'
-import { circlePayloadFromDraft } from '../lib/sketchCircle.js'
-import { arcPayloadFromDraft, radiusOf, angleOf, DEG2RAD } from '../lib/sketchArc.js'
+import { rectPayloadFromDraft, MIN_SIZE } from '@/features/sketch/sketchRect'
+import { circlePayloadFromDraft } from '@/features/sketch/sketchCircle'
+import { arcPayloadFromDraft, radiusOf, angleOf, DEG2RAD } from '@/features/sketch/sketchArc'
 import {
   parseVcb,
   applyVcbToDraft,
   parseVcbRadius,
   applyVcbRadiusToDraft,
   parseVcbAngle,
-} from '../lib/vcb.js'
-import { kindNaming } from '../lib/editRegistry.js'
-import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '../lib/naming.js'
-import { DEFAULT_OPENING_PRESET, DEFAULT_DOOR_PRESET } from '../lib/opening.js'
-import { DEFAULT_ELEC_KIND } from '../lib/elec.js'
-import { DEFAULT_JOINERY_VARIANT } from '../lib/joinery.js'
-import { cablePayloadFromPath, DEFAULT_CABLE_SECTION } from '../lib/cable.js'
-import { pipePayloadFromPath, DEFAULT_PIPE_SECTION } from '../lib/plumbing.js'
-import { splitPipeAt, isValvablePipe } from '../lib/valve.js'
+} from '@/features/sketch/vcb'
+import { kindNaming } from '@/features/edit/registry'
+import { nextIndex, DEFAULT_ZONE, DEFAULT_LEVEL } from '@/core/naming'
+import { DEFAULT_OPENING_PRESET, DEFAULT_DOOR_PRESET } from '@/features/openings/opening'
+import { DEFAULT_ELEC_KIND } from '@/features/mep/elec'
+import { DEFAULT_JOINERY_VARIANT } from '@/features/openings/joinery'
+import { cablePayloadFromPath, DEFAULT_CABLE_SECTION } from '@/features/mep/cable'
+import { pipePayloadFromPath, DEFAULT_PIPE_SECTION } from '@/features/mep/plumbing'
+import { splitPipeAt, isValvablePipe } from '@/features/mep/valve'
 
 // Id interne STABLE d'un objet app (clé du map `objects`, jamais affichée). Le
 // node name conforme (système__type__zone__niveau__index) en est DÉCOUPLÉ et

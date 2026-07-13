@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import useStore from '../store/useStore.js'
-import { openGlbFile, loadDemoModel } from '../lib/openGlbFile.js'
+import { openGlbFile, loadDemoModel } from '@/features/model-io/openGlbFile'
 
 // Chargement d'un GLB par drag & drop (E3-01) ou file picker (E3-02),
 // avec feedback de chargement et erreurs affichées dans l'UI (E3-05).

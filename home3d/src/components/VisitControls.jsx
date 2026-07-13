@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
 import useStore from '../store/useStore.js'
-import { touchInput, gamepadInput, clampStick } from '../lib/visitInput.js'
+import { touchInput, gamepadInput, clampStick } from '@/features/visit/visitInput'
 
 // E17 — Mode visite, Niveau 1 (« vol libre »).
 // On regarde à la souris (PointerLockControls) à hauteur d'œil et on se

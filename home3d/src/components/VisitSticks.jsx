@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import useStore from '../store/useStore.js'
-import { touchInput, stickFromPointer, setStick } from '../lib/visitInput.js'
+import { touchInput, stickFromPointer, setStick } from '@/features/visit/visitInput'
 
 // E17-10 : joysticks virtuels du mode visite, affichés sur appareil tactile.
 // Gauche = se déplacer, droit = regarder. Chaque stick capture SON pointeur
