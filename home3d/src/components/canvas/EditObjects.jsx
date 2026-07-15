@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import useStore from '../../store/useStore.js'
 import { generateObject, disposeObject, referencePoints } from '@/features/edit/registry'
+import { pickPushAxis } from '@/features/edit/pushpull'
 import { ensureBoundsTree } from '@/core/bvh'
 import {
   groundFrame,
@@ -89,49 +90,6 @@ function liftedAlongNormal(world, normal, eps) {
     world[1] + normal[1] * eps,
     world[2] + normal[2] * eps,
   ]
-}
-
-const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-
-// Face cliquée d'une forme → axe du repère (u/v/normal) le plus aligné avec sa
-// normale monde, et de quel côté (signe). Détermine quelle cote le Push/Pull
-// modifie (largeur/profondeur/hauteur) et l'ancrage de la face opposée (E12-08).
-function pickPushAxis(obj, event) {
-  const u = obj.plane?.u ?? [1, 0, 0]
-  const v = obj.plane?.v ?? [0, 0, -1]
-  const n = obj.plane?.normal ?? [0, 1, 0]
-  // Face touchée : `event.face` direct, sinon 1re intersection portant une face
-  // (robuste si une géométrie sans face traîne devant). Défaut = axe normal.
-  let fn = n
-  const faceHit = event.face ? event : event.intersections?.find((i) => i.face)
-  if (faceHit?.face && faceHit.object) {
-    const wn = faceHit.face.normal
-      .clone()
-      .transformDirection(faceHit.object.matrixWorld)
-      .normalize()
-    fn = [wn.x, wn.y, wn.z]
-  }
-  // L'arc n'a pas de cotes u/v (courbe ouverte) : seule l'extrusion le long de la
-  // normale (mur courbe) a un sens → on restreint le Push/Pull à `hauteur_m`.
-  const axes =
-    obj.kind === 'sketch.arc'
-      ? [{ vec: n, key: 'hauteur_m', anchored: true }]
-      : [
-          { vec: u, key: 'largeur_m', anchored: false },
-          { vec: v, key: 'profondeur_m', anchored: false },
-          { vec: n, key: 'hauteur_m', anchored: true },
-        ]
-  let best = axes[axes.length - 1]
-  let bestDot = 0
-  for (const a of axes) {
-    const d = dot3(fn, a.vec)
-    if (Math.abs(d) > Math.abs(bestDot)) {
-      bestDot = d
-      best = a
-    }
-  }
-  const sign = bestDot >= 0 ? 1 : -1
-  return { ...best, sign, outward: best.vec.map((c) => c * sign) }
 }
 
 // Plan d'esquisse contextuel + intersection modèle à partir d'un évènement reçu
