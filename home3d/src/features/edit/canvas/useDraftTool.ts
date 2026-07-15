@@ -1,9 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
+import type { Object3D } from 'three'
 import { useThree } from '@react-three/fiber'
+import type { ThreeEvent } from '@react-three/fiber'
 import useStore from '@/store/useStore'
 import { probeSketch, computeSnap } from '@/features/edit/sketchSnap'
 import { worldToPlane, planeToWorld } from '@/core/workPlanes'
+import type { AnyCamera } from '@/core/snapRefs'
 import { angleOf, nextSweep } from '@/features/sketch/sketchArc'
 import {
   openingPayload,
@@ -14,14 +17,54 @@ import {
   DEFAULT_DOOR_PRESET,
 } from '@/features/openings/opening'
 import { elecPayload } from '@/features/mep/elec'
+import type {
+  Vec2,
+  Vec3,
+  WorkFrame,
+  Snap,
+  Draft,
+  RectDraft,
+  CircleDraft,
+  ArcDraft,
+  RunDraft,
+  NodesTable,
+  ObjectsTable,
+} from '@/types'
+import type { ActiveTool } from '@/store/types'
 
-// Moteur d'interaction du tracé (étape C2b du découpage d'EditObjects). Encapsule
-// tous les handlers pointeur de la surface d'esquisse + l'état de survol, en
-// s'appuyant sur le moteur d'accroche pur (sketchSnap). Les ACTIONS du store sont
+// Moteur d'interaction du tracé (étape C2b du découpage d'EditObjects, typé en F2).
+// Encapsule tous les handlers pointeur de la surface d'esquisse + l'état de survol,
+// en s'appuyant sur le moteur d'accroche pur (sketchSnap). Les ACTIONS du store sont
 // prises par sélecteur (références stables) ; seule la LECTURE de `draft` reste en
 // getState() — un handler doit lire le tracé COURANT, pas une valeur figée par la
 // closure de rendu. Retourne l'état de survol + les handlers à câbler sur le mesh.
-export default function useDraftTool({ tool, glbScene, nodes, objects }) {
+//
+// NB typage (F2) : `Draft` est une union discriminée par `tool`. Les invariants
+// « resolveOnLockedFrame ne reçoit jamais un RunDraft », « en branche cable/pipe le
+// draft est un RunDraft », etc. sont garantis au RUNTIME par la structure des
+// handlers mais non exprimables dans le type → assertions ciblées (aucun impact
+// runtime, code identique).
+
+/** Aperçu du plan/accroche au survol (hors tracé actif). */
+interface Hover {
+  point: Vec3
+  u: Vec3
+  v: Vec3
+  normal: Vec3
+  snap: Snap | null
+}
+
+/** Draft posé sur un plan verrouillé (jamais un run). */
+type LockedDraft = RectDraft | CircleDraft | ArcDraft
+
+interface UseDraftToolArgs {
+  tool: ActiveTool
+  glbScene: Object3D | null | undefined
+  nodes: NodesTable
+  objects: ObjectsTable
+}
+
+export default function useDraftTool({ tool, glbScene, nodes, objects }: UseDraftToolArgs) {
   const setDraft = useStore((state) => state.setDraft)
   const commitDraft = useStore((state) => state.commitDraft)
   const createObject = useStore((state) => state.createObject)
@@ -30,14 +73,14 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
   const openingPreset = useStore((state) => state.openingPreset)
   const doorPreset = useStore((state) => state.doorPreset)
   const elecComponent = useStore((state) => state.elecComponent)
-  const [hover, setHover] = useState(null)
+  const [hover, setHover] = useState<Hover | null>(null)
   const drawing = useRef(false)
   const rc = useMemo(() => new THREE.Raycaster(), [])
-  const camera = useThree((state) => state.camera)
+  const camera = useThree((state) => state.camera) as AnyCamera
   const gl = useThree((state) => state.gl)
 
   // Point monde du rayon de l'évènement projeté sur un plan verrouillé.
-  const projectOnFrame = (event, frame) => {
+  const projectOnFrame = (event: ThreeEvent<PointerEvent>, frame: WorkFrame): Vec3 | null => {
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
       new THREE.Vector3(...frame.normal),
       new THREE.Vector3(...frame.origin)
@@ -46,7 +89,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     return event.ray.intersectPlane(plane, pt) ? [pt.x, pt.y, pt.z] : null
   }
 
-  const cursorOf = (event) => {
+  const cursorOf = (event: ThreeEvent<PointerEvent>) => {
     const rect = gl.domElement.getBoundingClientRect()
     return { rect, cursor: { x: event.clientX - rect.left, y: event.clientY - rect.top } }
   }
@@ -54,12 +97,13 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
   // Résout le point (s,t) accroché sur le plan VERROUILLÉ d'un tracé en cours, et
   // le balayage accumulé pour un arc en étape 'sweep'. Mutualisé entre le
   // déplacement (move) et les clics intermédiaires de l'arc (down).
-  const resolveOnLockedFrame = (event, d) => {
+  const resolveOnLockedFrame = (event: ThreeEvent<PointerEvent>, d: LockedDraft): Draft | null => {
     const { hit } = probeSketch(event, glbScene, rc, nodes)
     const { rect, cursor } = cursorOf(event)
     const freeWorld = projectOnFrame(event, d.frame)
     if (!freeWorld) return null
-    const ref = d.tool === 'arc' ? (d.stage === 'sweep' ? d.start : d.center) : d.start
+    const ref: Vec2 =
+      d.tool === 'arc' ? (d.stage === 'sweep' ? d.start! : d.center) : d.start
     const startWorld = planeToWorld(ref[0], ref[1], d.frame)
     const snap = computeSnap({
       hit,
@@ -75,9 +119,13 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     })
     const world = snap ? snap.point : freeWorld
     const [s, t] = worldToPlane(world, d.frame)
-    const patch = { ...d, current: [s, t], snap }
+    const patch = { ...d, current: [s, t] as Vec2, snap } as Draft
     if (d.tool === 'arc' && d.stage === 'sweep') {
-      patch.sweepRad = nextSweep(d.sweepRad || 0, d.startAngle, angleOf(d.center, [s, t]))
+      ;(patch as ArcDraft).sweepRad = nextSweep(
+        d.sweepRad || 0,
+        d.startAngle!,
+        angleOf(d.center, [s, t])
+      )
     }
     return patch
   }
@@ -86,15 +134,15 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
   // CONTEXTUEL frais (le run peut passer d'une face à l'autre, contrairement au plan
   // verrouillé d'un rectangle) avec accroche ; le dernier sommet posé sert de
   // référence d'inférence.
-  const resolveRunPoint = (event) => {
+  const resolveRunPoint = (event: ThreeEvent<PointerEvent>) => {
     const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
     const { rect, cursor } = cursorOf(event)
-    const contextWorld = projectOnFrame(event, frame) ?? [
+    const contextWorld: Vec3 = projectOnFrame(event, frame) ?? [
       event.point.x,
       event.point.y,
       event.point.z,
     ]
-    const d = useStore.getState().draft
+    const d = useStore.getState().draft as RunDraft | null
     const last = d?.points?.length ? d.points[d.points.length - 1] : null
     const snap = computeSnap({
       hit,
@@ -102,7 +150,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
       frame,
       drawing: !!d,
       freeWorld: contextWorld,
-      startWorld: last,
+      startWorld: last ?? null,
       cursor,
       camera,
       rect,
@@ -111,7 +159,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     return { world: snap?.point ?? contextWorld, frame, snap }
   }
 
-  const onPointerMove = (event) => {
+  const onPointerMove = (event: ThreeEvent<PointerEvent>) => {
     // E21-02 : Ctrl enfoncé = navigation caméra — on gèle le tracé/survol (masquer
     // l'aperçu évite un marqueur fantôme qui flotterait pendant l'orbite).
     if (event.ctrlKey) {
@@ -122,7 +170,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     // contextuel, avec aperçu du tronçon en cours dès qu'un premier sommet est posé.
     if (tool === 'cable' || tool === 'pipe') {
       const { world, frame, snap } = resolveRunPoint(event)
-      const d = useStore.getState().draft
+      const d = useStore.getState().draft as RunDraft | null
       if (d) setDraft({ ...d, current: world, frame, snap })
       else setHover({ point: world, u: frame.u, v: frame.v, normal: frame.normal, snap })
       return
@@ -130,14 +178,14 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     // Arc (multi-clics) : tant qu'un draft existe, suivre le curseur sans bouton
     // pressé (pas de drag) ; sinon retomber sur le survol comme les autres outils.
     if (tool === 'arc') {
-      const d = useStore.getState().draft
+      const d = useStore.getState().draft as LockedDraft | null
       if (d) {
         const patch = resolveOnLockedFrame(event, d)
         if (patch) setDraft(patch)
         return
       }
     } else if (drawing.current) {
-      const d = useStore.getState().draft
+      const d = useStore.getState().draft as LockedDraft | null
       if (!d) return
       const patch = resolveOnLockedFrame(event, d)
       if (patch) setDraft(patch)
@@ -147,7 +195,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     // contextuel centré sur l'accroche le cas échéant.
     const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
     const { rect, cursor } = cursorOf(event)
-    const contextWorld = projectOnFrame(event, frame) ?? [
+    const contextWorld: Vec3 = projectOnFrame(event, frame) ?? [
       event.point.x,
       event.point.y,
       event.point.z,
@@ -168,12 +216,12 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     setHover({ point, u: frame.u, v: frame.v, normal: frame.normal, snap })
   }
 
-  const onPointerDown = (event) => {
+  const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
     if (event.ctrlKey) return // E21-02 : Ctrl+clic = navigation pure, pas de tracé
     event.stopPropagation()
     const { frame, hit } = probeSketch(event, glbScene, rc, nodes)
     const { rect, cursor } = cursorOf(event)
-    const contextWorld = projectOnFrame(event, frame) ?? [
+    const contextWorld: Vec3 = projectOnFrame(event, frame) ?? [
       event.point.x,
       event.point.y,
       event.point.z,
@@ -227,7 +275,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     // (cf. onDoubleClick / commitDraft). Sommets en MONDE (plan contextuel frais).
     if (tool === 'cable' || tool === 'pipe') {
       const { world, frame, snap } = resolveRunPoint(event)
-      const d = useStore.getState().draft
+      const d = useStore.getState().draft as RunDraft | null
       if (!d) {
         setHover(null)
         setVcbText('')
@@ -241,7 +289,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     // Arc : tracé en 3 CLICS (pas de glissé). 1er clic = centre ; clics suivants
     // = verrouille rayon (étape 'radius'→'sweep') puis fixe le balayage (commit).
     if (tool === 'arc') {
-      const d = useStore.getState().draft
+      const d = useStore.getState().draft as LockedDraft | null
       if (!d) {
         setHover(null)
         setVcbText('')
@@ -258,8 +306,8 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
     setHover(null) // masque l'aperçu de survol pendant le tracé
     setVcbText('') // nouvelle saisie VCB pour ce tracé
     // `tool` distingue rectangle (2 coins) et cercle (centre + rayon) au commit.
-    setDraft({ start: [s, t], current: [s, t], frame, snap, tool })
-    event.target.setPointerCapture?.(event.pointerId)
+    setDraft({ start: [s, t], current: [s, t], frame, snap, tool } as Draft)
+    ;(event.target as Element).setPointerCapture?.(event.pointerId)
   }
 
   // Relâché : committe le tracé via le store (gère cote VCB éventuelle + garde
@@ -272,7 +320,7 @@ export default function useDraftTool({ tool, glbScene, nodes, objects }) {
 
   // Run routé : double-clic = fin du routage (les deux clics ajoutent un sommet
   // chacun, le doublon final est fusionné par la déduplication de commitRun).
-  const onDoubleClick = (event) => {
+  const onDoubleClick = (event: ThreeEvent<MouseEvent>) => {
     if (event.ctrlKey) return // E21-02 : verrou d'action sous Ctrl
     if (tool !== 'cable' && tool !== 'pipe') return
     event.stopPropagation()

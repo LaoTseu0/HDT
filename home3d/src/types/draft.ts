@@ -79,4 +79,6 @@ export interface ExtrudePreview {
   paramKey: string
   value: number
   origin?: Vec3
+  /** Accroche courante du drag (E22-03) — dessinée par un SnapMarker. */
+  snap?: Snap | null
 }
