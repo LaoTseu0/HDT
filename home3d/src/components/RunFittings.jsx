@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import useStore from '../store/useStore.js'
-import { PIPE_KIND, slopedPoints } from '../lib/plumbing.js'
-import { detectFittings, fittingMesh } from '../lib/fittings.js'
-import { VALVE_KIND, dropFittingsAtValves } from '../lib/valve.js'
+import { PIPE_KIND, slopedPoints } from '@/features/mep/plumbing'
+import { detectFittings, fittingMesh } from '@/features/mep/fittings'
+import { VALVE_KIND, dropFittingsAtValves } from '@/features/mep/valve'
 
 // Raccords automatiques aux jonctions de tuyaux (E16-03, cf. lib/fittings).
 // Vit dans le Canvas, actif en vue COMME en édition (le raccord fait partie du

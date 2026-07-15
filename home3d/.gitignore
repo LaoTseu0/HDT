@@ -23,6 +23,10 @@ public/models/*.glb
 public/draco
 public/basis
 
+# Outillage local (IA / analyse) — non versionné
+.claude/
+.ua/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

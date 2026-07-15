@@ -2,17 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import useStore from '../store/useStore.js'
-import { generateObject, disposeObject, referencePoints } from '../lib/editRegistry.js'
-import { ensureBoundsTree } from '../lib/bvh.js'
+import { generateObject, disposeObject, referencePoints } from '@/features/edit/registry'
+import { ensureBoundsTree } from '@/core/bvh'
 import {
   groundFrame,
   faceFrame,
   worldToPlane,
   planeToWorld,
-} from '../lib/workPlanes.js'
-import useAxisDrag from '../lib/useAxisDrag.js'
+} from '@/core/workPlanes'
+import useAxisDrag from '@/features/edit/useAxisDrag.js'
 import DeformHandles from './DeformHandles.jsx'
-import { angleOf, nextSweep } from '../lib/sketchArc.js'
+import { angleOf, nextSweep } from '@/features/sketch/sketchArc'
 import {
   openingPayload,
   OPENING_PRESETS,
@@ -21,11 +21,11 @@ import {
   DOOR_PRESETS,
   DEFAULT_DOOR_PRESET,
   isOpeningKind,
-} from '../lib/opening.js'
-import { elecPayload } from '../lib/elec.js'
-import { isValvablePipe } from '../lib/valve.js'
-import { joineryPayloadFromOpening, findJoinery } from '../lib/joinery.js'
-import { nodeName } from '../lib/naming.js'
+} from '@/features/openings/opening'
+import { elecPayload } from '@/features/mep/elec'
+import { isValvablePipe } from '@/features/mep/valve'
+import { joineryPayloadFromOpening, findJoinery } from '@/features/openings/joinery'
+import { nodeName } from '@/core/naming'
 import {
   midpoint,
   closestPointOnSegment,
@@ -36,9 +36,9 @@ import {
   SNAP_COLORS,
   SNAP_THRESHOLD_PX,
   GRID_STEP_M,
-} from '../lib/snapping.js'
-import { worldToScreen, meshRefsNear } from '../lib/snapRefs.js'
-import { isChainVisible } from '../lib/appearance.js'
+} from '@/core/snapping'
+import { worldToScreen, meshRefsNear } from '@/core/snapRefs'
+import { isChainVisible } from '@/features/layers/appearance'
 
 // Rendu des objets créés in-app (Edit mode, Slice 0) + outils de tracé sur le
 // PLAN D'ESQUISSE CONTEXTUEL (E12-02, façon SketchUp), Push/Pull (E12-08) et
