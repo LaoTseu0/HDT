@@ -1,3 +1,4 @@
+import type { Object3D, Raycaster, Ray } from 'three'
 import { faceFrame, groundFrame, worldToPlane, planeToWorld } from '@/core/workPlanes'
 import {
   midpoint,
@@ -10,38 +11,65 @@ import {
   GRID_STEP_M,
 } from '@/core/snapping'
 import { worldToScreen, meshRefsNear } from '@/core/snapRefs'
+import type { AnyCamera, ViewportRect, MeshHit } from '@/core/snapRefs'
 import { referencePoints } from '@/features/edit/registry'
 import { isChainVisible } from '@/features/layers/appearance'
+import type {
+  Vec3,
+  WorkFrame,
+  Snap,
+  SnapCandidate,
+  InferenceLine,
+  NodesTable,
+  ObjectsTable,
+} from '@/types'
 
-// Moteur d'accroche du tracé (étape C2a du découpage d'EditObjects). Fonctions
-// PURES : la caméra, le raycaster (`rc`), la scène GLB et le rect du canvas sont
-// passés en arguments — pas de dépendance à React/R3F. `probeSketch` déduit le
+// Moteur d'accroche du tracé (étape C2a du découpage d'EditObjects, typé en F1).
+// Fonctions PURES : la caméra, le raycaster (`rc`), la scène GLB et le rect du canvas
+// sont passés en arguments — pas de dépendance à React/R3F. `probeSketch` déduit le
 // plan d'esquisse contextuel + l'intersection modèle ; `computeSnap` en dérive la
 // meilleure accroche (points/arêtes/axes/intersections/grille, E12-03).
 
 const INFER_SOURCES = 12 // # de références les plus proches alimentant axes/intersections
-// Seuil d'accroche (px) et pas de grille : SNAP_THRESHOLD_PX / GRID_STEP_M,
-// partagés avec le drag sur axe (core/snapping, E22-03).
+
+/** Évènement pointeur réduit aux champs utilisés (rayon monde + distance au quad). */
+interface RayEvent {
+  ray: Ray
+  distance: number
+}
+
+/** Résultat de `probeSketch` : plan d'esquisse actif + éventuel hit mesh (accroche). */
+export interface SketchProbe {
+  frame: WorkFrame
+  hit: MeshHit | null
+}
 
 // Plan d'esquisse contextuel + intersection modèle à partir d'un évènement reçu
 // sur le quad de sol : SOL par défaut, ou la FACE d'un mesh si le rayon en touche
 // une plus près. Le `hit` retourné alimente le snapping (E12-03).
-export function probeSketch(event, glbScene, rc, nodes) {
+export function probeSketch(
+  event: RayEvent,
+  glbScene: Object3D | null | undefined,
+  rc: Raycaster,
+  nodes: NodesTable
+): SketchProbe {
   if (glbScene) {
     rc.set(event.ray.origin, event.ray.direction)
     const hits = rc
       .intersectObject(glbScene, true)
       .filter((h) => h.face && isChainVisible(h.object))
-    if (hits.length && hits[0].distance < event.distance - 1e-4) {
-      const h = hits[0]
-      const n = h.face.normal.clone().transformDirection(h.object.matrixWorld).normalize()
+    const h = hits[0]
+    if (h && h.distance < event.distance - 1e-4) {
+      const n = h.face!.normal.clone().transformDirection(h.object.matrixWorld).normalize()
       // Remonter au node porteur des extras (liaison faceOf, utile en Slice 1).
-      let o = h.object
+      let o: Object3D | null = h.object
       while (o && !(o.name && nodes?.[o.name])) o = o.parent
       const faceOf = o?.name || h.object.name || undefined
       return {
         frame: faceFrame([h.point.x, h.point.y, h.point.z], [n.x, n.y, n.z], faceOf),
-        hit: h,
+        // Runtime : filtré aux hits porteurs de face → l'objet est un Mesh
+        // (MeshHit) ; le type Intersection ne peut pas l'exprimer sans assertion.
+        hit: h as unknown as MeshHit,
       }
     }
   }
@@ -52,22 +80,44 @@ export function probeSketch(event, glbScene, rc, nodes) {
 // CE plan : on y ramène toute accroche (sinon le marqueur 3D et le coin du
 // rectangle, reprojeté par worldToPlane, divergeraient). Une référence hors plan
 // donne ainsi un point ALIGNÉ sur le plan (sa « colonne »), pas une accroche hors-sol.
-function projectToPlane(p, frame) {
+function projectToPlane(p: Vec3, frame: WorkFrame): Vec3 {
   const o = frame.origin
   const n = frame.normal
   const d = (p[0] - o[0]) * n[0] + (p[1] - o[1]) * n[1] + (p[2] - o[2]) * n[2]
   return [p[0] - n[0] * d, p[1] - n[1] * d, p[2] - n[2] * d]
 }
 
+type ScoredCandidate = SnapCandidate & { d: number }
+
 // Les `k` candidats dont la projection écran est la plus proche du curseur (borne
 // le coût et le bruit des axes/intersections : O(k²) intersections au lieu de O(n²)).
-function nearestByScreen(points, cursor, camera, rect, k) {
-  const scored = points.map((p) => {
+function nearestByScreen(
+  points: SnapCandidate[],
+  cursor: { x: number; y: number },
+  camera: AnyCamera,
+  rect: ViewportRect,
+  k: number
+): ScoredCandidate[] {
+  const scored = points.map((p): ScoredCandidate => {
     const s = worldToScreen(p.point, camera, rect)
     return { ...p, sx: s.x, sy: s.y, d: Math.hypot(s.x - cursor.x, s.y - cursor.y) }
   })
   scored.sort((a, b) => a.d - b.d)
   return scored.slice(0, k)
+}
+
+/** Paramètres de `computeSnap` : contexte du plan + curseur + réglages. */
+export interface ComputeSnapArgs {
+  hit: MeshHit | null
+  objects: ObjectsTable
+  frame: WorkFrame
+  drawing: boolean
+  freeWorld: Vec3
+  startWorld: Vec3 | null
+  cursor: { x: number; y: number }
+  camera: AnyCamera
+  rect: ViewportRect
+  gridSnap: boolean
 }
 
 /**
@@ -78,7 +128,6 @@ function nearestByScreen(points, cursor, camera, rect, k) {
  *  - en cours de tracé seulement : ARÊTES (mesh proche), AXES (u/v du plan passant
  *    par une référence) et INTERSECTIONS de ces axes — les inférences linéaires ;
  *  - GRILLE du plan (si activée) — accroche de dernier recours.
- * @returns {{type, point, color?, lines?}|null}
  */
 export function computeSnap({
   hit,
@@ -91,16 +140,16 @@ export function computeSnap({
   camera,
   rect,
   gridSnap,
-}) {
-  const proj = (p) => projectToPlane(p, frame)
+}: ComputeSnapArgs): Snap | null {
+  const proj = (p: Vec3): Vec3 => projectToPlane(p, frame)
 
   // 1) Points précis (projetés sur le plan actif).
-  const points = []
-  let meshEdges = null // arêtes du mesh (projetées) — pour les candidats `edge`
+  const points: SnapCandidate[] = []
+  let meshEdges: [Vec3, Vec3][] | null = null // arêtes du mesh (projetées) — candidats `edge`
   if (hit) {
     const refs = meshRefsNear(hit, freeWorld, camera, rect)
     for (const v of refs.verts) points.push({ type: 'endpoint', point: proj(v) })
-    meshEdges = refs.edges.map(([a, b]) => [proj(a), proj(b)])
+    meshEdges = refs.edges.map(([a, b]): [Vec3, Vec3] => [proj(a), proj(b)])
     for (const [pa, pb] of meshEdges)
       points.push({ type: 'midpoint', point: midpoint(pa, pb) })
   }
@@ -111,7 +160,7 @@ export function computeSnap({
   // Le point de départ du tracé est lui aussi une référence d'inférence.
   if (drawing && startWorld) points.push({ type: 'endpoint', point: proj(startWorld) })
 
-  const candidates = [...points]
+  const candidates: SnapCandidate[] = [...points]
 
   if (drawing) {
     // 1b) Arêtes du mesh proche (point le plus proche du curseur libre).
@@ -123,11 +172,11 @@ export function computeSnap({
     const near = nearestByScreen(points, cursor, camera, rect, INFER_SOURCES)
     const uColor = axisColorForDir(frame.u)
     const vColor = axisColorForDir(frame.v)
-    const uLines = []
-    const vLines = []
+    const uLines: InferenceLine[] = []
+    const vLines: InferenceLine[] = []
     for (const p of near) {
-      const lu = { origin: p.point, dir: frame.u, color: uColor }
-      const lv = { origin: p.point, dir: frame.v, color: vColor }
+      const lu: InferenceLine = { origin: p.point, dir: frame.u, color: uColor }
+      const lv: InferenceLine = { origin: p.point, dir: frame.v, color: vColor }
       uLines.push(lu)
       vLines.push(lv)
       candidates.push(
