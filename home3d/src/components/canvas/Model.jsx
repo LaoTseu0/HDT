@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
-import useStore from '../store/useStore.js'
+import useStore from '../../store/useStore.js'
 import { extractModelData, parseGLB, PipelineError } from '@/features/model-io/loadModel'
 import { applyAppearance, isChainVisible } from '@/features/layers/appearance'
 

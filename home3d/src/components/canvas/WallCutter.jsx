@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import useStore from '../store/useStore.js'
+import useStore from '../../store/useStore.js'
 import { isOpeningKind } from '@/features/openings/opening'
 import {
   openingCutBox,

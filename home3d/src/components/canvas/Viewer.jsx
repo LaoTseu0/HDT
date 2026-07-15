@@ -7,7 +7,7 @@ import VisitControls from './VisitControls.jsx'
 import EditObjects from './EditObjects.jsx'
 import WallCutter from './WallCutter.jsx'
 import RunFittings from './RunFittings.jsx'
-import useStore from '../store/useStore.js'
+import useStore from '../../store/useStore.js'
 
 // E8-01 : overlay perf (draw calls, fps, mémoire GPU), dev uniquement,
 // toggle touche P. Chargé à la demande : `import.meta.env.DEV` étant

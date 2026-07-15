@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
-import useStore from '../store/useStore.js'
+import useStore from '../../store/useStore.js'
 import { generateObject, disposeObject, referencePoints } from '@/features/edit/registry'
 import { ensureBoundsTree } from '@/core/bvh'
 import {

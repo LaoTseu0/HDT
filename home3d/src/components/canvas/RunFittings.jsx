@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import useStore from '../store/useStore.js'
+import useStore from '../../store/useStore.js'
 import { PIPE_KIND, slopedPoints } from '@/features/mep/plumbing'
 import { detectFittings, fittingMesh } from '@/features/mep/fittings'
 import { VALVE_KIND, dropFittingsAtValves } from '@/features/mep/valve'

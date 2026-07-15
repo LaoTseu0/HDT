@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import useStore from '@/store/useStore'
 import { openGlbFile, loadDemoModel } from '@/features/model-io/openGlbFile'
-import pkg from '../../package.json'
+import pkg from '../../../package.json'
 
 // Section More de la barre latérale (E19-05) : actions secondaires — ouvrir un
 // modèle, infos du modèle chargé (métadonnées scène du pipeline), raccourcis
