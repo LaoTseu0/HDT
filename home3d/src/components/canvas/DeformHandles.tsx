@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
+import type { ThreeEvent } from '@react-three/fiber'
 import { deformHandles } from '@/features/edit/registry'
 import { frameOfObjectPlane } from '@/core/workPlanes'
 import { axisColorForDir } from '@/core/snapping'
 import { worldPerPixel } from '@/core/snapRefs'
+import type { AnyCamera } from '@/core/snapRefs'
+import type { DragSpec } from '@/features/edit/useAxisDrag'
+import type { AppObject, ExtrudePreview, Vec3 } from '@/types'
 
 // Poignées de déformation paramétrique (E22-01) : l'objet app sélectionné
 // (mode édition, outil Sélection) affiche des poignées de face ; les tirer
@@ -16,26 +20,30 @@ const HANDLE_PX = 11 // arête écran d'une poignée (px, ~constante au zoom)
 const HOVER_SCALE = 1.45 // grossissement au survol
 
 // Tampon réutilisé pour worldPerPixel (lib/snapRefs, point en tableau [x,y,z]).
-const _p = [0, 0, 0]
+const _p: Vec3 = [0, 0, 0]
 
-/**
- * @param {object} obj      objet app sélectionné (store.objects)
- * @param {object} preview  patch éphémère du drag en cours (store.extrude) —
- *                          les poignées suivent l'aperçu comme EditObject
- * @param {Function} onStartDrag  startDrag du moteur (lib/useAxisDrag)
- * @param {boolean} dragging      drag en cours (curseur)
- */
-export default function DeformHandles({ obj, preview, onStartDrag, dragging }) {
+interface DeformHandlesProps {
+  /** Objet app sélectionné (store.objects). */
+  obj: AppObject
+  /** Patch éphémère du drag en cours (store.extrude) — les poignées suivent l'aperçu. */
+  preview?: ExtrudePreview | null
+  /** startDrag du moteur (useAxisDrag). */
+  onStartDrag: (spec: DragSpec, event: ThreeEvent<PointerEvent>) => void
+  /** Drag en cours (curseur). */
+  dragging: boolean
+}
+
+export default function DeformHandles({ obj, preview, onStartDrag, dragging }: DeformHandlesProps) {
   // Même patch éphémère qu'EditObject : pendant le drag, les poignées suivent
   // la géométrie prévisualisée (cote + origine décalée), pas l'objet committé.
-  const effective = useMemo(
+  const effective = useMemo<AppObject>(
     () =>
       preview
-        ? {
+        ? ({
             ...obj,
             params: { ...obj.params, [preview.paramKey]: preview.value },
             plane: { ...obj.plane, origin: preview.origin },
-          }
+          } as AppObject)
         : obj,
     [obj, preview]
   )
@@ -53,8 +61,8 @@ export default function DeformHandles({ obj, preview, onStartDrag, dragging }) {
     return new THREE.Quaternion().setFromRotationMatrix(m)
   }, [effective.plane])
 
-  const [hovered, setHovered] = useState(null)
-  const refs = useRef({})
+  const [hovered, setHovered] = useState<string | null>(null)
+  const refs = useRef<Record<string, THREE.Mesh>>({})
 
   // Changer d'objet remet le survol à zéro (pas de curseur « collé ») — ajusté
   // pendant le rendu (pattern React), pas dans un effet.
@@ -82,7 +90,7 @@ export default function DeformHandles({ obj, preview, onStartDrag, dragging }) {
       _p[0] = mesh.position.x
       _p[1] = mesh.position.y
       _p[2] = mesh.position.z
-      const s = HANDLE_PX * worldPerPixel(_p, camera, size.height)
+      const s = HANDLE_PX * worldPerPixel(_p, camera as AnyCamera, size.height)
       mesh.scale.setScalar(hovered === h.key ? s * HOVER_SCALE : s)
     }
   })
@@ -93,7 +101,7 @@ export default function DeformHandles({ obj, preview, onStartDrag, dragging }) {
       {handles.map((h) => (
         <mesh
           key={h.key}
-          ref={(m) => {
+          ref={(m: THREE.Mesh | null) => {
             if (m) refs.current[h.key] = m
             else delete refs.current[h.key]
           }}
@@ -101,7 +109,7 @@ export default function DeformHandles({ obj, preview, onStartDrag, dragging }) {
           quaternion={quaternion}
           scale={0.0001} // taille réelle posée par useFrame (évite un flash 1 m)
           renderOrder={5}
-          onPointerDown={(event) => {
+          onPointerDown={(event: ThreeEvent<PointerEvent>) => {
             if (event.ctrlKey) return // E21-02 : verrou d'action sous Ctrl
             event.stopPropagation()
             onStartDrag(
@@ -117,7 +125,7 @@ export default function DeformHandles({ obj, preview, onStartDrag, dragging }) {
               event
             )
           }}
-          onPointerOver={(event) => {
+          onPointerOver={(event: ThreeEvent<PointerEvent>) => {
             if (event.ctrlKey) return
             event.stopPropagation()
             setHovered(h.key)
