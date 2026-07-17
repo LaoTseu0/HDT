@@ -88,6 +88,7 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-11 | **E22-03 livré** : accroche pendant le drag d'une poignée / du Push/Pull (références du modèle et des autres objets app projetées sur l'axe du drag, marqueur, grille en dernier recours) + **VCB au drag** (cote vive dans la boîte de mesure, Entrée valide, Échap annule) — la dette « VCB du Push/Pull » (E12-08) est soldée. Restent E22-04→06. |
 | 2026-07-12 → 16 | **Refactor TypeScript clos** (PR [#34](https://github.com/LaoTseu0/3d-home-tour/pull/34) → [#46](https://github.com/LaoTseu0/3d-home-tour/pull/46)) : TS strict, arborescence par features, éclatement d'`EditObjects` (1079 → 61 l.), picking unifié (`useScenePicking`), base 100 % `.ts`/`.tsx`. Aucune nouvelle feature. |
 | 2026-07-17 | **Clôture administrative** (décision PO) : ✅ **E10-01** (absorbé par E22-05), ✅ **E12-08** (dette VCB soldée par E22-03), ✅ **E13-04** (poignées couvertes par E22-01/02). Démarrage d'**E10-02** (édition `material`/`notes`), puis **E15-04** (circuits élec). |
+| 2026-07-17 | **E10-02 livré** : matériau / notes éditables dans le panneau Info **commun** (objets importés via `setNodeMeta` — extras du node de la scène re-synchronisés, persistés au ré-export ; objets app via `setObjectMeta` — historisé zundo, embarqué par `buildAppNodeExtras`, relu au chargement). Champs non contrôlés, commit au blur ; `dims` reste auto-calculé (E2-10). |
 
 ---
 
@@ -247,7 +248,7 @@ Edit mode (E12→E16). Undo/redo et ré-export sont **validés (go)** par le PO 
 | ID | User story | Prio | Pts |
 |---|---|---|---|
 | E10-01 ✅ | En tant qu'utilisateur, je veux déplacer/tourner un objet sélectionné via TransformControls afin de corriger le modèle sans repasser par SketchUp. _(→ intégré à **E12-07**, absorbé par **E22-05** — clos en tant que story propre le 2026-07-17.)_ | M (V2) | 8 |
-| E10-02 | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` pré-rempli en V1, cf. E2-10 ; mutualisé avec l'inspector **E12-01**.)_ | S (V2) | 5 |
+| E10-02 ✅ | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` pré-rempli en V1, cf. E2-10 ; mutualisé avec l'inspector **E12-01**. Livré 2026-07-17 : matériau/notes éditables dans le panneau Info commun aux deux origines — `MetaFields`, persistés au ré-export et relus au chargement, undo/redo côté objets app ; `dims` reste auto-calculé.)_ | S (V2) | 5 |
 | E10-03 ✅ ⭐ | En tant qu'utilisateur, je veux annuler/rétablir mes modifications (undo/redo via command pattern + `zundo`) afin d'éditer sans risque. **Go.** | M (V2) | 8 |
 | E10-04 ✅ ⭐ | En tant qu'utilisateur, je veux ré-exporter le GLB modifié (via `GLTFExporter`, en conservant les `edit.params`) afin de persister mes créations sans perdre la ré-éditabilité. **Go.** | M (V2) | 8 |
 | E10-05 | En tant que dev, je veux évaluer la migration Next.js (si besoin d'hébergement partagé / API routes pour la persistence) afin de décider de l'infra V2. | C (V2) | 3 |
