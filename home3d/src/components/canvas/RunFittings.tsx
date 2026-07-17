@@ -61,7 +61,7 @@ export default function RunFittings() {
       <mesh geometry={geometry} raycast={() => null}>
         <meshStandardMaterial color={FITTING_FILL} metalness={0.1} roughness={0.7} />
       </mesh>
-      <lineSegments geometry={edges} raycast={() => null}>
+      <lineSegments geometry={edges!} raycast={() => null}>
         <lineBasicMaterial color={FITTING_EDGE} />
       </lineSegments>
     </group>

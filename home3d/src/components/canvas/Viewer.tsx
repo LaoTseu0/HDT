@@ -31,11 +31,11 @@ function useCtrlNav() {
   const [ctrlDown, setCtrlDown] = useState(false)
   const [buttonDown, setButtonDown] = useState(false)
   useEffect(() => {
-    const onKey = (event) => {
+    const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Control') setCtrlDown(event.type === 'keydown')
     }
     const onBlur = () => setCtrlDown(false)
-    const onPointer = (event) => setButtonDown(event.type === 'pointerdown')
+    const onPointer = (event: PointerEvent) => setButtonDown(event.type === 'pointerdown')
     window.addEventListener('keydown', onKey)
     window.addEventListener('keyup', onKey)
     window.addEventListener('blur', onBlur)
@@ -75,7 +75,7 @@ export default function Viewer() {
   // E6-01 : clic dans le vide → désélection. onPointerMissed se déclenche
   // aussi en fin d'orbite ; on ne désélectionne que si le pointeur n'a
   // quasiment pas bougé entre down et up (vrai clic).
-  const downPosition = useRef([0, 0])
+  const downPosition = useRef<[number, number]>([0, 0])
   const { ctrlDown, buttonDown } = useCtrlNav()
 
   return (

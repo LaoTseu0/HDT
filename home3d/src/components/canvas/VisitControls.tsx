@@ -24,7 +24,8 @@ const HAS_POINTER_LOCK =
   typeof document !== 'undefined' && 'requestPointerLock' in document.documentElement
 
 export default function VisitControls() {
-  const camera = useThree((state) => state.camera)
+  // Caméra de visite = perspective (FOV réglable) ; useThree la type en `Camera`.
+  const camera = useThree((state) => state.camera) as THREE.PerspectiveCamera
   const glb = useStore((state) => state.glb)
   const setPointerLocked = useStore((state) => state.setPointerLocked)
   // FOV de visite réglable (section Vue, E19-04) — champ plus large qu'en
@@ -78,7 +79,7 @@ export default function VisitControls() {
   // E17-03 : déplacement clavier. WASD + flèches, pris en compte tant que
   // le mode visite est monté (le verrou souris filtre l'usage réel).
   useEffect(() => {
-    const setKey = (event, value) => {
+    const setKey = (event: KeyboardEvent, value: boolean) => {
       switch (event.code) {
         case 'KeyW':
         case 'ArrowUp':
@@ -101,8 +102,8 @@ export default function VisitControls() {
       }
       event.preventDefault()
     }
-    const onKeyDown = (event) => setKey(event, true)
-    const onKeyUp = (event) => setKey(event, false)
+    const onKeyDown = (event: KeyboardEvent) => setKey(event, true)
+    const onKeyUp = (event: KeyboardEvent) => setKey(event, false)
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     return () => {

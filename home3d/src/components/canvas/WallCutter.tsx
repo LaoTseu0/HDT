@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from 'react'
+import * as THREE from 'three'
 import useStore from '../../store/useStore.js'
 import { isOpeningKind } from '@/features/openings/opening'
+import type { AppObject } from '@/types'
 import {
   openingCutBox,
   cutWallGeometry,
@@ -25,13 +27,13 @@ export default function WallCutter() {
 
   // Ouvertures groupées par mur référencé (plane.faceOf).
   const openingsByWall = useMemo(() => {
-    const map = new Map()
+    const map = new Map<string, AppObject[]>()
     for (const obj of Object.values(objects)) {
       if (!isOpeningKind(obj.kind)) continue // fenêtre OU porte (E14-07)
       const wall = obj.plane?.faceOf
       if (!wall) continue // mur non référencé → pas de découpe (E14-01)
       if (!map.has(wall)) map.set(wall, [])
-      map.get(wall).push(obj)
+      map.get(wall)!.push(obj)
     }
     return map
   }, [objects])
@@ -43,7 +45,10 @@ export default function WallCutter() {
       JSON.stringify(
         [...openingsByWall].map(([wall, ops]) => [
           wall,
-          ops.map((o) => [o.id, o.params.largeur_m, o.params.hauteur_m, o.plane.origin]),
+          ops.map((o) => {
+            const p = o.params as unknown as Record<string, unknown>
+            return [o.id, p.largeur_m, p.hauteur_m, o.plane?.origin]
+          }),
         ])
       ),
     [openingsByWall]
@@ -54,13 +59,13 @@ export default function WallCutter() {
     if (!scene) return
     restoreAll() // repartir du mur plein pour tous les murs déjà percés
 
-    const fallback = []
+    const fallback: string[] = []
     for (const [wallName, ops] of openingsByWall) {
       const node = scene.getObjectByName(wallName)
       if (!node) continue // mur absent au rechargement → dégradation propre
-      const boxes = ops.map(openingCutBox)
+      const boxes = ops.map((o) => openingCutBox(o as Parameters<typeof openingCutBox>[0]))
       node.traverse((mesh) => {
-        if (!mesh.isMesh) return
+        if (!(mesh instanceof THREE.Mesh)) return
         const orig = markPristine(mesh)
         mesh.updateWorldMatrix(true, false)
         try {

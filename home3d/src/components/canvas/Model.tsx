@@ -5,6 +5,7 @@ import useStore from '../../store/useStore.js'
 import { extractModelData, parseGLB, PipelineError } from '@/features/model-io/loadModel'
 import { applyAppearance, isChainVisible } from '@/features/layers/appearance'
 import useScenePicking from '@/features/edit/useScenePicking'
+import type { ThreeEvent } from '@react-three/fiber'
 
 // Rendu du GLB chargé + parse des fichiers déposés (E3-03 → E3-06),
 // sélection au clic (E6-01, E6-03), survol (E6-04) et application de
@@ -46,7 +47,7 @@ export default function Model() {
         setLoadError(
           err instanceof PipelineError
             ? err.message
-            : `GLB illisible ou corrompu : ${err.message ?? err}`
+            : `GLB illisible ou corrompu : ${err instanceof Error ? err.message : err}`
         )
       }
     })()
@@ -70,8 +71,9 @@ export default function Model() {
       center.y + radius * 0.75,
       center.z + radius * 0.9
     )
-    controls.target.copy(center)
-    controls.update()
+    const ctrl = controls as unknown as { target: THREE.Vector3; update: () => void }
+    ctrl.target.copy(center)
+    ctrl.update()
   }, [glb, controls, camera, fitRequest])
 
   // Visibilité (E3-04, E5-02), colorisation par calque (E5-04) et
@@ -99,10 +101,10 @@ export default function Model() {
   // Du mesh touché par le raycast au node porteur des extras ; les objets
   // des calques masqués sont ignorés (E6-03, valable clic et survol).
   const resolveNodeName = useCallback(
-    (intersections) => {
+    (intersections: THREE.Intersection[]) => {
       const hit = intersections.find((i) => isChainVisible(i.object))
       if (!hit) return null
-      let object = hit.object
+      let object: THREE.Object3D | null = hit.object
       while (object && !(object.name && nodes[object.name])) object = object.parent
       // Mesh hors pipeline (« non classé ») : on retombe sur son propre nom.
       return object?.name || hit.object.name || null
@@ -112,7 +114,7 @@ export default function Model() {
 
   // E6-01 : sélection par raycasting (events R3F).
   const handleClick = useCallback(
-    (event) => {
+    (event: ThreeEvent<MouseEvent>) => {
       if (event.ctrlKey) return // E21-02 : Ctrl+clic = navigation pure
       if (event.delta > 4) return // drag d'orbite, pas un clic
       const name = resolveNodeName(event.intersections)
@@ -126,7 +128,7 @@ export default function Model() {
   // E6-04 : survol. Le store ne change que si le node survolé change :
   // pas de re-render ni de re-passe `applyAppearance` à chaque mouvement.
   const handlePointerMove = useCallback(
-    (event) => {
+    (event: ThreeEvent<PointerEvent>) => {
       hoverNode(resolveNodeName(event.intersections))
     },
     [resolveNodeName, hoverNode]
