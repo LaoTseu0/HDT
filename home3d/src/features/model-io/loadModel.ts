@@ -118,6 +118,12 @@ export function extractModelData(gltf: GLTF): ModelData {
         zone: ud.zone ?? DEFAULT_ZONE,
         level: ud.level ?? DEFAULT_LEVEL,
         index: Number(ud.index) || 1,
+        // E10-02 : métadonnées descriptives relues telles quelles (absentes si
+        // jamais renseignées — l'export écrit '' par défaut).
+        ...(typeof ud.material === 'string' && ud.material
+          ? { material: ud.material }
+          : {}),
+        ...(typeof ud.notes === 'string' && ud.notes ? { notes: ud.notes } : {}),
         // Cast : `edit` porte le couple kind/params apparié par construction
         // (buildAppNodeExtras) — TS ne peut pas le re-corréler après lecture.
       } as ObjectsTable[string]

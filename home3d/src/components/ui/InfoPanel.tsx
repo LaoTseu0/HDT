@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import useStore from '@/store/useStore'
 import { nodeName, subtypeLabel } from '@/core/naming'
 import ObjectInspector from './ObjectInspector'
+import MetaFields from './MetaFields'
 import type { NodeExtras } from '@/types'
 
 // Panneau Info de l'objet sélectionné — détaché à droite (rectification PO E19,
@@ -54,6 +55,7 @@ export default function InfoPanel() {
   const nodes = useStore((state) => state.nodes)
   const layers = useStore((state) => state.layers)
   const selectNode = useStore((state) => state.selectNode)
+  const setNodeMeta = useStore((state) => state.setNodeMeta)
   const appObject = useStore((state) =>
     state.selectedNode ? state.objects[state.selectedNode] : undefined
   )
@@ -81,25 +83,36 @@ export default function InfoPanel() {
       {appObject ? (
         <ObjectInspector obj={appObject} />
       ) : extras ? (
-        <dl className="info-rows">
-          <Row
-            label="Calque"
-            value={(extras.layer && layers[extras.layer]?.label) ?? extras.layer}
-          />
-          <Row label="Type" value={formatSubtype(extras)} />
-          <Row label="Zone" value={extras.zone} />
-          <Row
-            label="Niveau"
-            value={(extras.level && LEVEL_LABELS[extras.level]) ?? extras.level}
-          />
-          <Row
-            label="Index"
-            value={extras.index != null ? String(extras.index).padStart(3, '0') : null}
-          />
-          <Row label="Dimensions" value={formatDims(extras.dims)} />
-          <Row label="Matériau" value={extras.material} />
-          <Row label="Notes" value={extras.notes} />
-        </dl>
+        <>
+          <dl className="info-rows">
+            <Row
+              label="Calque"
+              value={(extras.layer && layers[extras.layer]?.label) ?? extras.layer}
+            />
+            <Row label="Type" value={formatSubtype(extras)} />
+            <Row label="Zone" value={extras.zone} />
+            <Row
+              label="Niveau"
+              value={(extras.level && LEVEL_LABELS[extras.level]) ?? extras.level}
+            />
+            <Row
+              label="Index"
+              value={extras.index != null ? String(extras.index).padStart(3, '0') : null}
+            />
+            <Row label="Dimensions" value={formatDims(extras.dims)} />
+          </dl>
+          {/* E10-02 : matériau / notes éditables — mêmes champs que les objets
+              app (MetaFields), écrits dans les extras du node → persistés au
+              ré-export GLB. */}
+          <div className="edit-inspector">
+            <MetaFields
+              key={`${selectedNode} ${extras.material ?? ''} ${extras.notes ?? ''}`}
+              material={extras.material}
+              notes={extras.notes}
+              onChange={(patch) => setNodeMeta(selectedNode, patch)}
+            />
+          </div>
+        </>
       ) : (
         <p className="info-unclassified">
           Objet sans métadonnées (calque « Non classé ») : fichier non passé par le

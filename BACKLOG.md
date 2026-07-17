@@ -86,6 +86,9 @@ priment sur la priorisation des tableaux ci-dessous.
 | 2026-07-09 | Ajout de l'**Epic E21** (navigation caméra sous Ctrl sur PC, avec verrou d'action) et de l'**Epic E22** (poignées de manipulation directe : déformation paramétrique par poignées d'accroche, réemploi du moteur Push/Pull ; absorbe **E12-07** et la partie poignées d'**E13-04**). Ordre : E21 avant E22 (la convention Ctrl doit précéder les nouveaux handlers de poignées). |
 | 2026-07-11 | **E22-01 et E22-02 livrés** : moteur « drag sur axe connu » extrait du Push/Pull (`lib/useAxisDrag`, consommé sans régression), poignées de déformation du **rectangle** (6 faces en solide, 5 en plat) et du **cercle** (4 radiales centre fixe + hauteur) via `deformHandles` du registre + composant `DeformHandles` (taille écran constante, couleurs d'axe, verrou Ctrl E21-02). Restent E22-03→06. |
 | 2026-07-11 | **E22-03 livré** : accroche pendant le drag d'une poignée / du Push/Pull (références du modèle et des autres objets app projetées sur l'axe du drag, marqueur, grille en dernier recours) + **VCB au drag** (cote vive dans la boîte de mesure, Entrée valide, Échap annule) — la dette « VCB du Push/Pull » (E12-08) est soldée. Restent E22-04→06. |
+| 2026-07-12 → 16 | **Refactor TypeScript clos** (PR [#34](https://github.com/LaoTseu0/3d-home-tour/pull/34) → [#46](https://github.com/LaoTseu0/3d-home-tour/pull/46)) : TS strict, arborescence par features, éclatement d'`EditObjects` (1079 → 61 l.), picking unifié (`useScenePicking`), base 100 % `.ts`/`.tsx`. Aucune nouvelle feature. |
+| 2026-07-17 | **Clôture administrative** (décision PO) : ✅ **E10-01** (absorbé par E22-05), ✅ **E12-08** (dette VCB soldée par E22-03), ✅ **E13-04** (poignées couvertes par E22-01/02). Démarrage d'**E10-02** (édition `material`/`notes`), puis **E15-04** (circuits élec). |
+| 2026-07-17 | **E10-02 livré** : matériau / notes éditables dans le panneau Info **commun** (objets importés via `setNodeMeta` — extras du node de la scène re-synchronisés, persistés au ré-export ; objets app via `setObjectMeta` — historisé zundo, embarqué par `buildAppNodeExtras`, relu au chargement). Champs non contrôlés, commit au blur ; `dims` reste auto-calculé (E2-10). |
 
 ---
 
@@ -244,8 +247,8 @@ Edit mode (E12→E16). Undo/redo et ré-export sont **validés (go)** par le PO 
 
 | ID | User story | Prio | Pts |
 |---|---|---|---|
-| E10-01 | En tant qu'utilisateur, je veux déplacer/tourner un objet sélectionné via TransformControls afin de corriger le modèle sans repasser par SketchUp. _(→ intégré à **E12-07**.)_ | M (V2) | 8 |
-| E10-02 | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` pré-rempli en V1, cf. E2-10 ; mutualisé avec l'inspector **E12-01**.)_ | S (V2) | 5 |
+| E10-01 ✅ | En tant qu'utilisateur, je veux déplacer/tourner un objet sélectionné via TransformControls afin de corriger le modèle sans repasser par SketchUp. _(→ intégré à **E12-07**, absorbé par **E22-05** — clos en tant que story propre le 2026-07-17.)_ | M (V2) | 8 |
+| E10-02 ✅ | En tant qu'utilisateur, je veux éditer les champs `dims`, `material`, `notes` d'un objet afin d'enrichir les métadonnées in-app. _(`dims` pré-rempli en V1, cf. E2-10 ; mutualisé avec l'inspector **E12-01**. Livré 2026-07-17 : matériau/notes éditables dans le panneau Info commun aux deux origines — `MetaFields`, persistés au ré-export et relus au chargement, undo/redo côté objets app ; `dims` reste auto-calculé.)_ | S (V2) | 5 |
 | E10-03 ✅ ⭐ | En tant qu'utilisateur, je veux annuler/rétablir mes modifications (undo/redo via command pattern + `zundo`) afin d'éditer sans risque. **Go.** | M (V2) | 8 |
 | E10-04 ✅ ⭐ | En tant qu'utilisateur, je veux ré-exporter le GLB modifié (via `GLTFExporter`, en conservant les `edit.params`) afin de persister mes créations sans perdre la ré-éditabilité. **Go.** | M (V2) | 8 |
 | E10-05 | En tant que dev, je veux évaluer la migration Next.js (si besoin d'hébergement partagé / API routes pour la persistence) afin de décider de l'infra V2. | C (V2) | 3 |
@@ -278,7 +281,7 @@ Directives IHM et « paradigme SketchUp contextuel » : voir **Directives produi
 | E12-05 ✅ | En tant que dev, je veux un modèle paramétrique afin que les objets créés soient ré-éditables après rechargement. | `extras.edit { kind, plane, params, variant }` ; registre `kind→générateur` ; géométrie **régénérée au chargement** depuis les params ; `dims` recalculés (cohérent E2-10). | M | 8 |
 | E12-06 ✅ | En tant que dev, je veux des node names auto-générés conformes afin de garder le contrat de nommage sans plugin SketchUp. | Nom `système__type__zone__niveau__index` ; index auto-incrémenté par (système, zone, niveau) ; zone choisie dans l'inspector (zone courante par défaut) ; passe la regex de validation. | M | 5 |
 | E12-07 → E22 | En tant qu'utilisateur, je veux déplacer/tourner/redimensionner un objet par manipulation directe. | `TransformControls` (déplacer/tourner) + poignées de redimensionnement paramétrique ; respecte le snapping et l'undo/redo. Absorbe **E10-01**. _**Déplacé (2026-07-09)** : réalisé par l'Epic **E22** (poignées E22-01→04, déplacer/tourner E22-05)._ | M | 5 |
-| E12-08 | En tant qu'utilisateur, je veux donner du volume à une forme 2D avec **Push/Pull** afin de créer un solide sans repasser par SketchUp. | Cliquer une face plane → tirer le long de sa **normale** → extrusion en volume (prisme) ; profondeur calable par **inférence** (E12-03) ou **saisie clavier** (E12-04) ; résultat **paramétrique** (hauteur d'extrusion dans `params`, régénérée au chargement, E12-05) ; undo/redo. _(Ajouté 2026-06-24, directive « façon SketchUp ». Livré sauf la saisie VCB de la profondeur d'extrusion.)_ | M | 5 |
+| E12-08 ✅ | En tant qu'utilisateur, je veux donner du volume à une forme 2D avec **Push/Pull** afin de créer un solide sans repasser par SketchUp. | Cliquer une face plane → tirer le long de sa **normale** → extrusion en volume (prisme) ; profondeur calable par **inférence** (E12-03) ou **saisie clavier** (E12-04) ; résultat **paramétrique** (hauteur d'extrusion dans `params`, régénérée au chargement, E12-05) ; undo/redo. _(Ajouté 2026-06-24, directive « façon SketchUp ». La saisie VCB de la profondeur d'extrusion, dernière dette, est soldée par **E22-03** — clos le 2026-07-17.)_ | M | 5 |
 
 ---
 
@@ -292,7 +295,7 @@ Premier livrable d'Edit mode, **sans booléen**.
 | E13-01 ✅ | En tant qu'utilisateur, je veux dessiner un rectangle paramétrique afin de poser une forme de base. | Tracé 2 coins (ou centre + coin) sur le plan actif ; paramétrique ; snapping actif. | M | 3 |
 | E13-02 ✅ | En tant qu'utilisateur, je veux dessiner un cercle paramétrique. | Centre + rayon ; saisie numérique du rayon possible (E12-04). | M | 2 |
 | E13-03 ✅ | En tant qu'utilisateur, je veux dessiner un arc de cercle paramétrique. | 3 points (ou centre + début + fin) ; paramétrique. | M | 3 |
-| E13-04 | En tant qu'utilisateur, je veux éditer les paramètres d'une primitive afin de l'ajuster après coup. | Sélection → inspector affiche/édite les cotes ; poignées de redimensionnement ; undo/redo ; **survit au rechargement** (E12-05). _Livré sauf les **poignées de redimensionnement**, déplacées vers l'Epic **E22** (2026-07-09)._ | M | 3 |
+| E13-04 ✅ | En tant qu'utilisateur, je veux éditer les paramètres d'une primitive afin de l'ajuster après coup. | Sélection → inspector affiche/édite les cotes ; poignées de redimensionnement ; undo/redo ; **survit au rechargement** (E12-05). _Livré sauf les **poignées de redimensionnement**, déplacées vers l'Epic **E22** (2026-07-09) et couvertes par **E22-01/02** — clos le 2026-07-17._ | M | 3 |
 
 ---
 

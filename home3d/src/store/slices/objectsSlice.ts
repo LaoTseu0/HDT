@@ -73,6 +73,22 @@ export const createObjectsSlice: SliceCreator<ObjectsSlice> = (set) => ({
       }
     }),
 
+  // E10-02 : matériau / notes de l'objet app — métadonnées descriptives libres,
+  // embarquées dans les extras à l'export (buildAppNodeExtras) et relues au
+  // chargement. Nouvelle référence `objects` → une entrée d'historique (undo/redo).
+  setObjectMeta: (id, patch) =>
+    set((state) => {
+      const obj = state.objects[id]
+      if (!obj) return state
+      const material = patch.material !== undefined ? patch.material : obj.material
+      const notes = patch.notes !== undefined ? patch.notes : obj.notes
+      // Ignorer un set no-op ('' et absent équivalents) : pas d'entrée zundo.
+      if ((obj.material ?? '') === (material ?? '') && (obj.notes ?? '') === (notes ?? '')) {
+        return state
+      }
+      return { objects: { ...state.objects, [id]: { ...obj, material, notes } } }
+    }),
+
   // E14-01 : régler l'allège (hauteur du seuil au-dessus du sol) d'une ouverture →
   // déplace `plane.origin` le long de l'axe vertical monde, en gardant la
   // hauteur/largeur.

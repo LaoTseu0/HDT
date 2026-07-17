@@ -190,8 +190,20 @@ export interface NamingFields {
   index: number
 }
 
+/**
+ * Métadonnées descriptives libres (E10-02) : saisies dans le panneau Info,
+ * embarquées dans les extras à l'export (buildAppNodeExtras) et relues au
+ * chargement. Absentes = jamais renseignées.
+ */
+export interface MetaFields {
+  material?: string
+  notes?: string
+}
+
 /** Objet app complet d'un `kind` donné. */
-export type AppObjectOf<K extends Kind> = PayloadOf<K> & NamingFields & { id: string }
+export type AppObjectOf<K extends Kind> = PayloadOf<K> &
+  NamingFields &
+  MetaFields & { id: string }
 
 /** Union discriminée de tous les objets app (narrow par `obj.kind`). */
 export type AppObject = AppObjectOf<Kind>

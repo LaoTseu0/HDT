@@ -46,6 +46,27 @@ export const createModelSlice: SliceCreator<ModelSlice> = (set) => ({
       editMode: false,
       extrude: null,
     }),
+  // E10-02 : matériau / notes d'un node IMPORTÉ. Met à jour la table `nodes`
+  // (nouvelle référence → re-render) ET ré-assigne les extras sur le node de la
+  // scène vive : l'export (clone de la scène, E10-04) écrit le userData du node,
+  // pas la table du store. Non historisé (zundo ne suit que `objects`).
+  setNodeMeta: (nodeName, patch) =>
+    set((state) => {
+      const extras = state.nodes[nodeName]
+      if (!extras) return state
+      const material = patch.material !== undefined ? patch.material : extras.material
+      const notes = patch.notes !== undefined ? patch.notes : extras.notes
+      if (
+        (extras.material ?? '') === (material ?? '') &&
+        (extras.notes ?? '') === (notes ?? '')
+      ) {
+        return state
+      }
+      const next = { ...extras, material, notes }
+      const sceneNode = state.glb?.scene.getObjectByName(nodeName)
+      if (sceneNode) sceneNode.userData = next
+      return { nodes: { ...state.nodes, [nodeName]: next } }
+    }),
   setLoadError: (message) =>
     set({ loadError: message, pendingFile: null, isLoading: false }),
   clearLoadError: () => set({ loadError: null }),

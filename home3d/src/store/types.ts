@@ -62,6 +62,7 @@ export interface ModelSlice {
     nodes: NodesTable
     objects?: ObjectsTable
   }) => void
+  setNodeMeta: (nodeName: string, patch: { material?: string; notes?: string }) => void
   setLoadError: (message: string) => void
   clearLoadError: () => void
 }
@@ -141,6 +142,7 @@ export interface ObjectsSlice {
     patch: Record<string, unknown>,
     planePatch?: Record<string, unknown>
   ) => void
+  setObjectMeta: (id: string, patch: { material?: string; notes?: string }) => void
   setOpeningAllege: (id: string, allege: number) => void
   setObjectFloorHeight: (id: string, height: number) => void
   insertValve: (pipeId: string, worldPoint: Vec3) => void

@@ -21,6 +21,7 @@ import {
 import type { PipeSectionPreset } from '@/features/mep/plumbing'
 import { pathLength } from '@/features/mep/routing'
 import { VALVE_KIND } from '@/features/mep/valve'
+import MetaFields from './MetaFields'
 import type { AppObject, Vec3 } from '@/types'
 
 // Inspector éditable de l'objet app sélectionné (E12-01/E13-04), affiché dans le
@@ -202,6 +203,7 @@ export default function ObjectInspector({ obj }: { obj: AppObject }) {
   const setOpeningAllege = useStore((state) => state.setOpeningAllege)
   const setObjectFloorHeight = useStore((state) => state.setObjectFloorHeight)
   const setObjectNaming = useStore((state) => state.setObjectNaming)
+  const setObjectMeta = useStore((state) => state.setObjectMeta)
   const deleteObject = useStore((state) => state.deleteObject)
   const metadata = useStore((state) => state.metadata)
   const csgFallbackIds = useStore((state) => state.csgFallbackIds)
@@ -435,6 +437,14 @@ export default function ObjectInspector({ obj }: { obj: AppObject }) {
           />
         </>
       )}
+      {/* E10-02 : matériau / notes — mêmes champs que les objets importés
+          (panneau Info commun) ; commit au blur → une entrée d'historique. */}
+      <MetaFields
+        key={`${obj.id} ${obj.material ?? ''} ${obj.notes ?? ''}`}
+        material={obj.material}
+        notes={obj.notes}
+        onChange={(patch) => setObjectMeta(obj.id, patch)}
+      />
       <button className="edit-delete" onClick={() => deleteObject(obj.id)}>
         Supprimer
       </button>

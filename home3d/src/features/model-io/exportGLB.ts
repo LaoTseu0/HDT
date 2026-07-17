@@ -28,8 +28,9 @@ export function buildAppNodeExtras(obj: AppObject): AppNodeExtras {
       plane: obj.plane,
       params: obj.params,
     } as AppNodeExtras['edit'],
-    material: '',
-    notes: '',
+    // E10-02 : métadonnées descriptives saisies dans le panneau Info.
+    material: obj.material ?? '',
+    notes: obj.notes ?? '',
   }
   const dims = deriveDims(obj)
   if (dims) extras.dims = dims
