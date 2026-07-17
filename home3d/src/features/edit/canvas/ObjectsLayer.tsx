@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
+import type { ThreeEvent } from '@react-three/fiber'
 import useStore from '@/store/useStore'
 import { generateObject, disposeObject } from '@/features/edit/registry'
 import { pickPushAxis } from '@/features/edit/pushpull'
@@ -10,6 +11,7 @@ import { isOpeningKind } from '@/features/openings/opening'
 import { isValvablePipe } from '@/features/mep/valve'
 import { nodeName } from '@/core/naming'
 import { joineryPayloadFromOpening, findJoinery } from '@/features/openings/joinery'
+import type { AppObject, ExtrudePreview, Vec3 } from '@/types'
 
 // Rendu + interaction des objets créés in-app (étape B du découpage d'EditObjects).
 // Concern « objets committés » : la carte objects → mesh (via le registre
@@ -18,6 +20,20 @@ import { joineryPayloadFromOpening, findJoinery } from '@/features/openings/join
 // useAxisDrag (aperçu store.extrude commun) — d'où leur cohabitation ici.
 // Vit dans le Canvas. Le tracé (SketchSurface) et les aperçus draft restent dans
 // EditObjects (concern « tracé »).
+
+interface EditObjectProps {
+  obj: AppObject
+  preview?: ExtrudePreview
+  selected: boolean
+  selectable: boolean
+  pushable: boolean
+  hostable: boolean
+  valvable: boolean
+  onSelect: (id: string) => void
+  onStartPush: (id: string, event: ThreeEvent<PointerEvent>) => void
+  onHost: (id: string) => void
+  onValve: (id: string, point: Vec3) => void
+}
 
 // Un objet app : (re)généré dès que `obj` (ou l'aperçu Push/Pull) change. `preview`
 // = patch éphémère { paramKey, value, origin } d'un Push/Pull en cours.
@@ -33,31 +49,37 @@ function EditObject({
   onStartPush,
   onHost,
   onValve,
-}) {
-  const effective = useMemo(
+}: EditObjectProps) {
+  const effective = useMemo<AppObject>(
     () =>
       preview
-        ? {
+        ? ({
             ...obj,
             params: { ...obj.params, [preview.paramKey]: preview.value },
             plane: { ...obj.plane, origin: preview.origin },
-          }
+          } as AppObject)
         : obj,
     [obj, preview]
   )
   const object3d = useMemo(() => generateObject(effective), [effective])
   // Opacité de base posée par le générateur (0.5 solide / 0.35 plat).
-  const baseOpacity =
-    Math.abs(Number(effective.params.hauteur_m) || 0) >= 0.001 ? 0.5 : 0.35
+  const params = effective.params as unknown as Record<string, unknown>
+  const baseOpacity = Math.abs(Number(params.hauteur_m) || 0) >= 0.001 ? 0.5 : 0.35
 
-  useEffect(() => () => object3d && disposeObject(object3d), [object3d])
+  useEffect(
+    () => () => {
+      if (object3d) disposeObject(object3d)
+    },
+    [object3d]
+  )
 
   useEffect(() => {
     if (!object3d) return
-    const fill = object3d.getObjectByName('__fill')
+    const fill = object3d.getObjectByName('__fill') as THREE.Mesh | undefined
     if (fill) {
-      fill.material.opacity = selected ? 0.65 : baseOpacity
-      fill.material.emissive = new THREE.Color(selected ? 0x16344f : 0x000000)
+      const mat = fill.material as THREE.MeshStandardMaterial
+      mat.opacity = selected ? 0.65 : baseOpacity
+      mat.emissive = new THREE.Color(selected ? 0x16344f : 0x000000)
     }
   }, [object3d, selected, baseOpacity])
 
@@ -68,7 +90,7 @@ function EditObject({
       object={object3d}
       onClick={
         selectable || hostable || valvable
-          ? (event) => {
+          ? (event: ThreeEvent<MouseEvent>) => {
               // E21-02 : Ctrl enfoncé = navigation caméra, aucune action objet.
               if (event.ctrlKey) return
               // Outil Menuiserie (E14-05) : cliquer une ouverture y pose le cadre.
@@ -95,7 +117,7 @@ function EditObject({
       }
       onPointerDown={
         pushable
-          ? (event) => {
+          ? (event: ThreeEvent<PointerEvent>) => {
               if (event.ctrlKey) return // E21-02 : verrou d'action sous Ctrl
               event.stopPropagation()
               onStartPush(obj.id, event)
@@ -127,7 +149,7 @@ export default function ObjectsLayer() {
   // existant (garde « un composant par ouverture »). La variante courante
   // (E14-06, sous-barre) est copiée dans les params à la pose (fenêtre
   // seulement) — modifiable ensuite par instance dans l'inspector.
-  const onHostJoinery = useCallback((objId) => {
+  const onHostJoinery = useCallback((objId: string) => {
     const state = useStore.getState()
     const opening = state.objects[objId]
     if (!isOpeningKind(opening?.kind)) return
@@ -143,7 +165,7 @@ export default function ObjectsLayer() {
 
   // Insertion d'une vanne (E16-04) : le store coupe le run en deux + crée la
   // vanne au point cliqué, en une seule entrée d'historique (cf. insertValve).
-  const onValve = useCallback((objId, point) => {
+  const onValve = useCallback((objId: string, point: Vec3) => {
     useStore.getState().insertValve(objId, point)
   }, [])
 
@@ -155,7 +177,7 @@ export default function ObjectsLayer() {
   const { startDrag, dragging } = useAxisDrag()
 
   const onStartPush = useCallback(
-    (objId, event) => {
+    (objId: string, event: ThreeEvent<PointerEvent>) => {
       const obj = useStore.getState().objects[objId]
       if (!obj) return
       // Seules les primitives d'esquisse s'extrudent : une ouverture ou un
@@ -183,7 +205,8 @@ export default function ObjectsLayer() {
   // seulement en (édition + outil Sélection), jamais en visite. Le registre
   // (deformHandles) décide quels kinds en portent (rect pour l'instant).
   // `selectable && editMode` ≡ (édition + Sélection + hors visite).
-  const selectedObj = selectable && editMode ? objects[selectedNode] : undefined
+  const selectedObj =
+    selectable && editMode && selectedNode ? objects[selectedNode] : undefined
 
   return (
     <>
